@@ -211,9 +211,8 @@ def staff_login():
         SELECT *
         FROM staff
         WHERE email = ?
-        AND password = ?
         """,
-        (staff_email, password)
+        (staff_email,)
     )
 
     staff = cursor.fetchone()
@@ -221,13 +220,20 @@ def staff_login():
     conn.close()
 
     if staff:
-        session["staff_username"] = staff[1]
-        session["staff_name"] = staff[4]
-        session["staff_role"] = staff[5]
+        stored_password_hash = staff[2]
 
-        return redirect("/staff-dashboard")
+        if check_password_hash(stored_password_hash, password):
 
-    return redirect("/shared/auth/staff_login.html?error=1")
+            session["staff_id"] = staff[0]
+            session["staff_email"] = staff[1]
+            session["staff_name"] = staff[3]
+            session["staff_role"] = staff[4]
+
+            return redirect("/staff-dashboard")
+
+    return redirect(
+        "/shared/auth/staff_login.html?error=1"
+    )
 
 # -------------------------
 # Customer Dashboard
@@ -255,7 +261,7 @@ def customer_dashboard():
 @app.route("/staff-dashboard")
 def staff_dashboard():
 
-    if "staff_username" not in session:
+    if "staff_email" not in session:
         return redirect("/shared/auth/staff_login.html")
 
     return render_template(

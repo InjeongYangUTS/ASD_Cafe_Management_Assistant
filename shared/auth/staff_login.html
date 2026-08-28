@@ -66,7 +66,7 @@
 
                     <p
                         id="error-message"
-                        class="error-message"
+                        style="display: none; color: red; font-size: 18px; margin-top: 10px;"
                     >
                         <strong>Error:</strong>
                         Incorrect Email or Password
@@ -96,19 +96,12 @@
     </main>
 
     <script>
-
-        const params =
-            new URLSearchParams(
-                window.location.search
-            );
+        const params = new URLSearchParams(window.location.search);
+        const errorMessage = document.getElementById("error-message");
 
         if (params.get("error") === "1") {
-
-            document
-                .getElementById("error-message")
-                .style.display = "block";
+            errorMessage.style.display = "block";
         }
-
     </script>
 
 </body>

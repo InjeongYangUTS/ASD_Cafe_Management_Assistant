@@ -36,9 +36,10 @@
                     <label for="customer-email">Email</label>
 
                     <input
-                        type="text"
+                        type="email"
                         id="customer-email"
-                        name="customer_email"
+                        name="customer_email",
+                        placeholder="Enter your email"
                         required
                     >
                 </div>
@@ -54,7 +55,8 @@
                         required
                     >
 
-                    <p id="error-message" class="error-message">
+                    <p id="error-message"
+                        style="display: none; color: red; font-size: 18px; margin-top: 10px;">
                         <strong>Error:</strong> Incorrect Email or Password
                     </p>
                 </div>
@@ -77,6 +79,15 @@
         </div>
 
     </main>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const errorMessage = document.getElementById("error-message");
+
+        if (params.get("error") === "1") {
+            errorMessage.style.display = "block";
+        }
+    </script>    
 
 </body>
 
