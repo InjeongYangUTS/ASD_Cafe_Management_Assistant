@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Customer Register</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: white;
+        }
+
+        .register-container {
+            width: 85%;
+            margin: 80px auto;
+        }
+
+        .register-container h1 {
+            font-size: 42px;
+            margin-bottom: 70px;
+        }
+
+        .register-form {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            column-gap: 130px;
+        }
+
+        .form-column {
+            display: flex;
+            flex-direction: column;
+            gap: 45px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+
+        .form-group input {
+            width: 100%;
+            height: 70px;
+
+            border: none;
+            background-color: #e8e8e8;
+
+            font-size: 24px;
+            padding: 10px 15px;
+        }
+
+        .register-button {
+            width: 100%;
+            height: 90px;
+
+            margin-top: 45px;
+
+            border: none;
+            border-radius: 28px;
+
+            background-color: #3967b4;
+            color: white;
+
+            font-size: 30px;
+            font-weight: bold;
+
+            cursor: pointer;
+        }
+
+        .register-button:hover {
+            background-color: #315a9e;
+        }
+    </style>
+</head>
+
+<body>
+
+    <main class="register-container">
+
+        <h1>Customer Register</h1>
+
+        <form class="register-form" method="POST" action="/customer-register">
+
+            <!-- Left column -->
+            <div class="form-column">
+
+                <div class="form-group">
+                    <label for="full-name">Full name</label>
+
+                    <input
+                        type="text"
+                        id="full-name"
+                        name="full_name"
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="email">Email</label>
+
+                    <input
+                        type="email"
+                        id="email"
+                        name="customer_email"
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="phone-number">Phone number</label>
+
+                    <input
+                        type="tel"
+                        id="phone-number"
+                        name="phone_number"
+                        required
+                    >
+                </div>
+
+            </div>
+
+
+            <!-- Right column -->
+            <div class="form-column">
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+
+                    <input
+                        type="password"
+                        id="password"
+                        name="password"
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="confirm-password">
+                        Confirm password
+                    </label>
+
+                    <input
+                        type="password"
+                        id="confirm-password"
+                        name="confirm_password"
+                        required
+                    >
+                </div>
+
+                <button
+                    type="submit"
+                    class="register-button"
+                >
+                    Register
+                </button>
+
+            </div>
+
+        </form>
+
+    </main>
+
+</body>
+
+</html>
