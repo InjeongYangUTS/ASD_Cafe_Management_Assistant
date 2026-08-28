@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Staff / Admin Register | Cafe Management Assistant</title>
+
+    <link rel="stylesheet" href="/shared/css/style.css">
+</head>
+
+<body>
+
+    <main class="auth-container">
+
+        <div class="auth-card">
+
+            <img
+                src="/shared/assets/icons/staff.svg"
+                alt="Staff / Admin"
+                class="auth-icon"
+            >
+
+            <header class="auth-header">
+                <h1>Staff / Admin Registration</h1>
+                <p>Create a staff or admin account.</p>
+            </header>
+
+            <form action="/staff-register" method="POST" class="auth-form">
+
+                <h2>Register</h2>
+
+                <div class="form-group">
+                    <label for="name">Name:</label>
+
+                    <input
+                        type="text"
+                        id="name"
+                        name="name"
+                        placeholder="Enter your name"
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="username">Username:</label>
+
+                    <input
+                        type="text"
+                        id="username"
+                        name="username"
+                        placeholder="Choose a username"
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="email">Email:</label>
+
+                    <input
+                        type="email"
+                        id="email"
+                        name="email"
+                        placeholder="Enter your email"
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="role">Role:</label>
+
+                    <select
+                        id="role"
+                        name="role"
+                        required
+                    >
+                        <option value="">Select role</option>
+                        <option value="staff">Staff</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password:</label>
+
+                    <input
+                        type="password"
+                        id="password"
+                        name="password"
+                        placeholder="Create a password"
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="confirm_password">Confirm Password:</label>
+
+                    <input
+                        type="password"
+                        id="confirm_password"
+                        name="confirm_password"
+                        placeholder="Confirm your password"
+                        required
+                    >
+                </div>
+
+                <button type="submit" class="auth-button">
+                    Register
+                </button>
+
+            </form>
+
+            <p class="auth-link">
+                Already have an account?
+                <a href="/shared/auth/staff_login.html">Login</a>
+            </p>
+
+            <p class="back-link">
+                <a href="/">← Back to Home</a>
+            </p>
+
+        </div>
+
+    </main>
+
+</body>
+
+</html>
