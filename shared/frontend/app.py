@@ -60,7 +60,10 @@ def customer_dashboard():
     if "customer_id" not in session:
         return redirect("/shared/auth/customer_login.html")
 
-    return f"Welcome, {session['customer_id']}!"
+    return render_template(
+        "customer_dashboard.html",
+        customer_id=session["customer_id"]
+    )
 
 
 if __name__ == "__main__":
