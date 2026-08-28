@@ -1,61 +1,72 @@
 import sqlite3
 import os
+from werkzeug.security import generate_password_hash
+
+
+BASE_DIR = os.path.dirname(__file__)
 
 DB_PATH = os.path.join(
-    os.path.dirname(__file__),
+    BASE_DIR,
     "users.db"
 )
+
+SCHEMA_PATH = os.path.join(
+    BASE_DIR,
+    "schema.sql"
+)
+
 
 conn = sqlite3.connect(DB_PATH)
 cursor = conn.cursor()
 
-#Customers table
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS customers (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT UNIQUE NOT NULL,
-    email TEXT UNIQUE NOT NULL,
-    password TEXT NOT NULL,
-    name TEXT NOT NULL
+
+# Create tables using schema.sql
+with open(SCHEMA_PATH, "r") as schema_file:
+    cursor.executescript(schema_file.read())
+
+
+# -------------------------
+# Test Customer
+# -------------------------
+
+customer_password_hash = generate_password_hash("customer123")
+
+cursor.execute(
+    """
+    INSERT OR IGNORE INTO customers
+    (full_name, email, phone_number, password_hash)
+    VALUES (?, ?, ?, ?)
+    """,
+    (
+        "Test Customer",
+        "customer@test.com",
+        "0400000000",
+        customer_password_hash
+    )
 )
-""")
 
-#Staff table
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS staff (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT UNIQUE NOT NULL,
-    email TEXT UNIQUE NOT NULL,
-    password TEXT NOT NULL,
-    name TEXT NOT NULL,
-    role TEXT NOT NULL
+
+# -------------------------
+# Test Staff / Admin
+# -------------------------
+
+staff_password_hash = generate_password_hash("staff123")
+
+cursor.execute(
+    """
+    INSERT OR IGNORE INTO staff
+    (username, email, password_hash, name, role)
+    VALUES (?, ?, ?, ?, ?)
+    """,
+    (
+        "teststaff",
+        "staff@test.com",
+        staff_password_hash,
+        "Test Staff",
+        "staff"
+    )
 )
-""")
 
-#Test customer
-cursor.execute("""
-INSERT OR IGNORE INTO customers
-(username, email, password, name)
-VALUES (?, ?, ?, ?)
-""", (
-    "testcustomer",
-    "customer@test.com",
-    "customer123",
-    "Test Customer"
-))
-
-#Test staff/admin user
-cursor.execute("""
-INSERT OR IGNORE INTO staff
-(username, email, password, name, role)
-VALUES (?, ?, ?, ?, ?)
-""", (
-    "teststaff",
-    "staff@test.com",
-    "staff123",
-    "Test Staff",
-    "admin"
-))
 
 conn.commit()
 conn.close()

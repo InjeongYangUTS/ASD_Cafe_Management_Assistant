@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, redirect, session
+from werkzeug.security import generate_password_hash, check_password_hash
 import sqlite3
 import os
 
@@ -25,41 +26,181 @@ def home():
     return render_template("index.html")
 
 
-@app.route("/customer-login", methods=["POST"])
-def customer_login():
+# -------------------------
+# Customer Registration
+# -------------------------
 
-    login_value = request.form.get("login")
+@app.route("/customer-register", methods=["POST"])
+def customer_register():
+
+    full_name = request.form.get("full_name")
+    customer_email = request.form.get("customer_email")
+    phone_number = request.form.get("phone_number")
     password = request.form.get("password")
+    confirm_password = request.form.get("confirm_password")
+
+
+    # Check whether passwords match
+    if password != confirm_password:
+        return redirect(
+            "/shared/auth/customer_register.html?error=password"
+        )
+
+
+    # Convert password to hash
+    password_hash = generate_password_hash(password)
+
 
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
+
+
+    try:
+        cursor.execute(
+            """
+            INSERT INTO customers
+            (full_name, email, phone_number, password_hash)
+            VALUES (?, ?, ?, ?)
+            """,
+            (
+                full_name,
+                customer_email,
+                phone_number,
+                password_hash
+            )
+        )
+
+        conn.commit()
+
+    except sqlite3.IntegrityError:
+
+        conn.close()
+
+        return redirect(
+            "/shared/auth/customer_login.html"
+        )
+
+
+    conn.close()
+
+
+    return redirect(
+        "/shared/auth/customer_login.html?registered=1"
+    )
+
+# ------------------------------
+# Staff / Admin Registeration
+# ------------------------------
+
+@app.route("/staff-register", methods=["POST"])
+def staff_register():
+
+    name = request.form.get("name")
+    username = request.form.get("username")
+    email = request.form.get("email")
+    password = request.form.get("password")
+    confirm_password = request.form.get("confirm_password")
+
+    # Check whether passwords match
+    if password != confirm_password:
+        return redirect(
+            "/shared/auth/staff_register.html?error=password"
+        )
+
+    # Hash password before saving
+    password_hash = generate_password_hash(password)
+
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute(
+            """
+            INSERT INTO staff
+            (username, email, password_hash, name, role)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                username,
+                email,
+                password_hash,
+                name,
+                "staff"
+            )
+        )
+
+        conn.commit()
+
+    except sqlite3.IntegrityError:
+
+        conn.close()
+
+        return redirect(
+            "/shared/auth/staff_register.html?error=exists"
+        )
+
+    conn.close()
+
+    return redirect(
+        "/shared/auth/staff_login.html?registered=1"
+    )
+
+# -------------------------
+# Customer Login
+# -------------------------
+
+@app.route("/customer-login", methods=["POST"])
+def customer_login():
+
+    customer_email = request.form.get("customer_email")
+    password = request.form.get("password")
+
+
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
 
     cursor.execute(
         """
         SELECT *
         FROM customers
-        WHERE (username = ? OR email = ?)
-        AND password = ?
+        WHERE email = ?
         """,
-        (login_value, login_value, password)
+        (customer_email,)
     )
+
 
     customer = cursor.fetchone()
 
+
     conn.close()
 
+
     if customer:
-        session["customer_username"] = customer[1]
-        session["customer_name"] = customer[4]
 
-        return redirect("/customer-dashboard")
+        password_hash = customer[4]
 
-    return redirect("/shared/auth/customer_login.html?error=1")
+        if check_password_hash(password_hash, password):
+
+            session["customer_id"] = customer[0]
+            session["customer_email"] = customer_email
+
+            return redirect("/customer-dashboard")
+
+
+    return redirect(
+        "/shared/auth/customer_login.html?error=1"
+    )
+
+
+# -------------------------
+# Staff / Admin Login
+# -------------------------
 
 @app.route("/staff-login", methods=["POST"])
 def staff_login():
 
-    login_value = request.form.get("login")
+    staff_email = request.form.get("staff_email")
     password = request.form.get("password")
 
     conn = sqlite3.connect(DB_PATH)
@@ -69,10 +210,10 @@ def staff_login():
         """
         SELECT *
         FROM staff
-        WHERE (username = ? OR email = ?)
+        WHERE email = ?
         AND password = ?
         """,
-        (login_value, login_value, password)
+        (staff_email, password)
     )
 
     staff = cursor.fetchone()
@@ -88,16 +229,28 @@ def staff_login():
 
     return redirect("/shared/auth/staff_login.html?error=1")
 
+# -------------------------
+# Customer Dashboard
+# -------------------------
+
 @app.route("/customer-dashboard")
 def customer_dashboard():
 
-    if "customer_username" not in session:
-        return redirect("/shared/auth/customer_login.html")
+    if "customer_id" not in session:
+
+        return redirect(
+            "/shared/auth/customer_login.html"
+        )
+
 
     return render_template(
         "customer_dashboard.html",
-        customer_name=session["customer_name"]
+        customer_email=session["customer_email"]
     )
+
+# -------------------------
+# Staff / Admin Dashboard
+# -------------------------
 
 @app.route("/staff-dashboard")
 def staff_dashboard():

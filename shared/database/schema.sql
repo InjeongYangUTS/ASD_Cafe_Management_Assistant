@@ -1,16 +1,16 @@
 CREATE TABLE IF NOT EXISTS customers (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT UNIQUE NOT NULL,
+    full_name TEXT NOT NULL,
     email TEXT UNIQUE NOT NULL,
-    password TEXT NOT NULL,
-    name TEXT NOT NULL
+    phone_number TEXT NOT NULL,
+    password_hash TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS staff (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT UNIQUE NOT NULL,
     email TEXT UNIQUE NOT NULL,
-    password TEXT NOT NULL,
+    password_hash TEXT NOT NULL,
     name TEXT NOT NULL,
     role TEXT NOT NULL
 );
