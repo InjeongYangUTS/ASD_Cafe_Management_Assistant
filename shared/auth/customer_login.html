@@ -23,6 +23,10 @@
                 <p>Welcome back! Please sign in to continue.</p>
             </header>
 
+            <p id="success-message" style="display: none; color: #2e7d32; font-size: 16px; margin: -20px 0 20px;">
+                <strong>Success:</strong> Account created! Please log in.
+            </p>
+
             <form action="/customer-login" method="POST" class="auth-form">
 
                 <h2>Sign In</h2>
@@ -65,9 +69,14 @@
     <script>
         const params = new URLSearchParams(window.location.search);
         const errorMessage = document.getElementById("error-message");
+        const successMessage = document.getElementById("success-message");
 
         if (params.get("error") === "1") {
             errorMessage.style.display = "block";
+        }
+
+        if (params.get("registered") === "1") {
+            successMessage.style.display = "block";
         }
     </script>
 

@@ -33,12 +33,11 @@ def home():
 @app.route("/customer-register", methods=["POST"])
 def customer_register():
 
-    full_name = request.form.get("full_name")
-    customer_email = request.form.get("customer_email")
-    phone_number = request.form.get("phone_number")
+    name = request.form.get("name")
+    username = request.form.get("username")
+    email = request.form.get("email")
     password = request.form.get("password")
     confirm_password = request.form.get("confirm_password")
-
 
     # Check whether passwords match
     if password != confirm_password:
@@ -46,50 +45,42 @@ def customer_register():
             "/shared/auth/customer_register.html?error=password"
         )
 
-
     # Convert password to hash
     password_hash = generate_password_hash(password)
 
-
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-
 
     try:
         cursor.execute(
             """
             INSERT INTO customers
-            (full_name, email, phone_number, password_hash)
+            (name, username, email, password_hash)
             VALUES (?, ?, ?, ?)
             """,
             (
-                full_name,
-                customer_email,
-                phone_number,
+                name,
+                username,
+                email,
                 password_hash
             )
         )
-
         conn.commit()
 
     except sqlite3.IntegrityError:
-
         conn.close()
-
         return redirect(
-            "/shared/auth/customer_login.html"
+            "/shared/auth/customer_register.html?error=exists"
         )
 
-
     conn.close()
-
 
     return redirect(
         "/shared/auth/customer_login.html?registered=1"
     )
 
 # ------------------------------
-# Staff / Admin Registeration
+# Staff / Admin Registration
 # ------------------------------
 
 @app.route("/staff-register", methods=["POST"])
@@ -98,6 +89,7 @@ def staff_register():
     name = request.form.get("name")
     username = request.form.get("username")
     email = request.form.get("email")
+    role = request.form.get("role", "staff")
     password = request.form.get("password")
     confirm_password = request.form.get("confirm_password")
 
@@ -117,24 +109,21 @@ def staff_register():
         cursor.execute(
             """
             INSERT INTO staff
-            (username, email, password_hash, name, role)
+            (name, username, email, password_hash, role)
             VALUES (?, ?, ?, ?, ?)
             """,
             (
+                name,
                 username,
                 email,
                 password_hash,
-                name,
-                "staff"
+                role
             )
         )
-
         conn.commit()
 
     except sqlite3.IntegrityError:
-
         conn.close()
-
         return redirect(
             "/shared/auth/staff_register.html?error=exists"
         )
@@ -152,41 +141,33 @@ def staff_register():
 @app.route("/customer-login", methods=["POST"])
 def customer_login():
 
-    customer_email = request.form.get("customer_email")
+    email = request.form.get("email")
     password = request.form.get("password")
-
 
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
-
     cursor.execute(
         """
-        SELECT *
+        SELECT id, name, username, email, password_hash
         FROM customers
         WHERE email = ?
         """,
-        (customer_email,)
+        (email,)
     )
 
-
     customer = cursor.fetchone()
-
-
     conn.close()
 
-
     if customer:
+        stored_password_hash = customer[4]
 
-        password_hash = customer[4]
-
-        if check_password_hash(password_hash, password):
-
+        if check_password_hash(stored_password_hash, password):
             session["customer_id"] = customer[0]
-            session["customer_email"] = customer_email
+            session["customer_name"] = customer[1]
+            session["customer_email"] = customer[3]
 
             return redirect("/customer-dashboard")
-
 
     return redirect(
         "/shared/auth/customer_login.html?error=1"
@@ -200,7 +181,7 @@ def customer_login():
 @app.route("/staff-login", methods=["POST"])
 def staff_login():
 
-    staff_email = request.form.get("staff_email")
+    email = request.form.get("email")
     password = request.form.get("password")
 
     conn = sqlite3.connect(DB_PATH)
@@ -208,26 +189,24 @@ def staff_login():
 
     cursor.execute(
         """
-        SELECT *
+        SELECT id, name, username, email, password_hash, role
         FROM staff
         WHERE email = ?
         """,
-        (staff_email,)
+        (email,)
     )
 
     staff = cursor.fetchone()
-
     conn.close()
 
     if staff:
-        stored_password_hash = staff[2]
+        stored_password_hash = staff[4]
 
         if check_password_hash(stored_password_hash, password):
-
             session["staff_id"] = staff[0]
-            session["staff_email"] = staff[1]
-            session["staff_name"] = staff[3]
-            session["staff_role"] = staff[4]
+            session["staff_name"] = staff[1]
+            session["staff_email"] = staff[3]
+            session["staff_role"] = staff[5]
 
             return redirect("/staff-dashboard")
 
@@ -243,15 +222,13 @@ def staff_login():
 def customer_dashboard():
 
     if "customer_id" not in session:
-
         return redirect(
             "/shared/auth/customer_login.html"
         )
 
-
     return render_template(
         "customer_dashboard.html",
-        customer_email=session["customer_email"]
+        customer_email=session.get("customer_email")
     )
 
 # -------------------------
@@ -261,13 +238,13 @@ def customer_dashboard():
 @app.route("/staff-dashboard")
 def staff_dashboard():
 
-    if "staff_email" not in session:
+    if "staff_id" not in session:
         return redirect("/shared/auth/staff_login.html")
 
     return render_template(
         "staff_dashboard.html",
-        staff_name=session["staff_name"],
-        staff_role=session["staff_role"]
+        staff_name=session.get("staff_name"),
+        staff_role=session.get("staff_role")
     )
 
 if __name__ == "__main__":

@@ -34,13 +34,13 @@ customer_password_hash = generate_password_hash("customer123")
 cursor.execute(
     """
     INSERT OR IGNORE INTO customers
-    (full_name, email, phone_number, password_hash)
+    (name, username, email, password_hash)
     VALUES (?, ?, ?, ?)
     """,
     (
         "Test Customer",
+        "testcustomer",
         "customer@test.com",
-        "0400000000",
         customer_password_hash
     )
 )
