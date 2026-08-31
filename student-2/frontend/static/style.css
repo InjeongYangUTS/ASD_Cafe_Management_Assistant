@@ -291,6 +291,15 @@ body {
     margin-top: 18px;
 }
 
+.back-link a {
+    color: #777777;
+    text-decoration: none;
+}
+
+.back-link a:hover {
+    text-decoration: underline;
+}
+
 /* Error Message */
 
 .error-message {
@@ -414,6 +423,25 @@ body {
 /* ============================= */
 /* Management Pages              */
 /* ============================= */
+
+.management-header {
+    position: relative;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+}
+
+.management-header > div {
+    width: 100%;
+    text-align: center;
+}
+
+.management-header .secondary-button {
+    position: absolute;
+    right: 0;
+}
 
 .management-container,
 .customer-menu-container {
