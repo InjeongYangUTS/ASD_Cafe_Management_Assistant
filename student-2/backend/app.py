@@ -545,6 +545,227 @@ def delete_ingredient(ingredient_id):
     })
 
 # -----------------------------
+# GET ALL RECIPES
+# -----------------------------
+
+@app.route("/api/recipes", methods=["GET"])
+def get_recipes():
+    conn = get_db_connection()
+
+    recipes = conn.execute("""
+        SELECT
+            r.recipe_id,
+            r.menu_id,
+            r.name,
+            r.instructions,
+            m.name AS menu_name
+        FROM recipes r
+        JOIN menus m
+            ON r.menu_id = m.menu_id
+        ORDER BY r.recipe_id
+    """).fetchall()
+
+    conn.close()
+
+    return jsonify([dict(recipe) for recipe in recipes])
+
+# -----------------------------
+# GET ONE RECIPE
+# -----------------------------
+
+@app.route("/api/recipes/<int:recipe_id>", methods=["GET"])
+def get_recipe(recipe_id):
+    conn = get_db_connection()
+
+    recipe = conn.execute("""
+        SELECT
+            r.recipe_id,
+            r.menu_id,
+            r.name,
+            r.instructions,
+            m.name AS menu_name
+        FROM recipes r
+        JOIN menus m
+            ON r.menu_id = m.menu_id
+        WHERE r.recipe_id = ?
+    """, (recipe_id,)).fetchone()
+
+    conn.close()
+
+    if recipe is None:
+        return jsonify({
+            "error": "Recipe not found"
+        }), 404
+
+    return jsonify(dict(recipe))
+
+# -----------------------------
+# CREATE RECIPE
+# -----------------------------
+
+@app.route("/api/recipes", methods=["POST"])
+def create_recipe():
+    data = request.get_json()
+
+    if not data:
+        return jsonify({
+            "error": "Request body is required"
+        }), 400
+
+    menu_id = data.get("menu_id")
+    name = data.get("name")
+    instructions = data.get("instructions")
+
+    if menu_id is None or not name or not instructions:
+        return jsonify({
+            "error": "Menu ID, name and instructions are required"
+        }), 400
+
+    conn = get_db_connection()
+
+    # Check that the menu item exists
+    menu = conn.execute("""
+        SELECT menu_id
+        FROM menus
+        WHERE menu_id = ?
+    """, (menu_id,)).fetchone()
+
+    if menu is None:
+        conn.close()
+
+        return jsonify({
+            "error": "Menu item not found"
+        }), 404
+
+    cursor = conn.execute("""
+        INSERT INTO recipes
+        (menu_id, name, instructions)
+        VALUES (?, ?, ?)
+    """, (
+        menu_id,
+        name,
+        instructions
+    ))
+
+    conn.commit()
+
+    recipe_id = cursor.lastrowid
+    conn.close()
+
+    return jsonify({
+        "message": "Recipe created successfully",
+        "recipe_id": recipe_id
+    }), 201
+
+# -----------------------------
+# UPDATE RECIPE
+# -----------------------------
+
+@app.route("/api/recipes/<int:recipe_id>", methods=["PUT"])
+def update_recipe(recipe_id):
+    data = request.get_json()
+
+    if not data:
+        return jsonify({
+            "error": "Request body is required"
+        }), 400
+
+    conn = get_db_connection()
+
+    existing_recipe = conn.execute("""
+        SELECT *
+        FROM recipes
+        WHERE recipe_id = ?
+    """, (recipe_id,)).fetchone()
+
+    if existing_recipe is None:
+        conn.close()
+
+        return jsonify({
+            "error": "Recipe not found"
+        }), 404
+
+    menu_id = data.get("menu_id", existing_recipe["menu_id"])
+    name = data.get("name", existing_recipe["name"])
+    instructions = data.get(
+        "instructions",
+        existing_recipe["instructions"]
+    )
+
+    # Check that the menu item exists
+    menu = conn.execute("""
+        SELECT menu_id
+        FROM menus
+        WHERE menu_id = ?
+    """, (menu_id,)).fetchone()
+
+    if menu is None:
+        conn.close()
+
+        return jsonify({
+            "error": "Menu item not found"
+        }), 404
+
+    conn.execute("""
+        UPDATE recipes
+        SET
+            menu_id = ?,
+            name = ?,
+            instructions = ?
+        WHERE recipe_id = ?
+    """, (
+        menu_id,
+        name,
+        instructions,
+        recipe_id
+    ))
+
+    conn.commit()
+    conn.close()
+
+    return jsonify({
+        "message": "Recipe updated successfully"
+    })
+
+# -----------------------------
+# DELETE RECIPE
+# -----------------------------
+
+@app.route("/api/recipes/<int:recipe_id>", methods=["DELETE"])
+def delete_recipe(recipe_id):
+    conn = get_db_connection()
+
+    recipe = conn.execute("""
+        SELECT *
+        FROM recipes
+        WHERE recipe_id = ?
+    """, (recipe_id,)).fetchone()
+
+    if recipe is None:
+        conn.close()
+
+        return jsonify({
+            "error": "Recipe not found"
+        }), 404
+
+    conn.execute("""
+        DELETE FROM recipe_ingredients
+        WHERE recipe_id = ?
+    """, (recipe_id,))
+
+    conn.execute("""
+        DELETE FROM recipes
+        WHERE recipe_id = ?
+    """, (recipe_id,))
+
+    conn.commit()
+    conn.close()
+
+    return jsonify({
+        "message": "Recipe deleted successfully"
+    })
+
+# -----------------------------
 # TEST ROUTE
 # -----------------------------
 
