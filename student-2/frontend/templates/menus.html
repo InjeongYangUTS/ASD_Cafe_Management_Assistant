@@ -177,6 +177,7 @@
         // Backend API address
         const MENU_API = "http://localhost:5201/api/menus";
 
+        let editingMenuId = null;
 
         // --------------------------------
         // LOAD MENU ITEMS FROM BACKEND
@@ -223,6 +224,7 @@
                                 <button
                                     class="edit-button"
                                     data-id="${menu.menu_id}"
+                                    onclick="editMenu(${menu.menu_id})"
                                 >
                                     Edit
                                 </button>
@@ -260,6 +262,63 @@
         loadMenus();
 
         // --------------------------------
+        // EDIT MENU ITEM
+        // --------------------------------
+
+        async function editMenu(menuId) {
+
+            try {
+
+                const response = await fetch(`${MENU_API}/${menuId}`);
+
+                if (!response.ok) {
+                    throw new Error("Failed to load menu item");
+                }
+
+                const menu = await response.json();
+
+                // Fill the form with the existing menu details
+                document.getElementById("menu-name").value =
+                    menu.name;
+
+                document.getElementById("menu-category").value =
+                    menu.category;
+
+                document.getElementById("menu-description").value =
+                    menu.description || "";
+
+                document.getElementById("menu-price").value =
+                    menu.price;
+
+                // Remember which menu item is being edited
+                editingMenuId = menuId;
+
+                // Change button text
+                document.querySelector(
+                    "#menu-form .primary-button"
+                ).textContent = "Update Menu Item";
+
+                // Move back to the form
+                window.scrollTo({
+                    top: 0,
+                    behavior: "smooth"
+                });
+
+            }
+
+            catch (error) {
+
+                console.error(
+                    "Error loading menu item:",
+                    error
+                );
+
+                alert("Unable to load menu item.");
+
+            }
+        }
+
+        // --------------------------------
         // ADD NEW MENU ITEM
         // --------------------------------
 
@@ -292,8 +351,18 @@
 
             try {
 
-                const response = await fetch(MENU_API, {
-                    method: "POST",
+                let url = MENU_API;
+                let method = "POST";
+
+                // If editingMenuId has a value,
+                // update the existing menu instead
+                if (editingMenuId !== null) {
+                    url = `${MENU_API}/${editingMenuId}`;
+                    method = "PUT";
+                }
+
+                const response = await fetch(url, {
+                    method: method,
 
                     headers: {
                         "Content-Type": "application/json"
@@ -314,6 +383,13 @@
 
                 // Clear the form
                 menuForm.reset();
+
+                // Return form to Add mode
+                editingMenuId = null;
+
+                document.querySelector(
+                    "#menu-form .primary-button"
+                ).textContent = "Add Menu Item";
 
                 // Reload table with new database data
                 await loadMenus();
