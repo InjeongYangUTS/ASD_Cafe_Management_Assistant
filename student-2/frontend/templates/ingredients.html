@@ -133,6 +133,8 @@
 
                 </div>
 
+                <p id="ingredient-success-message" class="success-message"></p>
+
             </form>
 
         </section>
@@ -205,6 +207,20 @@
         const INGREDIENT_API =
             "http://localhost:5201/api/ingredients";
 
+        let editingIngredientId = null;
+
+        function showIngredientSuccessMessage(message) {
+
+            const successMessage =
+                document.getElementById("ingredient-success-message");
+
+            successMessage.textContent = message;
+            successMessage.style.display = "block";
+
+            setTimeout(() => {
+                successMessage.style.display = "none";
+            }, 3000);
+        }
 
         // --------------------------------
         // LOAD INGREDIENTS FROM BACKEND
@@ -265,6 +281,7 @@
                                 <button
                                     class="edit-button"
                                     data-id="${ingredient.ingredient_id}"
+                                    onclick="editIngredient(${ingredient.ingredient_id})"
                                 >
                                     Edit
                                 </button>
@@ -272,12 +289,13 @@
                                 <button
                                     class="delete-button"
                                     data-id="${ingredient.ingredient_id}"
+                                    onclick="deleteIngredient(${ingredient.ingredient_id}, '${ingredient.name.replace(/'/g, "\\'")}')"
                                 >
                                     Delete
                                 </button>
 
                             </div>
-
+                            
                         </td>
                     `;
 
@@ -301,6 +319,124 @@
 
         // Load ingredients when page opens
         loadIngredients();
+
+        // --------------------------------
+        // EDIT INGREDIENT
+        // --------------------------------
+
+        async function editIngredient(ingredientId) {
+
+            try {
+
+                const response = await fetch(
+                    `${INGREDIENT_API}/${ingredientId}`
+                );
+
+                const ingredient = await response.json();
+
+                if (!response.ok) {
+                    alert(
+                        ingredient.error ||
+                        "Failed to load ingredient"
+                    );
+                    return;
+                }
+
+                document.getElementById(
+                    "ingredient-name"
+                ).value = ingredient.name;
+
+                document.getElementById(
+                    "ingredient-unit"
+                ).value = ingredient.unit;
+
+                document.getElementById(
+                    "ingredient-cost"
+                ).value = ingredient.unit_cost;
+
+                editingIngredientId = ingredientId;
+
+                document.querySelector(
+                    "#ingredient-form .primary-button"
+                ).textContent = "Update Ingredient";
+
+                document.getElementById(
+                    "ingredient-form"
+                ).scrollIntoView({
+                    behavior: "smooth",
+                    block: "center"
+                });
+
+            } catch (error) {
+
+                console.error(
+                    "Error loading ingredient:",
+                    error
+                );
+
+                alert("Unable to load ingredient.");
+            }
+        }
+
+        // --------------------------------
+        // DELETE INGREDIENT
+        // --------------------------------
+
+        async function deleteIngredient(
+            ingredientId,
+            ingredientName
+        ) {
+
+            const confirmed = confirm(
+                `Are you sure you want to delete "${ingredientName}"?`
+            );
+
+            if (!confirmed) {
+                return;
+            }
+
+            try {
+
+                const response = await fetch(
+                    `${INGREDIENT_API}/${ingredientId}`,
+                    {
+                        method: "DELETE"
+                    }
+                );
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    alert(
+                        result.error ||
+                        "Failed to delete ingredient"
+                    );
+                    return;
+                }
+
+                await loadIngredients();
+
+                showIngredientSuccessMessage(
+                    "Ingredient deleted successfully."
+                );
+
+                document
+                    .getElementById("ingredient-success-message")
+                    .scrollIntoView({
+                        behavior: "smooth",
+                        block: "center"
+                    });
+
+            } catch (error) {
+
+                console.error(
+                    "Error deleting ingredient:",
+                    error
+                );
+
+                alert("Unable to delete ingredient.");
+            }
+        }
 
         // --------------------------------
         // ADD NEW INGREDIENT
@@ -340,20 +476,30 @@
 
                 try {
 
-                    const response =
-                        await fetch(INGREDIENT_API, {
+                    const wasEditing = editingIngredientId !== null;
 
-                            method: "POST",
+                    let url = INGREDIENT_API;
+                    let method = "POST";
+
+                    if (editingIngredientId !== null) {
+                        url = `${INGREDIENT_API}/${editingIngredientId}`;
+                        method = "PUT";
+                    }
+
+                    const response = await fetch(
+                        url,
+                        {
+                            method: method,
 
                             headers: {
-                                "Content-Type":
-                                    "application/json"
+                                "Content-Type": "application/json"
                             },
 
                             body: JSON.stringify(
                                 newIngredient
                             )
-                        });
+                        }
+                    );
 
 
                     const result =
@@ -373,7 +519,23 @@
 
                     ingredientForm.reset();
 
+                    editingIngredientId = null;
+
+                    document.querySelector(
+                        "#ingredient-form .primary-button"
+                    ).textContent = "Add Ingredient";
+
                     await loadIngredients();
+
+                    if (wasEditing) {
+                        showIngredientSuccessMessage(
+                            "Ingredient updated successfully."
+                        );
+                    } else {
+                        showIngredientSuccessMessage(
+                            "Ingredient added successfully."
+                        );
+                    }
 
                 }
 
