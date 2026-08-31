@@ -1,13 +1,345 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
-    <title>Ingredient Management</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Ingredients | Cafe Management Assistant</title>
+
+    <link rel="stylesheet" href="/static/style.css">
 </head>
+
 <body>
 
-    <h1>Ingredient Management</h1>
-    <p>Ingredients will appear here.</p>
+    <main class="management-container">
+
+        <header class="management-header">
+
+            <div>
+                <h1>Ingredients</h1>
+                <p>Manage ingredients, units and ingredient costs.</p>
+            </div>
+
+            <a href="/" class="secondary-button">
+                ← Back
+            </a>
+
+        </header>
+
+        <section class="management-section">
+
+            <div class="section-heading">
+
+                <div>
+                    <h2>Add Ingredient</h2>
+                    <p>Add ingredients used by cafe recipes.</p>
+                </div>
+
+            </div>
+
+            <form id="ingredient-form" class="management-form">
+
+                <div class="form-row">
+
+                    <div class="form-group">
+
+                        <label for="ingredient-name">Ingredient Name</label>
+
+                        <input
+                            type="text"
+                            id="ingredient-name"
+                            name="name"
+                            placeholder="e.g. Coffee Beans"
+                            required
+                        >
+
+                    </div>
+
+                    <div class="form-group">
+
+                        <label for="ingredient-unit">Unit</label>
+
+                        <select
+                            id="ingredient-unit"
+                            name="unit"
+                            required
+                        >
+
+                            <option value="">Select unit</option>
+                            <option value="g">g</option>
+                            <option value="ml">ml</option>
+                            <option value="slice">slice</option>
+                            <option value="each">each</option>
+
+                        </select>
+
+                    </div>
+
+                    <div class="form-group">
+
+                        <label for="ingredient-cost">Unit Cost ($)</label>
+
+                        <input
+                            type="number"
+                            id="ingredient-cost"
+                            name="unit_cost"
+                            min="0"
+                            step="0.001"
+                            placeholder="0.000"
+                            required
+                        >
+
+                    </div>
+
+                </div>
+
+                <div class="form-actions">
+
+                    <button type="submit" class="primary-button">
+                        Add Ingredient
+                    </button>
+
+                    <button type="reset" class="secondary-button">
+                        Clear
+                    </button>
+
+                </div>
+
+            </form>
+
+        </section>
+
+        <section class="management-section">
+
+            <div class="section-heading">
+
+                <div>
+                    <h2>Ingredient List</h2>
+                    <p>Ingredient and cost data used to calculate recipe costs.</p>
+                </div>
+
+                <input
+                    type="text"
+                    class="search-input"
+                    placeholder="Search ingredients..."
+                >
+
+            </div>
+
+            <div class="table-wrapper">
+
+                <table class="management-table">
+
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Ingredient</th>
+                            <th>Unit</th>
+                            <th>Unit Cost</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+
+                        <tr>
+                            <td>1</td>
+                            <td>Coffee Beans</td>
+                            <td>g</td>
+                            <td>$0.040</td>
+                            <td class="action-buttons">
+                                <button class="edit-button">Edit</button>
+                                <button class="delete-button">Delete</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>2</td>
+                            <td>Full Cream Milk</td>
+                            <td>ml</td>
+                            <td>$0.003</td>
+                            <td class="action-buttons">
+                                <button class="edit-button">Edit</button>
+                                <button class="delete-button">Delete</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>3</td>
+                            <td>Ice</td>
+                            <td>g</td>
+                            <td>$0.001</td>
+                            <td class="action-buttons">
+                                <button class="edit-button">Edit</button>
+                                <button class="delete-button">Delete</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>4</td>
+                            <td>Vanilla Syrup</td>
+                            <td>ml</td>
+                            <td>$0.025</td>
+                            <td class="action-buttons">
+                                <button class="edit-button">Edit</button>
+                                <button class="delete-button">Delete</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>5</td>
+                            <td>Caramel Syrup</td>
+                            <td>ml</td>
+                            <td>$0.025</td>
+                            <td class="action-buttons">
+                                <button class="edit-button">Edit</button>
+                                <button class="delete-button">Delete</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>6</td>
+                            <td>Chocolate Powder</td>
+                            <td>g</td>
+                            <td>$0.030</td>
+                            <td class="action-buttons">
+                                <button class="edit-button">Edit</button>
+                                <button class="delete-button">Delete</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>7</td>
+                            <td>Bread</td>
+                            <td>slice</td>
+                            <td>$0.500</td>
+                            <td class="action-buttons">
+                                <button class="edit-button">Edit</button>
+                                <button class="delete-button">Delete</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>8</td>
+                            <td>Chicken</td>
+                            <td>g</td>
+                            <td>$0.020</td>
+                            <td class="action-buttons">
+                                <button class="edit-button">Edit</button>
+                                <button class="delete-button">Delete</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>9</td>
+                            <td>Lettuce</td>
+                            <td>g</td>
+                            <td>$0.010</td>
+                            <td class="action-buttons">
+                                <button class="edit-button">Edit</button>
+                                <button class="delete-button">Delete</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>10</td>
+                            <td>Mayonnaise</td>
+                            <td>g</td>
+                            <td>$0.015</td>
+                            <td class="action-buttons">
+                                <button class="edit-button">Edit</button>
+                                <button class="delete-button">Delete</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>11</td>
+                            <td>Ham</td>
+                            <td>g</td>
+                            <td>$0.025</td>
+                            <td class="action-buttons">
+                                <button class="edit-button">Edit</button>
+                                <button class="delete-button">Delete</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>12</td>
+                            <td>Cheese</td>
+                            <td>g</td>
+                            <td>$0.020</td>
+                            <td class="action-buttons">
+                                <button class="edit-button">Edit</button>
+                                <button class="delete-button">Delete</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>13</td>
+                            <td>Avocado</td>
+                            <td>g</td>
+                            <td>$0.018</td>
+                            <td class="action-buttons">
+                                <button class="edit-button">Edit</button>
+                                <button class="delete-button">Delete</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>14</td>
+                            <td>Butter</td>
+                            <td>g</td>
+                            <td>$0.020</td>
+                            <td class="action-buttons">
+                                <button class="edit-button">Edit</button>
+                                <button class="delete-button">Delete</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>15</td>
+                            <td>Chocolate Cake Slice</td>
+                            <td>slice</td>
+                            <td>$3.000</td>
+                            <td class="action-buttons">
+                                <button class="edit-button">Edit</button>
+                                <button class="delete-button">Delete</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>16</td>
+                            <td>Blueberry Muffin</td>
+                            <td>each</td>
+                            <td>$2.000</td>
+                            <td class="action-buttons">
+                                <button class="edit-button">Edit</button>
+                                <button class="delete-button">Delete</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>17</td>
+                            <td>Croissant</td>
+                            <td>each</td>
+                            <td>$1.800</td>
+                            <td class="action-buttons">
+                                <button class="edit-button">Edit</button>
+                                <button class="delete-button">Delete</button>
+                            </td>
+                        </tr>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </section>
+
+    </main>
 
 </body>
+
 </html>

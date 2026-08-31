@@ -1,59 +1,336 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Menu Management</title>
+
+    <title>Menu Items | Cafe Management Assistant</title>
+
+    <link rel="stylesheet" href="/static/style.css">
 </head>
+
 <body>
 
-    <h1>Menu Management</h1>
+    <main class="management-container">
 
-    <a href="/">Home</a>
-    <a href="/recipes">Recipes</a>
-    <a href="/ingredients">Ingredients</a>
+        <header class="management-header">
+            <div>
+                <h1>Menu Items</h1>
+                <p>Manage cafe menu items and customer-facing prices.</p>
+            </div>
 
-    <hr>
+            <a href="/" class="secondary-button">
+                ← Back
+            </a>
+        </header>
 
-    <h2>Menu Items</h2>
+        <section class="management-section">
 
-    <table border="1">
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Menu Item</th>
-                <th>Category</th>
-                <th>Price</th>
-                <th>Status</th>
-            </tr>
-        </thead>
+            <div class="section-heading">
+                <div>
+                    <h2>Add Menu Item</h2>
+                    <p>Create a new item for the cafe menu.</p>
+                </div>
+            </div>
 
-        <tbody>
-            <tr>
-                <td>1</td>
-                <td>Cappuccino</td>
-                <td>Drink</td>
-                <td>$5.50</td>
-                <td>Available</td>
-            </tr>
+            <form id="menu-form" class="management-form">
 
-            <tr>
-                <td>2</td>
-                <td>Chicken Sandwich</td>
-                <td>Food</td>
-                <td>$12.00</td>
-                <td>Available</td>
-            </tr>
+                <div class="form-row">
 
-            <tr>
-                <td>3</td>
-                <td>Chocolate Cake</td>
-                <td>Dessert</td>
-                <td>$8.00</td>
-                <td>Available</td>
-            </tr>
-        </tbody>
-    </table>
+                    <div class="form-group">
+                        <label for="menu-name">Name</label>
+                        <input
+                            type="text"
+                            id="menu-name"
+                            name="name"
+                            placeholder="e.g. Cappuccino"
+                            required
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="menu-category">Category</label>
+
+                        <select
+                            id="menu-category"
+                            name="category"
+                            required
+                        >
+                            <option value="">Select category</option>
+                            <option value="Coffee">Coffee</option>
+                            <option value="Iced Coffee">Iced Coffee</option>
+                            <option value="Drink">Drink</option>
+                            <option value="Food">Food</option>
+                            <option value="Dessert">Dessert</option>
+                            <option value="Pastry">Pastry</option>
+                        </select>
+                    </div>
+
+                </div>
+
+                <div class="form-group">
+                    <label for="menu-description">Description</label>
+                    <textarea
+                        id="menu-description"
+                        name="description"
+                        rows="3"
+                        placeholder="Enter a short menu description"
+                    ></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="menu-price">Price ($)</label>
+                    <input
+                        type="number"
+                        id="menu-price"
+                        name="price"
+                        min="0"
+                        step="0.01"
+                        placeholder="0.00"
+                        required
+                    >
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="primary-button">
+                        Add Menu Item
+                    </button>
+
+                    <button type="reset" class="secondary-button">
+                        Clear
+                    </button>
+                </div>
+
+            </form>
+
+        </section>
+
+        <section class="management-section">
+
+            <div class="section-heading">
+
+                <div>
+                    <h2>Current Menu</h2>
+                    <p>Menu items available for customers to view and order.</p>
+                </div>
+
+                <input
+                    type="text"
+                    id="menu-search"
+                    class="search-input"
+                    placeholder="Search menu items..."
+                >
+
+            </div>
+
+            <div class="table-wrapper">
+
+                <table class="management-table">
+
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Menu Item</th>
+                            <th>Category</th>
+                            <th>Description</th>
+                            <th>Price</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="menu-table-body">
+
+                        <tr>
+                            <td>1</td>
+                            <td>Cappuccino</td>
+                            <td>Coffee</td>
+                            <td>Espresso with steamed milk and foam</td>
+                            <td>$5.50</td>
+                            <td class="action-buttons">
+                                <button class="edit-button">Edit</button>
+                                <button class="delete-button">Delete</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>2</td>
+                            <td>Latte</td>
+                            <td>Coffee</td>
+                            <td>Espresso with steamed milk</td>
+                            <td>$5.50</td>
+                            <td class="action-buttons">
+                                <button class="edit-button">Edit</button>
+                                <button class="delete-button">Delete</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>3</td>
+                            <td>Flat White</td>
+                            <td>Coffee</td>
+                            <td>Espresso with smooth steamed milk</td>
+                            <td>$5.50</td>
+                            <td class="action-buttons">
+                                <button class="edit-button">Edit</button>
+                                <button class="delete-button">Delete</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>4</td>
+                            <td>Long Black</td>
+                            <td>Coffee</td>
+                            <td>Espresso with hot water</td>
+                            <td>$5.00</td>
+                            <td class="action-buttons">
+                                <button class="edit-button">Edit</button>
+                                <button class="delete-button">Delete</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>5</td>
+                            <td>Iced Long Black</td>
+                            <td>Iced Coffee</td>
+                            <td>Espresso served over cold water and ice</td>
+                            <td>$5.50</td>
+                            <td class="action-buttons">
+                                <button class="edit-button">Edit</button>
+                                <button class="delete-button">Delete</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>6</td>
+                            <td>Iced Latte</td>
+                            <td>Iced Coffee</td>
+                            <td>Espresso with cold milk and ice</td>
+                            <td>$6.00</td>
+                            <td class="action-buttons">
+                                <button class="edit-button">Edit</button>
+                                <button class="delete-button">Delete</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>7</td>
+                            <td>Vanilla Latte</td>
+                            <td>Coffee</td>
+                            <td>Latte with vanilla syrup</td>
+                            <td>$6.00</td>
+                            <td class="action-buttons">
+                                <button class="edit-button">Edit</button>
+                                <button class="delete-button">Delete</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>8</td>
+                            <td>Caramel Latte</td>
+                            <td>Coffee</td>
+                            <td>Latte with caramel syrup</td>
+                            <td>$6.00</td>
+                            <td class="action-buttons">
+                                <button class="edit-button">Edit</button>
+                                <button class="delete-button">Delete</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>9</td>
+                            <td>Hot Chocolate</td>
+                            <td>Drink</td>
+                            <td>Chocolate with steamed milk</td>
+                            <td>$5.00</td>
+                            <td class="action-buttons">
+                                <button class="edit-button">Edit</button>
+                                <button class="delete-button">Delete</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>10</td>
+                            <td>Chicken Sandwich</td>
+                            <td>Food</td>
+                            <td>Chicken, lettuce and mayonnaise sandwich</td>
+                            <td>$9.50</td>
+                            <td class="action-buttons">
+                                <button class="edit-button">Edit</button>
+                                <button class="delete-button">Delete</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>11</td>
+                            <td>Ham & Cheese Toastie</td>
+                            <td>Food</td>
+                            <td>Toasted ham and cheese sandwich</td>
+                            <td>$8.50</td>
+                            <td class="action-buttons">
+                                <button class="edit-button">Edit</button>
+                                <button class="delete-button">Delete</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>12</td>
+                            <td>Avocado Toast</td>
+                            <td>Food</td>
+                            <td>Toast with avocado and seasoning</td>
+                            <td>$10.00</td>
+                            <td class="action-buttons">
+                                <button class="edit-button">Edit</button>
+                                <button class="delete-button">Delete</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>13</td>
+                            <td>Chocolate Cake</td>
+                            <td>Dessert</td>
+                            <td>Chocolate cake slice</td>
+                            <td>$7.00</td>
+                            <td class="action-buttons">
+                                <button class="edit-button">Edit</button>
+                                <button class="delete-button">Delete</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>14</td>
+                            <td>Blueberry Muffin</td>
+                            <td>Dessert</td>
+                            <td>Blueberry muffin</td>
+                            <td>$5.00</td>
+                            <td class="action-buttons">
+                                <button class="edit-button">Edit</button>
+                                <button class="delete-button">Delete</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>15</td>
+                            <td>Croissant</td>
+                            <td>Pastry</td>
+                            <td>Butter croissant</td>
+                            <td>$4.50</td>
+                            <td class="action-buttons">
+                                <button class="edit-button">Edit</button>
+                                <button class="delete-button">Delete</button>
+                            </td>
+                        </tr>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </section>
+
+    </main>
 
 </body>
+
 </html>

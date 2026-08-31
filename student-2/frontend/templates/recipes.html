@@ -1,13 +1,330 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
-    <title>Recipe Management</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Recipes | Cafe Management Assistant</title>
+
+    <link rel="stylesheet" href="/static/style.css">
 </head>
+
 <body>
 
-    <h1>Recipe Management</h1>
-    <p>Recipes will appear here.</p>
+    <main class="management-container">
+
+        <header class="management-header">
+
+            <div>
+                <h1>Recipes</h1>
+                <p>Manage recipes and ingredients used for each menu item.</p>
+            </div>
+
+            <a href="/" class="secondary-button">
+                ← Back
+            </a>
+
+        </header>
+
+        <section class="management-section">
+
+            <div class="section-heading">
+
+                <div>
+                    <h2>Add Recipe</h2>
+                    <p>Create a recipe linked to a menu item.</p>
+                </div>
+
+            </div>
+
+            <form id="recipe-form" class="management-form">
+
+                <div class="form-row">
+
+                    <div class="form-group">
+
+                        <label for="recipe-menu">Menu Item</label>
+
+                        <select id="recipe-menu" name="menu_id" required>
+
+                            <option value="">Select menu item</option>
+                            <option value="1">Cappuccino</option>
+                            <option value="2">Latte</option>
+                            <option value="3">Flat White</option>
+                            <option value="4">Long Black</option>
+                            <option value="5">Iced Long Black</option>
+                            <option value="6">Iced Latte</option>
+                            <option value="7">Vanilla Latte</option>
+                            <option value="8">Caramel Latte</option>
+                            <option value="9">Hot Chocolate</option>
+                            <option value="10">Chicken Sandwich</option>
+                            <option value="11">Ham & Cheese Toastie</option>
+                            <option value="12">Avocado Toast</option>
+                            <option value="13">Chocolate Cake</option>
+                            <option value="14">Blueberry Muffin</option>
+                            <option value="15">Croissant</option>
+
+                        </select>
+
+                    </div>
+
+                    <div class="form-group">
+
+                        <label for="recipe-name">Recipe Name</label>
+
+                        <input
+                            type="text"
+                            id="recipe-name"
+                            name="name"
+                            placeholder="e.g. Cappuccino Recipe"
+                            required
+                        >
+
+                    </div>
+
+                </div>
+
+                <div class="form-group">
+
+                    <label for="recipe-instructions">Instructions</label>
+
+                    <textarea
+                        id="recipe-instructions"
+                        name="instructions"
+                        rows="5"
+                        placeholder="Enter preparation instructions"
+                        required
+                    ></textarea>
+
+                </div>
+
+                <div class="form-actions">
+
+                    <button type="submit" class="primary-button">
+                        Add Recipe
+                    </button>
+
+                    <button type="reset" class="secondary-button">
+                        Clear
+                    </button>
+
+                </div>
+
+            </form>
+
+        </section>
+
+        <section class="management-section">
+
+            <div class="section-heading">
+
+                <div>
+                    <h2>Recipe List</h2>
+                    <p>Internal recipe information for staff and administrators.</p>
+                </div>
+
+                <input
+                    type="text"
+                    class="search-input"
+                    placeholder="Search recipes..."
+                >
+
+            </div>
+
+            <div class="table-wrapper">
+
+                <table class="management-table">
+
+                    <thead>
+
+                        <tr>
+                            <th>Recipe ID</th>
+                            <th>Menu Item</th>
+                            <th>Recipe Name</th>
+                            <th>Instructions</th>
+                            <th>Actions</th>
+                        </tr>
+
+                    </thead>
+
+                    <tbody>
+
+                        <tr>
+                            <td>1</td>
+                            <td>Cappuccino</td>
+                            <td>Cappuccino Recipe</td>
+                            <td>Prepare espresso, steam milk and finish with milk foam.</td>
+                            <td class="action-buttons">
+                                <button class="edit-button">Edit</button>
+                                <button class="delete-button">Delete</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>2</td>
+                            <td>Latte</td>
+                            <td>Latte Recipe</td>
+                            <td>Prepare espresso and combine with steamed milk.</td>
+                            <td class="action-buttons">
+                                <button class="edit-button">Edit</button>
+                                <button class="delete-button">Delete</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>3</td>
+                            <td>Flat White</td>
+                            <td>Flat White Recipe</td>
+                            <td>Prepare espresso and add smooth microfoam milk.</td>
+                            <td class="action-buttons">
+                                <button class="edit-button">Edit</button>
+                                <button class="delete-button">Delete</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>4</td>
+                            <td>Long Black</td>
+                            <td>Long Black Recipe</td>
+                            <td>Add hot water to the cup and pour espresso over it.</td>
+                            <td class="action-buttons">
+                                <button class="edit-button">Edit</button>
+                                <button class="delete-button">Delete</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>5</td>
+                            <td>Iced Long Black</td>
+                            <td>Iced Long Black Recipe</td>
+                            <td>Add cold water and ice, then pour espresso over the top.</td>
+                            <td class="action-buttons">
+                                <button class="edit-button">Edit</button>
+                                <button class="delete-button">Delete</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>6</td>
+                            <td>Iced Latte</td>
+                            <td>Iced Latte Recipe</td>
+                            <td>Add ice and milk, then pour espresso over the mixture.</td>
+                            <td class="action-buttons">
+                                <button class="edit-button">Edit</button>
+                                <button class="delete-button">Delete</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>7</td>
+                            <td>Vanilla Latte</td>
+                            <td>Vanilla Latte Recipe</td>
+                            <td>Combine espresso, vanilla syrup and steamed milk.</td>
+                            <td class="action-buttons">
+                                <button class="edit-button">Edit</button>
+                                <button class="delete-button">Delete</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>8</td>
+                            <td>Caramel Latte</td>
+                            <td>Caramel Latte Recipe</td>
+                            <td>Combine espresso, caramel syrup and steamed milk.</td>
+                            <td class="action-buttons">
+                                <button class="edit-button">Edit</button>
+                                <button class="delete-button">Delete</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>9</td>
+                            <td>Hot Chocolate</td>
+                            <td>Hot Chocolate Recipe</td>
+                            <td>Mix chocolate powder with steamed milk until smooth.</td>
+                            <td class="action-buttons">
+                                <button class="edit-button">Edit</button>
+                                <button class="delete-button">Delete</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>10</td>
+                            <td>Chicken Sandwich</td>
+                            <td>Chicken Sandwich Recipe</td>
+                            <td>Layer chicken, lettuce and mayonnaise between bread slices.</td>
+                            <td class="action-buttons">
+                                <button class="edit-button">Edit</button>
+                                <button class="delete-button">Delete</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>11</td>
+                            <td>Ham & Cheese Toastie</td>
+                            <td>Ham & Cheese Toastie Recipe</td>
+                            <td>Place ham and cheese between bread and toast until golden.</td>
+                            <td class="action-buttons">
+                                <button class="edit-button">Edit</button>
+                                <button class="delete-button">Delete</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>12</td>
+                            <td>Avocado Toast</td>
+                            <td>Avocado Toast Recipe</td>
+                            <td>Toast bread, add avocado and finish with seasoning.</td>
+                            <td class="action-buttons">
+                                <button class="edit-button">Edit</button>
+                                <button class="delete-button">Delete</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>13</td>
+                            <td>Chocolate Cake</td>
+                            <td>Chocolate Cake Serving</td>
+                            <td>Plate one prepared chocolate cake slice.</td>
+                            <td class="action-buttons">
+                                <button class="edit-button">Edit</button>
+                                <button class="delete-button">Delete</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>14</td>
+                            <td>Blueberry Muffin</td>
+                            <td>Blueberry Muffin Serving</td>
+                            <td>Serve one prepared blueberry muffin.</td>
+                            <td class="action-buttons">
+                                <button class="edit-button">Edit</button>
+                                <button class="delete-button">Delete</button>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>15</td>
+                            <td>Croissant</td>
+                            <td>Croissant Serving</td>
+                            <td>Serve one prepared butter croissant.</td>
+                            <td class="action-buttons">
+                                <button class="edit-button">Edit</button>
+                                <button class="delete-button">Delete</button>
+                            </td>
+                        </tr>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </section>
+
+    </main>
 
 </body>
+
 </html>

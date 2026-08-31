@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Cafe Menu | Cafe Management Assistant</title>
+
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+
+    <main class="customer-menu-container">
+
+        <header class="customer-menu-header">
+
+            <div>
+                <h1>Cafe Menu</h1>
+                <p>Choose your favourite food and drinks.</p>
+            </div>
+
+            <a
+                href="http://localhost:5100/customer-dashboard"
+                class="secondary-button"
+            >
+                ← Dashboard
+            </a>
+
+        </header>
+
+        <div class="customer-menu-toolbar">
+
+            <input
+                type="text"
+                id="customer-menu-search"
+                class="search-input"
+                placeholder="Search menu..."
+            >
+
+            <select
+                id="category-filter"
+                class="filter-select"
+            >
+
+                <option value="all">All Categories</option>
+                <option value="Coffee">Coffee</option>
+                <option value="Iced Coffee">Iced Coffee</option>
+                <option value="Drink">Drink</option>
+                <option value="Food">Food</option>
+                <option value="Dessert">Dessert</option>
+                <option value="Pastry">Pastry</option>
+
+            </select>
+
+        </div>
+
+        <section class="customer-menu-grid">
+
+            <article class="customer-menu-card">
+
+                <div class="menu-card-category">Coffee</div>
+
+                <h2>Cappuccino</h2>
+
+                <p>
+                    Espresso with steamed milk and foam.
+                </p>
+
+                <div class="customer-menu-footer">
+
+                    <span class="menu-price">$5.50</span>
+
+                    <button
+                        class="primary-button"
+                        data-menu-id="1"
+                    >
+                        Add to Order
+                    </button>
+
+                </div>
+
+            </article>
+
+            <article class="customer-menu-card">
+
+                <div class="menu-card-category">Coffee</div>
+
+                <h2>Latte</h2>
+
+                <p>
+                    Espresso with steamed milk.
+                </p>
+
+                <div class="customer-menu-footer">
+
+                    <span class="menu-price">$5.50</span>
+
+                    <button
+                        class="primary-button"
+                        data-menu-id="2"
+                    >
+                        Add to Order
+                    </button>
+
+                </div>
+
+            </article>
+
+            <article class="customer-menu-card">
+
+                <div class="menu-card-category">Coffee</div>
+
+                <h2>Flat White</h2>
+
+                <p>
+                    Espresso with smooth steamed milk.
+                </p>
+
+                <div class="customer-menu-footer">
+
+                    <span class="menu-price">$5.50</span>
+
+                    <button
+                        class="primary-button"
+                        data-menu-id="3"
+                    >
+                        Add to Order
+                    </button>
+
+                </div>
+
+            </article>
+
+            <article class="customer-menu-card">
+
+                <div class="menu-card-category">Coffee</div>
+
+                <h2>Long Black</h2>
+
+                <p>
+                    Espresso with hot water.
+                </p>
+
+                <div class="customer-menu-footer">
+
+                    <span class="menu-price">$5.00</span>
+
+                    <button
+                        class="primary-button"
+                        data-menu-id="4"
+                    >
+                        Add to Order
+                    </button>
+
+                </div>
+
+            </article>
+
+            <article class="customer-menu-card">
+
+                <div class="menu-card-category">Iced Coffee</div>
+
+                <h2>Iced Long Black</h2>
+
+                <p>
+                    Espresso served over cold water and ice.
+                </p>
+
+                <div class="customer-menu-footer">
+
+                    <span class="menu-price">$5.50</span>
+
+                    <button
+                        class="primary-button"
+                        data-menu-id="5"
+                    >
+                        Add to Order
+                    </button>
+
+                </div>
+
+            </article>
+
+            <article class="customer-menu-card">
+
+                <div class="menu-card-category">Iced Coffee</div>
+
+                <h2>Iced Latte</h2>
+
+                <p>
+                    Espresso with cold milk and ice.
+                </p>
+
+                <div class="customer-menu-footer">
+
+                    <span class="menu-price">$6.00</span>
+
+                    <button
+                        class="primary-button"
+                        data-menu-id="6"
+                    >
+                        Add to Order
+                    </button>
+
+                </div>
+
+            </article>
+
+            <article class="customer-menu-card">
+
+                <div class="menu-card-category">Coffee</div>
+
+                <h2>Vanilla Latte</h2>
+
+                <p>
+                    Latte with vanilla syrup.
+                </p>
+
+                <div class="customer-menu-footer">
+
+                    <span class="menu-price">$6.00</span>
+
+                    <button
+                        class="primary-button"
+                        data-menu-id="7"
+                    >
+                        Add to Order
+                    </button>
+
+                </div>
+
+            </article>
+
+            <article class="customer-menu-card">
+
+                <div class="menu-card-category">Coffee</div>
+
+                <h2>Caramel Latte</h2>
+
+                <p>
+                    Latte with caramel syrup.
+                </p>
+
+                <div class="customer-menu-footer">
+
+                    <span class="menu-price">$6.00</span>
+
+                    <button
+                        class="primary-button"
+                        data-menu-id="8"
+                    >
+                        Add to Order
+                    </button>
+
+                </div>
+
+            </article>
+
+            <article class="customer-menu-card">
+
+                <div class="menu-card-category">Drink</div>
+
+                <h2>Hot Chocolate</h2>
+
+                <p>
+                    Chocolate with steamed milk.
+                </p>
+
+                <div class="customer-menu-footer">
+
+                    <span class="menu-price">$5.00</span>
+
+                    <button
+                        class="primary-button"
+                        data-menu-id="9"
+                    >
+                        Add to Order
+                    </button>
+
+                </div>
+
+            </article>
+
+            <article class="customer-menu-card">
+
+                <div class="menu-card-category">Food</div>
+
+                <h2>Chicken Sandwich</h2>
+
+                <p>
+                    Chicken, lettuce and mayonnaise sandwich.
+                </p>
+
+                <div class="customer-menu-footer">
+
+                    <span class="menu-price">$9.50</span>
+
+                    <button
+                        class="primary-button"
+                        data-menu-id="10"
+                    >
+                        Add to Order
+                    </button>
+
+                </div>
+
+            </article>
+
+            <article class="customer-menu-card">
+
+                <div class="menu-card-category">Food</div>
+
+                <h2>Ham & Cheese Toastie</h2>
+
+                <p>
+                    Toasted ham and cheese sandwich.
+                </p>
+
+                <div class="customer-menu-footer">
+
+                    <span class="menu-price">$8.50</span>
+
+                    <button
+                        class="primary-button"
+                        data-menu-id="11"
+                    >
+                        Add to Order
+                    </button>
+
+                </div>
+
+            </article>
+
+            <article class="customer-menu-card">
+
+                <div class="menu-card-category">Food</div>
+
+                <h2>Avocado Toast</h2>
+
+                <p>
+                    Toast with avocado and seasoning.
+                </p>
+
+                <div class="customer-menu-footer">
+
+                    <span class="menu-price">$10.00</span>
+
+                    <button
+                        class="primary-button"
+                        data-menu-id="12"
+                    >
+                        Add to Order
+                    </button>
+
+                </div>
+
+            </article>
+
+            <article class="customer-menu-card">
+
+                <div class="menu-card-category">Dessert</div>
+
+                <h2>Chocolate Cake</h2>
+
+                <p>
+                    Chocolate cake slice.
+                </p>
+
+                <div class="customer-menu-footer">
+
+                    <span class="menu-price">$7.00</span>
+
+                    <button
+                        class="primary-button"
+                        data-menu-id="13"
+                    >
+                        Add to Order
+                    </button>
+
+                </div>
+
+            </article>
+
+            <article class="customer-menu-card">
+
+                <div class="menu-card-category">Dessert</div>
+
+                <h2>Blueberry Muffin</h2>
+
+                <p>
+                    Blueberry muffin.
+                </p>
+
+                <div class="customer-menu-footer">
+
+                    <span class="menu-price">$5.00</span>
+
+                    <button
+                        class="primary-button"
+                        data-menu-id="14"
+                    >
+                        Add to Order
+                    </button>
+
+                </div>
+
+            </article>
+
+            <article class="customer-menu-card">
+
+                <div class="menu-card-category">Pastry</div>
+
+                <h2>Croissant</h2>
+
+                <p>
+                    Butter croissant.
+                </p>
+
+                <div class="customer-menu-footer">
+
+                    <span class="menu-price">$4.50</span>
+
+                    <button
+                        class="primary-button"
+                        data-menu-id="15"
+                    >
+                        Add to Order
+                    </button>
+
+                </div>
+
+            </article>
+
+        </section>
+
+    </main>
+
+</body>
+
+</html>
