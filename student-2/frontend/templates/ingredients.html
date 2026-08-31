@@ -302,6 +302,97 @@
         // Load ingredients when page opens
         loadIngredients();
 
+        // --------------------------------
+        // ADD NEW INGREDIENT
+        // --------------------------------
+
+        const ingredientForm =
+            document.getElementById("ingredient-form");
+
+        ingredientForm.addEventListener(
+            "submit",
+            async function(event) {
+
+                event.preventDefault();
+
+                const name =
+                    document.getElementById(
+                        "ingredient-name"
+                    ).value;
+
+                const unit =
+                    document.getElementById(
+                        "ingredient-unit"
+                    ).value;
+
+                const unitCost =
+                    document.getElementById(
+                        "ingredient-cost"
+                    ).value;
+
+
+                const newIngredient = {
+                    name: name,
+                    unit: unit,
+                    unit_cost: Number(unitCost)
+                };
+
+
+                try {
+
+                    const response =
+                        await fetch(INGREDIENT_API, {
+
+                            method: "POST",
+
+                            headers: {
+                                "Content-Type":
+                                    "application/json"
+                            },
+
+                            body: JSON.stringify(
+                                newIngredient
+                            )
+                        });
+
+
+                    const result =
+                        await response.json();
+
+
+                    if (!response.ok) {
+
+                        alert(
+                            result.error ||
+                            "Failed to add ingredient"
+                        );
+
+                        return;
+                    }
+
+
+                    ingredientForm.reset();
+
+                    await loadIngredients();
+
+                }
+
+                catch (error) {
+
+                    console.error(
+                        "Error adding ingredient:",
+                        error
+                    );
+
+                    alert(
+                        "Unable to add ingredient."
+                    );
+
+                }
+
+            }
+        );
+
     </script>
 
 </body>
