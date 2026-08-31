@@ -311,6 +311,29 @@ def update_menu_price(menu_id):
 
     return jsonify(dict(updated_menu))
 
+# -----------------------------
+# GET ALL INGREDIENTS
+# -----------------------------
+
+@app.route("/api/ingredients", methods=["GET"])
+def get_ingredients():
+    conn = get_db_connection()
+
+    ingredients = conn.execute("""
+        SELECT
+            i.ingredient_id,
+            i.name,
+            i.unit,
+            ic.unit_cost
+        FROM ingredients i
+        LEFT JOIN ingredient_costs ic
+            ON i.ingredient_id = ic.ingredient_id
+        ORDER BY i.ingredient_id
+    """).fetchall()
+
+    conn.close()
+
+    return jsonify([dict(ingredient) for ingredient in ingredients])
 
 # -----------------------------
 # TEST ROUTE
