@@ -232,6 +232,7 @@
                                 <button
                                     class="delete-button"
                                     data-id="${menu.menu_id}"
+                                    onclick="deleteMenu(${menu.menu_id}, '${menu.name.replace(/'/g, "\\'")}')"
                                 >
                                     Delete
                                 </button>
@@ -314,6 +315,55 @@
                 );
 
                 alert("Unable to load menu item.");
+
+            }
+        }
+
+        // --------------------------------
+        // DELETE MENU ITEM
+        // --------------------------------
+
+        async function deleteMenu(menuId, menuName) {
+
+            const confirmed = confirm(
+                `Are you sure you want to delete "${menuName}"?`
+            );
+
+            if (!confirmed) {
+                return;
+            }
+
+            try {
+
+                const response = await fetch(
+                    `${MENU_API}/${menuId}`,
+                    {
+                        method: "DELETE"
+                    }
+                );
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    alert(
+                        result.error ||
+                        "Failed to delete menu item"
+                    );
+                    return;
+                }
+
+                await loadMenus();
+
+            }
+
+            catch (error) {
+
+                console.error(
+                    "Error deleting menu item:",
+                    error
+                );
+
+                alert("Unable to delete menu item.");
 
             }
         }
