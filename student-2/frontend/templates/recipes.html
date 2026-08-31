@@ -14,11 +14,13 @@
 
     <main class="management-container">
 
+        <!-- HEADER -->
+
         <header class="management-header">
 
             <div>
                 <h1>Recipes</h1>
-                <p>Manage recipes and ingredients used for each menu item.</p>
+                <p>Manage recipes for cafe menu items.</p>
             </div>
 
             <a href="/" class="secondary-button">
@@ -27,51 +29,58 @@
 
         </header>
 
+
+        <!-- ADD / UPDATE RECIPE -->
+
         <section class="management-section">
 
             <div class="section-heading">
 
                 <div>
-                    <h2>Add Recipe</h2>
-                    <p>Create a recipe linked to a menu item.</p>
+                    <h2>Recipe Details</h2>
+                    <p>
+                        Add a new recipe or update an existing recipe.
+                    </p>
                 </div>
 
             </div>
 
-            <form id="recipe-form" class="management-form">
+
+            <form
+                id="recipe-form"
+                class="management-form"
+            >
 
                 <div class="form-row">
 
+                    <!-- MENU ITEM -->
+
                     <div class="form-group">
 
-                        <label for="recipe-menu">Menu Item</label>
+                        <label for="recipe-menu-item">
+                            Menu Item
+                        </label>
 
-                        <select id="recipe-menu" name="menu_id" required>
-
-                            <option value="">Select menu item</option>
-                            <option value="1">Cappuccino</option>
-                            <option value="2">Latte</option>
-                            <option value="3">Flat White</option>
-                            <option value="4">Long Black</option>
-                            <option value="5">Iced Long Black</option>
-                            <option value="6">Iced Latte</option>
-                            <option value="7">Vanilla Latte</option>
-                            <option value="8">Caramel Latte</option>
-                            <option value="9">Hot Chocolate</option>
-                            <option value="10">Chicken Sandwich</option>
-                            <option value="11">Ham & Cheese Toastie</option>
-                            <option value="12">Avocado Toast</option>
-                            <option value="13">Chocolate Cake</option>
-                            <option value="14">Blueberry Muffin</option>
-                            <option value="15">Croissant</option>
-
+                        <select
+                            id="recipe-menu-item"
+                            name="menu_id"
+                            required
+                        >
+                            <option value="">
+                                Select menu item
+                            </option>
                         </select>
 
                     </div>
 
+
+                    <!-- RECIPE NAME -->
+
                     <div class="form-group">
 
-                        <label for="recipe-name">Recipe Name</label>
+                        <label for="recipe-name">
+                            Recipe Name
+                        </label>
 
                         <input
                             type="text"
@@ -85,52 +94,86 @@
 
                 </div>
 
+
+                <!-- INSTRUCTIONS -->
+
                 <div class="form-group">
 
-                    <label for="recipe-instructions">Instructions</label>
+                    <label for="recipe-instructions">
+                        Instructions
+                    </label>
 
                     <textarea
                         id="recipe-instructions"
                         name="instructions"
                         rows="5"
-                        placeholder="Enter preparation instructions"
+                        placeholder="Enter recipe preparation instructions..."
                         required
                     ></textarea>
 
                 </div>
 
+
+                <!-- FORM BUTTONS -->
+
                 <div class="form-actions">
 
-                    <button type="submit" class="primary-button">
+                    <button
+                        type="submit"
+                        class="primary-button"
+                    >
                         Add Recipe
                     </button>
 
-                    <button type="reset" class="secondary-button">
+                    <button
+                        type="reset"
+                        class="secondary-button"
+                    >
                         Clear
                     </button>
 
                 </div>
 
+
+                <!-- SUCCESS MESSAGE -->
+
+                <p
+                    id="recipe-success-message"
+                    class="success-message"
+                ></p>
+
             </form>
 
         </section>
+
+
+        <!-- CURRENT RECIPES -->
 
         <section class="management-section">
 
             <div class="section-heading">
 
                 <div>
-                    <h2>Recipe List</h2>
-                    <p>Internal recipe information for staff and administrators.</p>
+                    <h2>Current Recipes</h2>
+                    <p>
+                        View and manage recipes linked to menu items.
+                    </p>
                 </div>
+
+
+                <!-- SEARCH -->
 
                 <input
                     type="text"
+                    id="recipe-search"
                     class="search-input"
                     placeholder="Search recipes..."
                 >
 
             </div>
+
+
+            <!-- RECIPE TABLE -->
 
             <div class="table-wrapper">
 
@@ -139,7 +182,7 @@
                     <thead>
 
                         <tr>
-                            <th>Recipe ID</th>
+                            <th>ID</th>
                             <th>Menu Item</th>
                             <th>Recipe Name</th>
                             <th>Instructions</th>
@@ -148,173 +191,7 @@
 
                     </thead>
 
-                    <tbody>
-
-                        <tr>
-                            <td>1</td>
-                            <td>Cappuccino</td>
-                            <td>Cappuccino Recipe</td>
-                            <td>Prepare espresso, steam milk and finish with milk foam.</td>
-                            <td class="action-buttons">
-                                <button class="edit-button">Edit</button>
-                                <button class="delete-button">Delete</button>
-                            </td>
-                        </tr>
-
-                        <tr>
-                            <td>2</td>
-                            <td>Latte</td>
-                            <td>Latte Recipe</td>
-                            <td>Prepare espresso and combine with steamed milk.</td>
-                            <td class="action-buttons">
-                                <button class="edit-button">Edit</button>
-                                <button class="delete-button">Delete</button>
-                            </td>
-                        </tr>
-
-                        <tr>
-                            <td>3</td>
-                            <td>Flat White</td>
-                            <td>Flat White Recipe</td>
-                            <td>Prepare espresso and add smooth microfoam milk.</td>
-                            <td class="action-buttons">
-                                <button class="edit-button">Edit</button>
-                                <button class="delete-button">Delete</button>
-                            </td>
-                        </tr>
-
-                        <tr>
-                            <td>4</td>
-                            <td>Long Black</td>
-                            <td>Long Black Recipe</td>
-                            <td>Add hot water to the cup and pour espresso over it.</td>
-                            <td class="action-buttons">
-                                <button class="edit-button">Edit</button>
-                                <button class="delete-button">Delete</button>
-                            </td>
-                        </tr>
-
-                        <tr>
-                            <td>5</td>
-                            <td>Iced Long Black</td>
-                            <td>Iced Long Black Recipe</td>
-                            <td>Add cold water and ice, then pour espresso over the top.</td>
-                            <td class="action-buttons">
-                                <button class="edit-button">Edit</button>
-                                <button class="delete-button">Delete</button>
-                            </td>
-                        </tr>
-
-                        <tr>
-                            <td>6</td>
-                            <td>Iced Latte</td>
-                            <td>Iced Latte Recipe</td>
-                            <td>Add ice and milk, then pour espresso over the mixture.</td>
-                            <td class="action-buttons">
-                                <button class="edit-button">Edit</button>
-                                <button class="delete-button">Delete</button>
-                            </td>
-                        </tr>
-
-                        <tr>
-                            <td>7</td>
-                            <td>Vanilla Latte</td>
-                            <td>Vanilla Latte Recipe</td>
-                            <td>Combine espresso, vanilla syrup and steamed milk.</td>
-                            <td class="action-buttons">
-                                <button class="edit-button">Edit</button>
-                                <button class="delete-button">Delete</button>
-                            </td>
-                        </tr>
-
-                        <tr>
-                            <td>8</td>
-                            <td>Caramel Latte</td>
-                            <td>Caramel Latte Recipe</td>
-                            <td>Combine espresso, caramel syrup and steamed milk.</td>
-                            <td class="action-buttons">
-                                <button class="edit-button">Edit</button>
-                                <button class="delete-button">Delete</button>
-                            </td>
-                        </tr>
-
-                        <tr>
-                            <td>9</td>
-                            <td>Hot Chocolate</td>
-                            <td>Hot Chocolate Recipe</td>
-                            <td>Mix chocolate powder with steamed milk until smooth.</td>
-                            <td class="action-buttons">
-                                <button class="edit-button">Edit</button>
-                                <button class="delete-button">Delete</button>
-                            </td>
-                        </tr>
-
-                        <tr>
-                            <td>10</td>
-                            <td>Chicken Sandwich</td>
-                            <td>Chicken Sandwich Recipe</td>
-                            <td>Layer chicken, lettuce and mayonnaise between bread slices.</td>
-                            <td class="action-buttons">
-                                <button class="edit-button">Edit</button>
-                                <button class="delete-button">Delete</button>
-                            </td>
-                        </tr>
-
-                        <tr>
-                            <td>11</td>
-                            <td>Ham & Cheese Toastie</td>
-                            <td>Ham & Cheese Toastie Recipe</td>
-                            <td>Place ham and cheese between bread and toast until golden.</td>
-                            <td class="action-buttons">
-                                <button class="edit-button">Edit</button>
-                                <button class="delete-button">Delete</button>
-                            </td>
-                        </tr>
-
-                        <tr>
-                            <td>12</td>
-                            <td>Avocado Toast</td>
-                            <td>Avocado Toast Recipe</td>
-                            <td>Toast bread, add avocado and finish with seasoning.</td>
-                            <td class="action-buttons">
-                                <button class="edit-button">Edit</button>
-                                <button class="delete-button">Delete</button>
-                            </td>
-                        </tr>
-
-                        <tr>
-                            <td>13</td>
-                            <td>Chocolate Cake</td>
-                            <td>Chocolate Cake Serving</td>
-                            <td>Plate one prepared chocolate cake slice.</td>
-                            <td class="action-buttons">
-                                <button class="edit-button">Edit</button>
-                                <button class="delete-button">Delete</button>
-                            </td>
-                        </tr>
-
-                        <tr>
-                            <td>14</td>
-                            <td>Blueberry Muffin</td>
-                            <td>Blueberry Muffin Serving</td>
-                            <td>Serve one prepared blueberry muffin.</td>
-                            <td class="action-buttons">
-                                <button class="edit-button">Edit</button>
-                                <button class="delete-button">Delete</button>
-                            </td>
-                        </tr>
-
-                        <tr>
-                            <td>15</td>
-                            <td>Croissant</td>
-                            <td>Croissant Serving</td>
-                            <td>Serve one prepared butter croissant.</td>
-                            <td class="action-buttons">
-                                <button class="edit-button">Edit</button>
-                                <button class="delete-button">Delete</button>
-                            </td>
-                        </tr>
-
+                    <tbody id="recipe-table-body">
                     </tbody>
 
                 </table>
@@ -324,6 +201,711 @@
         </section>
 
     </main>
+
+
+    <script>
+
+        // --------------------------------
+        // API URLS
+        // --------------------------------
+
+        const RECIPE_API =
+            "http://localhost:5201/api/recipes";
+
+        const MENU_API =
+            "http://localhost:5201/api/menus";
+
+
+        // --------------------------------
+        // EDITING STATE
+        // --------------------------------
+
+        let editingRecipeId = null;
+
+        let allRecipes = [];
+
+
+        // --------------------------------
+        // SUCCESS MESSAGE
+        // --------------------------------
+
+        function showRecipeSuccessMessage(message) {
+
+            const successMessage =
+                document.getElementById(
+                    "recipe-success-message"
+                );
+
+            successMessage.textContent = message;
+
+            successMessage.style.display = "block";
+
+
+            setTimeout(() => {
+
+                successMessage.style.display = "none";
+
+            }, 3000);
+        }
+
+
+        // --------------------------------
+        // LOAD MENU ITEMS
+        // --------------------------------
+
+        async function loadMenuItems() {
+
+            try {
+
+                const response =
+                    await fetch(MENU_API);
+
+                if (!response.ok) {
+
+                    throw new Error(
+                        "Failed to load menu items"
+                    );
+                }
+
+
+                const menus =
+                    await response.json();
+
+
+                const menuSelect =
+                    document.getElementById(
+                        "recipe-menu-item"
+                    );
+
+
+                menuSelect.innerHTML = `
+                    <option value="">
+                        Select menu item
+                    </option>
+                `;
+
+
+                menus.forEach(menu => {
+
+                    const option =
+                        document.createElement(
+                            "option"
+                        );
+
+                    option.value =
+                        menu.menu_id;
+
+                    option.textContent =
+                        menu.name;
+
+                    menuSelect.appendChild(
+                        option
+                    );
+                });
+
+            }
+
+            catch (error) {
+
+                console.error(
+                    "Error loading menu items:",
+                    error
+                );
+            }
+        }
+
+
+        // --------------------------------
+        // DISPLAY RECIPES
+        // --------------------------------
+
+        function displayRecipes(recipes) {
+
+            const tableBody =
+                document.getElementById(
+                    "recipe-table-body"
+                );
+
+
+            tableBody.innerHTML = "";
+
+
+            recipes.forEach(recipe => {
+
+                const row =
+                    document.createElement("tr");
+
+
+                const idCell =
+                    document.createElement("td");
+
+                idCell.textContent =
+                    recipe.recipe_id;
+
+
+                const menuCell =
+                    document.createElement("td");
+
+                menuCell.textContent =
+                    recipe.menu_name || "";
+
+
+                const nameCell =
+                    document.createElement("td");
+
+                nameCell.textContent =
+                    recipe.name;
+
+
+                const instructionsCell =
+                    document.createElement("td");
+
+                instructionsCell.textContent =
+                    recipe.instructions;
+
+
+                const actionsCell =
+                    document.createElement("td");
+
+
+                const actions =
+                    document.createElement("div");
+
+                actions.className =
+                    "action-buttons";
+
+
+                // EDIT BUTTON
+
+                const editButton =
+                    document.createElement("button");
+
+                editButton.type = "button";
+
+                editButton.className =
+                    "edit-button";
+
+                editButton.textContent =
+                    "Edit";
+
+                editButton.addEventListener(
+                    "click",
+                    function() {
+
+                        editRecipe(
+                            recipe.recipe_id
+                        );
+                    }
+                );
+
+
+                // DELETE BUTTON
+
+                const deleteButton =
+                    document.createElement("button");
+
+                deleteButton.type = "button";
+
+                deleteButton.className =
+                    "delete-button";
+
+                deleteButton.textContent =
+                    "Delete";
+
+                deleteButton.addEventListener(
+                    "click",
+                    function() {
+
+                        deleteRecipe(
+                            recipe.recipe_id,
+                            recipe.name
+                        );
+                    }
+                );
+
+
+                actions.appendChild(
+                    editButton
+                );
+
+                actions.appendChild(
+                    deleteButton
+                );
+
+                actionsCell.appendChild(
+                    actions
+                );
+
+
+                row.appendChild(
+                    idCell
+                );
+
+                row.appendChild(
+                    menuCell
+                );
+
+                row.appendChild(
+                    nameCell
+                );
+
+                row.appendChild(
+                    instructionsCell
+                );
+
+                row.appendChild(
+                    actionsCell
+                );
+
+
+                tableBody.appendChild(
+                    row
+                );
+            });
+        }
+
+
+        // --------------------------------
+        // LOAD RECIPES
+        // --------------------------------
+
+        async function loadRecipes() {
+
+            try {
+
+                const response =
+                    await fetch(RECIPE_API);
+
+
+                if (!response.ok) {
+
+                    throw new Error(
+                        "Failed to load recipes"
+                    );
+                }
+
+
+                allRecipes =
+                    await response.json();
+
+
+                displayRecipes(
+                    allRecipes
+                );
+
+            }
+
+            catch (error) {
+
+                console.error(
+                    "Error loading recipes:",
+                    error
+                );
+            }
+        }
+
+
+        // --------------------------------
+        // EDIT RECIPE
+        // --------------------------------
+
+        async function editRecipe(recipeId) {
+
+            try {
+
+                const response =
+                    await fetch(
+                        `${RECIPE_API}/${recipeId}`
+                    );
+
+
+                const recipe =
+                    await response.json();
+
+
+                if (!response.ok) {
+
+                    alert(
+                        recipe.error ||
+                        "Failed to load recipe"
+                    );
+
+                    return;
+                }
+
+
+                document.getElementById(
+                    "recipe-menu-item"
+                ).value =
+                    recipe.menu_id;
+
+
+                document.getElementById(
+                    "recipe-name"
+                ).value =
+                    recipe.name;
+
+
+                document.getElementById(
+                    "recipe-instructions"
+                ).value =
+                    recipe.instructions;
+
+
+                editingRecipeId =
+                    recipeId;
+
+
+                document.querySelector(
+                    "#recipe-form .primary-button"
+                ).textContent =
+                    "Update Recipe";
+
+
+                document.getElementById(
+                    "recipe-form"
+                ).scrollIntoView({
+
+                    behavior: "smooth",
+                    block: "center"
+
+                });
+
+            }
+
+            catch (error) {
+
+                console.error(
+                    "Error loading recipe:",
+                    error
+                );
+
+                alert(
+                    "Unable to load recipe."
+                );
+            }
+        }
+
+
+        // --------------------------------
+        // ADD / UPDATE RECIPE
+        // --------------------------------
+
+        const recipeForm =
+            document.getElementById(
+                "recipe-form"
+            );
+
+
+        recipeForm.addEventListener(
+            "submit",
+            async function(event) {
+
+                event.preventDefault();
+
+
+                const recipeData = {
+
+                    menu_id: Number(
+                        document.getElementById(
+                            "recipe-menu-item"
+                        ).value
+                    ),
+
+                    name:
+                        document.getElementById(
+                            "recipe-name"
+                        ).value.trim(),
+
+                    instructions:
+                        document.getElementById(
+                            "recipe-instructions"
+                        ).value.trim()
+                };
+
+
+                const wasEditing =
+                    editingRecipeId !== null;
+
+
+                let url =
+                    RECIPE_API;
+
+                let method =
+                    "POST";
+
+
+                if (wasEditing) {
+
+                    url =
+                        `${RECIPE_API}/${editingRecipeId}`;
+
+                    method =
+                        "PUT";
+                }
+
+
+                try {
+
+                    const response =
+                        await fetch(
+                            url,
+                            {
+
+                                method: method,
+
+                                headers: {
+                                    "Content-Type":
+                                        "application/json"
+                                },
+
+                                body:
+                                    JSON.stringify(
+                                        recipeData
+                                    )
+                            }
+                        );
+
+
+                    const result =
+                        await response.json();
+
+
+                    if (!response.ok) {
+
+                        alert(
+                            result.error ||
+                            "Failed to save recipe"
+                        );
+
+                        return;
+                    }
+
+
+                    recipeForm.reset();
+
+                    editingRecipeId =
+                        null;
+
+
+                    document.querySelector(
+                        "#recipe-form .primary-button"
+                    ).textContent =
+                        "Add Recipe";
+
+
+                    await loadRecipes();
+
+
+                    if (wasEditing) {
+
+                        showRecipeSuccessMessage(
+                            "Recipe updated successfully."
+                        );
+
+                    } else {
+
+                        showRecipeSuccessMessage(
+                            "Recipe added successfully."
+                        );
+                    }
+
+                }
+
+                catch (error) {
+
+                    console.error(
+                        "Error saving recipe:",
+                        error
+                    );
+
+                    alert(
+                        "Unable to save recipe."
+                    );
+                }
+            }
+        );
+
+
+        // --------------------------------
+        // DELETE RECIPE
+        // --------------------------------
+
+        async function deleteRecipe(
+            recipeId,
+            recipeName
+        ) {
+
+            const confirmed =
+                confirm(
+                    `Are you sure you want to delete "${recipeName}"?`
+                );
+
+
+            if (!confirmed) {
+                return;
+            }
+
+
+            try {
+
+                const response =
+                    await fetch(
+                        `${RECIPE_API}/${recipeId}`,
+                        {
+                            method: "DELETE"
+                        }
+                    );
+
+
+                const result =
+                    await response.json();
+
+
+                if (!response.ok) {
+
+                    alert(
+                        result.error ||
+                        "Failed to delete recipe"
+                    );
+
+                    return;
+                }
+
+
+                await loadRecipes();
+
+
+                showRecipeSuccessMessage(
+                    "Recipe deleted successfully."
+                );
+
+
+                document
+                    .getElementById(
+                        "recipe-success-message"
+                    )
+                    .scrollIntoView({
+
+                        behavior: "smooth",
+                        block: "center"
+
+                    });
+
+            }
+
+            catch (error) {
+
+                console.error(
+                    "Error deleting recipe:",
+                    error
+                );
+
+                alert(
+                    "Unable to delete recipe."
+                );
+            }
+        }
+
+
+        // --------------------------------
+        // CLEAR / RESET FORM
+        // --------------------------------
+
+        recipeForm.addEventListener(
+            "reset",
+            function() {
+
+                editingRecipeId =
+                    null;
+
+
+                document.querySelector(
+                    "#recipe-form .primary-button"
+                ).textContent =
+                    "Add Recipe";
+            }
+        );
+
+
+        // --------------------------------
+        // SEARCH RECIPES
+        // --------------------------------
+
+        const recipeSearch =
+            document.getElementById(
+                "recipe-search"
+            );
+
+
+        recipeSearch.addEventListener(
+            "input",
+            function() {
+
+                const searchValue =
+                    recipeSearch.value
+                        .toLowerCase()
+                        .trim();
+
+
+                const filteredRecipes =
+                    allRecipes.filter(
+                        recipe => {
+
+                            const menuName =
+                                (
+                                    recipe.menu_name ||
+                                    ""
+                                ).toLowerCase();
+
+
+                            const recipeName =
+                                (
+                                    recipe.name ||
+                                    ""
+                                ).toLowerCase();
+
+
+                            const instructions =
+                                (
+                                    recipe.instructions ||
+                                    ""
+                                ).toLowerCase();
+
+
+                            return (
+                                menuName.includes(
+                                    searchValue
+                                ) ||
+
+                                recipeName.includes(
+                                    searchValue
+                                ) ||
+
+                                instructions.includes(
+                                    searchValue
+                                )
+                            );
+                        }
+                    );
+
+
+                displayRecipes(
+                    filteredRecipes
+                );
+            }
+        );
+
+
+        // --------------------------------
+        // INITIAL PAGE LOAD
+        // --------------------------------
+
+        loadMenuItems();
+
+        loadRecipes();
+
+    </script>
 
 </body>
 
