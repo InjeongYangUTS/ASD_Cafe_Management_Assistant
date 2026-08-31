@@ -259,6 +259,80 @@
         // Load menu items when the page opens
         loadMenus();
 
+        // --------------------------------
+        // ADD NEW MENU ITEM
+        // --------------------------------
+
+        const menuForm = document.getElementById("menu-form");
+
+        menuForm.addEventListener("submit", async function(event) {
+
+            event.preventDefault();
+
+            const name =
+                document.getElementById("menu-name").value;
+
+            const category =
+                document.getElementById("menu-category").value;
+
+            const description =
+                document.getElementById("menu-description").value;
+
+            const price =
+                document.getElementById("menu-price").value;
+
+
+            const newMenu = {
+                name: name,
+                category: category,
+                description: description,
+                price: Number(price)
+            };
+
+
+            try {
+
+                const response = await fetch(MENU_API, {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+
+                    body: JSON.stringify(newMenu)
+                });
+
+
+                const result = await response.json();
+
+
+                if (!response.ok) {
+                    alert(result.error || "Failed to add menu item");
+                    return;
+                }
+
+
+                // Clear the form
+                menuForm.reset();
+
+                // Reload table with new database data
+                await loadMenus();
+
+            }
+
+            catch (error) {
+
+                console.error(
+                    "Error adding menu item:",
+                    error
+                );
+
+                alert("Unable to add menu item.");
+
+            }
+
+        });
+
     </script>
 
 </body>
