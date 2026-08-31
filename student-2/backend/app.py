@@ -364,6 +364,68 @@ def get_ingredient(ingredient_id):
 
     return jsonify(dict(ingredient))
 
+# -----------------------------
+# CREATE INGREDIENT
+# -----------------------------
+
+@app.route("/api/ingredients", methods=["POST"])
+def create_ingredient():
+    data = request.get_json()
+
+    if not data:
+        return jsonify({
+            "error": "Request body is required"
+        }), 400
+
+    name = data.get("name")
+    unit = data.get("unit")
+    unit_cost = data.get("unit_cost")
+
+    if not name or not unit or unit_cost is None:
+        return jsonify({
+            "error": "Name, unit and unit_cost are required"
+        }), 400
+
+    try:
+        unit_cost = float(unit_cost)
+
+        if unit_cost < 0:
+            raise ValueError
+
+    except (TypeError, ValueError):
+        return jsonify({
+            "error": "Unit cost must be a valid positive number"
+        }), 400
+
+    conn = get_db_connection()
+
+    cursor = conn.execute("""
+        INSERT INTO ingredients
+        (name, unit)
+        VALUES (?, ?)
+    """, (
+        name,
+        unit
+    ))
+
+    ingredient_id = cursor.lastrowid
+
+    conn.execute("""
+        INSERT INTO ingredient_costs
+        (ingredient_id, unit_cost)
+        VALUES (?, ?)
+    """, (
+        ingredient_id,
+        unit_cost
+    ))
+
+    conn.commit()
+    conn.close()
+
+    return jsonify({
+        "message": "Ingredient created successfully",
+        "ingredient_id": ingredient_id
+    }), 201
 
 # -----------------------------
 # TEST ROUTE
