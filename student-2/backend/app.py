@@ -766,6 +766,252 @@ def delete_recipe(recipe_id):
     })
 
 # -----------------------------
+# GET RECIPE INGREDIENTS
+# -----------------------------
+
+@app.route("/api/recipes/<int:recipe_id>/ingredients", methods=["GET"])
+def get_recipe_ingredients(recipe_id):
+    conn = get_db_connection()
+
+    recipe = conn.execute("""
+        SELECT recipe_id
+        FROM recipes
+        WHERE recipe_id = ?
+    """, (recipe_id,)).fetchone()
+
+    if recipe is None:
+        conn.close()
+
+        return jsonify({
+            "error": "Recipe not found"
+        }), 404
+
+    ingredients = conn.execute("""
+        SELECT
+            ri.id,
+            ri.recipe_id,
+            ri.ingredient_id,
+            i.name AS ingredient_name,
+            ri.quantity,
+            ri.unit
+        FROM recipe_ingredients ri
+        JOIN ingredients i
+            ON ri.ingredient_id = i.ingredient_id
+        WHERE ri.recipe_id = ?
+        ORDER BY ri.id
+    """, (recipe_id,)).fetchall()
+
+    conn.close()
+
+    return jsonify([dict(ingredient) for ingredient in ingredients])
+
+# -----------------------------
+# ADD INGREDIENT TO RECIPE
+# -----------------------------
+
+@app.route("/api/recipes/<int:recipe_id>/ingredients", methods=["POST"])
+def add_recipe_ingredient(recipe_id):
+    data = request.get_json()
+
+    if not data:
+        return jsonify({
+            "error": "Request body is required"
+        }), 400
+
+    ingredient_id = data.get("ingredient_id")
+    quantity = data.get("quantity")
+    unit = data.get("unit")
+
+    if ingredient_id is None or quantity is None or not unit:
+        return jsonify({
+            "error": "Ingredient ID, quantity and unit are required"
+        }), 400
+
+    try:
+        quantity = float(quantity)
+
+        if quantity <= 0:
+            raise ValueError
+
+    except (TypeError, ValueError):
+        return jsonify({
+            "error": "Quantity must be a valid positive number"
+        }), 400
+
+    conn = get_db_connection()
+
+    recipe = conn.execute("""
+        SELECT recipe_id
+        FROM recipes
+        WHERE recipe_id = ?
+    """, (recipe_id,)).fetchone()
+
+    if recipe is None:
+        conn.close()
+
+        return jsonify({
+            "error": "Recipe not found"
+        }), 404
+
+    ingredient = conn.execute("""
+        SELECT ingredient_id
+        FROM ingredients
+        WHERE ingredient_id = ?
+    """, (ingredient_id,)).fetchone()
+
+    if ingredient is None:
+        conn.close()
+
+        return jsonify({
+            "error": "Ingredient not found"
+        }), 404
+
+    cursor = conn.execute("""
+        INSERT INTO recipe_ingredients
+        (recipe_id, ingredient_id, quantity, unit)
+        VALUES (?, ?, ?, ?)
+    """, (
+        recipe_id,
+        ingredient_id,
+        quantity,
+        unit
+    ))
+
+    conn.commit()
+
+    recipe_ingredient_id = cursor.lastrowid
+    conn.close()
+
+    return jsonify({
+        "message": "Ingredient added to recipe successfully",
+        "recipe_ingredient_id": recipe_ingredient_id
+    }), 201
+
+# -----------------------------
+# UPDATE RECIPE INGREDIENT
+# -----------------------------
+
+@app.route("/api/recipe-ingredients/<int:recipe_ingredient_id>", methods=["PUT"])
+def update_recipe_ingredient(recipe_ingredient_id):
+    data = request.get_json()
+
+    if not data:
+        return jsonify({
+            "error": "Request body is required"
+        }), 400
+
+    conn = get_db_connection()
+
+    existing = conn.execute("""
+        SELECT *
+        FROM recipe_ingredients
+        WHERE id = ?
+    """, (recipe_ingredient_id,)).fetchone()
+
+    if existing is None:
+        conn.close()
+
+        return jsonify({
+            "error": "Recipe ingredient not found"
+        }), 404
+
+    ingredient_id = data.get(
+        "ingredient_id",
+        existing["ingredient_id"]
+    )
+
+    quantity = data.get(
+        "quantity",
+        existing["quantity"]
+    )
+
+    unit = data.get(
+        "unit",
+        existing["unit"]
+    )
+
+    try:
+        quantity = float(quantity)
+
+        if quantity <= 0:
+            raise ValueError
+
+    except (TypeError, ValueError):
+        conn.close()
+
+        return jsonify({
+            "error": "Quantity must be a valid positive number"
+        }), 400
+
+    ingredient = conn.execute("""
+        SELECT ingredient_id
+        FROM ingredients
+        WHERE ingredient_id = ?
+    """, (ingredient_id,)).fetchone()
+
+    if ingredient is None:
+        conn.close()
+
+        return jsonify({
+            "error": "Ingredient not found"
+        }), 404
+
+    conn.execute("""
+        UPDATE recipe_ingredients
+        SET
+            ingredient_id = ?,
+            quantity = ?,
+            unit = ?
+        WHERE id = ?
+    """, (
+        ingredient_id,
+        quantity,
+        unit,
+        recipe_ingredient_id
+    ))
+
+    conn.commit()
+    conn.close()
+
+    return jsonify({
+        "message": "Recipe ingredient updated successfully"
+    })
+
+# -----------------------------
+# DELETE RECIPE INGREDIENT
+# -----------------------------
+
+@app.route("/api/recipe-ingredients/<int:recipe_ingredient_id>", methods=["DELETE"])
+def delete_recipe_ingredient(recipe_ingredient_id):
+    conn = get_db_connection()
+
+    recipe_ingredient = conn.execute("""
+        SELECT *
+        FROM recipe_ingredients
+        WHERE id = ?
+    """, (recipe_ingredient_id,)).fetchone()
+
+    if recipe_ingredient is None:
+        conn.close()
+
+        return jsonify({
+            "error": "Recipe ingredient not found"
+        }), 404
+
+    conn.execute("""
+        DELETE FROM recipe_ingredients
+        WHERE id = ?
+    """, (recipe_ingredient_id,))
+
+    conn.commit()
+    conn.close()
+
+    return jsonify({
+        "message": "Recipe ingredient deleted successfully"
+    })
+
+
+# -----------------------------
 # TEST ROUTE
 # -----------------------------
 
