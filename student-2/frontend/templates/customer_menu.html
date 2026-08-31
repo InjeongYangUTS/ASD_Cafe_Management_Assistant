@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Cafe Menu | Cafe Management Assistant</title>
+    <title>Customer Menu | Cafe Management Assistant</title>
 
     <link rel="stylesheet" href="/static/style.css">
 </head>
@@ -14,428 +14,473 @@
 
     <main class="customer-menu-container">
 
+        <!-- HEADER -->
+
         <header class="customer-menu-header">
 
             <div>
-                <h1>Cafe Menu</h1>
-                <p>Choose your favourite food and drinks.</p>
+                <h1>Menu</h1>
+                <p>Browse our available food and drinks.</p>
             </div>
 
             <a
                 href="http://localhost:5100/customer-dashboard"
                 class="secondary-button"
             >
-                ← Dashboard
+                ← Back
             </a>
 
         </header>
 
-        <div class="customer-menu-toolbar">
+
+        <!-- SEARCH / FILTER -->
+
+        <section class="customer-menu-toolbar">
 
             <input
                 type="text"
-                id="customer-menu-search"
+                id="menu-search"
                 class="search-input"
-                placeholder="Search menu..."
+                placeholder="Search menu items..."
             >
 
             <select
                 id="category-filter"
                 class="filter-select"
             >
-
-                <option value="all">All Categories</option>
-                <option value="Coffee">Coffee</option>
-                <option value="Iced Coffee">Iced Coffee</option>
-                <option value="Drink">Drink</option>
-                <option value="Food">Food</option>
-                <option value="Dessert">Dessert</option>
-                <option value="Pastry">Pastry</option>
-
+                <option value="">
+                    All Categories
+                </option>
             </select>
-
-        </div>
-
-        <section class="customer-menu-grid">
-
-            <article class="customer-menu-card">
-
-                <div class="menu-card-category">Coffee</div>
-
-                <h2>Cappuccino</h2>
-
-                <p>
-                    Espresso with steamed milk and foam.
-                </p>
-
-                <div class="customer-menu-footer">
-
-                    <span class="menu-price">$5.50</span>
-
-                    <button
-                        class="primary-button"
-                        data-menu-id="1"
-                    >
-                        Add to Order
-                    </button>
-
-                </div>
-
-            </article>
-
-            <article class="customer-menu-card">
-
-                <div class="menu-card-category">Coffee</div>
-
-                <h2>Latte</h2>
-
-                <p>
-                    Espresso with steamed milk.
-                </p>
-
-                <div class="customer-menu-footer">
-
-                    <span class="menu-price">$5.50</span>
-
-                    <button
-                        class="primary-button"
-                        data-menu-id="2"
-                    >
-                        Add to Order
-                    </button>
-
-                </div>
-
-            </article>
-
-            <article class="customer-menu-card">
-
-                <div class="menu-card-category">Coffee</div>
-
-                <h2>Flat White</h2>
-
-                <p>
-                    Espresso with smooth steamed milk.
-                </p>
-
-                <div class="customer-menu-footer">
-
-                    <span class="menu-price">$5.50</span>
-
-                    <button
-                        class="primary-button"
-                        data-menu-id="3"
-                    >
-                        Add to Order
-                    </button>
-
-                </div>
-
-            </article>
-
-            <article class="customer-menu-card">
-
-                <div class="menu-card-category">Coffee</div>
-
-                <h2>Long Black</h2>
-
-                <p>
-                    Espresso with hot water.
-                </p>
-
-                <div class="customer-menu-footer">
-
-                    <span class="menu-price">$5.00</span>
-
-                    <button
-                        class="primary-button"
-                        data-menu-id="4"
-                    >
-                        Add to Order
-                    </button>
-
-                </div>
-
-            </article>
-
-            <article class="customer-menu-card">
-
-                <div class="menu-card-category">Iced Coffee</div>
-
-                <h2>Iced Long Black</h2>
-
-                <p>
-                    Espresso served over cold water and ice.
-                </p>
-
-                <div class="customer-menu-footer">
-
-                    <span class="menu-price">$5.50</span>
-
-                    <button
-                        class="primary-button"
-                        data-menu-id="5"
-                    >
-                        Add to Order
-                    </button>
-
-                </div>
-
-            </article>
-
-            <article class="customer-menu-card">
-
-                <div class="menu-card-category">Iced Coffee</div>
-
-                <h2>Iced Latte</h2>
-
-                <p>
-                    Espresso with cold milk and ice.
-                </p>
-
-                <div class="customer-menu-footer">
-
-                    <span class="menu-price">$6.00</span>
-
-                    <button
-                        class="primary-button"
-                        data-menu-id="6"
-                    >
-                        Add to Order
-                    </button>
-
-                </div>
-
-            </article>
-
-            <article class="customer-menu-card">
-
-                <div class="menu-card-category">Coffee</div>
-
-                <h2>Vanilla Latte</h2>
-
-                <p>
-                    Latte with vanilla syrup.
-                </p>
-
-                <div class="customer-menu-footer">
-
-                    <span class="menu-price">$6.00</span>
-
-                    <button
-                        class="primary-button"
-                        data-menu-id="7"
-                    >
-                        Add to Order
-                    </button>
-
-                </div>
-
-            </article>
-
-            <article class="customer-menu-card">
-
-                <div class="menu-card-category">Coffee</div>
-
-                <h2>Caramel Latte</h2>
-
-                <p>
-                    Latte with caramel syrup.
-                </p>
-
-                <div class="customer-menu-footer">
-
-                    <span class="menu-price">$6.00</span>
-
-                    <button
-                        class="primary-button"
-                        data-menu-id="8"
-                    >
-                        Add to Order
-                    </button>
-
-                </div>
-
-            </article>
-
-            <article class="customer-menu-card">
-
-                <div class="menu-card-category">Drink</div>
-
-                <h2>Hot Chocolate</h2>
-
-                <p>
-                    Chocolate with steamed milk.
-                </p>
-
-                <div class="customer-menu-footer">
-
-                    <span class="menu-price">$5.00</span>
-
-                    <button
-                        class="primary-button"
-                        data-menu-id="9"
-                    >
-                        Add to Order
-                    </button>
-
-                </div>
-
-            </article>
-
-            <article class="customer-menu-card">
-
-                <div class="menu-card-category">Food</div>
-
-                <h2>Chicken Sandwich</h2>
-
-                <p>
-                    Chicken, lettuce and mayonnaise sandwich.
-                </p>
-
-                <div class="customer-menu-footer">
-
-                    <span class="menu-price">$9.50</span>
-
-                    <button
-                        class="primary-button"
-                        data-menu-id="10"
-                    >
-                        Add to Order
-                    </button>
-
-                </div>
-
-            </article>
-
-            <article class="customer-menu-card">
-
-                <div class="menu-card-category">Food</div>
-
-                <h2>Ham & Cheese Toastie</h2>
-
-                <p>
-                    Toasted ham and cheese sandwich.
-                </p>
-
-                <div class="customer-menu-footer">
-
-                    <span class="menu-price">$8.50</span>
-
-                    <button
-                        class="primary-button"
-                        data-menu-id="11"
-                    >
-                        Add to Order
-                    </button>
-
-                </div>
-
-            </article>
-
-            <article class="customer-menu-card">
-
-                <div class="menu-card-category">Food</div>
-
-                <h2>Avocado Toast</h2>
-
-                <p>
-                    Toast with avocado and seasoning.
-                </p>
-
-                <div class="customer-menu-footer">
-
-                    <span class="menu-price">$10.00</span>
-
-                    <button
-                        class="primary-button"
-                        data-menu-id="12"
-                    >
-                        Add to Order
-                    </button>
-
-                </div>
-
-            </article>
-
-            <article class="customer-menu-card">
-
-                <div class="menu-card-category">Dessert</div>
-
-                <h2>Chocolate Cake</h2>
-
-                <p>
-                    Chocolate cake slice.
-                </p>
-
-                <div class="customer-menu-footer">
-
-                    <span class="menu-price">$7.00</span>
-
-                    <button
-                        class="primary-button"
-                        data-menu-id="13"
-                    >
-                        Add to Order
-                    </button>
-
-                </div>
-
-            </article>
-
-            <article class="customer-menu-card">
-
-                <div class="menu-card-category">Dessert</div>
-
-                <h2>Blueberry Muffin</h2>
-
-                <p>
-                    Blueberry muffin.
-                </p>
-
-                <div class="customer-menu-footer">
-
-                    <span class="menu-price">$5.00</span>
-
-                    <button
-                        class="primary-button"
-                        data-menu-id="14"
-                    >
-                        Add to Order
-                    </button>
-
-                </div>
-
-            </article>
-
-            <article class="customer-menu-card">
-
-                <div class="menu-card-category">Pastry</div>
-
-                <h2>Croissant</h2>
-
-                <p>
-                    Butter croissant.
-                </p>
-
-                <div class="customer-menu-footer">
-
-                    <span class="menu-price">$4.50</span>
-
-                    <button
-                        class="primary-button"
-                        data-menu-id="15"
-                    >
-                        Add to Order
-                    </button>
-
-                </div>
-
-            </article>
 
         </section>
 
+
+        <!-- MENU GRID -->
+
+        <section
+            id="customer-menu-grid"
+            class="customer-menu-grid"
+        >
+        </section>
+
+
+        <!-- EMPTY MESSAGE -->
+
+        <p
+            id="no-menu-results"
+            style="display: none;"
+        >
+            No menu items found.
+        </p>
+
     </main>
+
+
+    <script>
+
+        // --------------------------------
+        // API
+        // --------------------------------
+
+        const MENU_API =
+            "http://localhost:5201/api/menus";
+
+
+        // --------------------------------
+        // STATE
+        // --------------------------------
+
+        let allMenuItems = [];
+
+
+        // --------------------------------
+        // DISPLAY MENU ITEMS
+        // --------------------------------
+
+        function displayMenuItems(items) {
+
+            const menuGrid =
+                document.getElementById(
+                    "customer-menu-grid"
+                );
+
+            const noResults =
+                document.getElementById(
+                    "no-menu-results"
+                );
+
+
+            menuGrid.innerHTML = "";
+
+
+            if (items.length === 0) {
+
+                noResults.style.display =
+                    "block";
+
+                return;
+            }
+
+
+            noResults.style.display =
+                "none";
+
+
+            items.forEach(item => {
+
+                const card =
+                    document.createElement(
+                        "article"
+                    );
+
+                card.className =
+                    "customer-menu-card";
+
+
+                const category =
+                    document.createElement(
+                        "span"
+                    );
+
+                category.className =
+                    "menu-card-category";
+
+                category.textContent =
+                    item.category;
+
+
+                const name =
+                    document.createElement(
+                        "h2"
+                    );
+
+                name.textContent =
+                    item.name;
+
+
+                const description =
+                    document.createElement(
+                        "p"
+                    );
+
+                description.textContent =
+                    item.description || "";
+
+
+                const footer =
+                    document.createElement(
+                        "div"
+                    );
+
+                footer.className =
+                    "customer-menu-footer";
+
+
+                const price =
+                    document.createElement(
+                        "span"
+                    );
+
+                price.className =
+                    "menu-price";
+
+                price.textContent =
+                    `$${Number(item.price).toFixed(2)}`;
+
+
+                const orderButton =
+                    document.createElement(
+                        "button"
+                    );
+
+                orderButton.type =
+                    "button";
+
+                orderButton.className =
+                    "primary-button";
+
+                orderButton.textContent =
+                    "Add to Order";
+
+                orderButton.dataset.menuId =
+                    item.menu_id;
+
+
+                orderButton.addEventListener(
+                    "click",
+                    function() {
+
+                        handleAddToOrder(
+                            item
+                        );
+                    }
+                );
+
+
+                footer.appendChild(
+                    price
+                );
+
+                footer.appendChild(
+                    orderButton
+                );
+
+
+                card.appendChild(
+                    category
+                );
+
+                card.appendChild(
+                    name
+                );
+
+                card.appendChild(
+                    description
+                );
+
+                card.appendChild(
+                    footer
+                );
+
+
+                menuGrid.appendChild(
+                    card
+                );
+            });
+        }
+
+
+        // --------------------------------
+        // LOAD MENU ITEMS
+        // --------------------------------
+
+        async function loadMenuItems() {
+
+            try {
+
+                const response =
+                    await fetch(
+                        MENU_API
+                    );
+
+
+                if (!response.ok) {
+
+                    throw new Error(
+                        "Failed to load menu"
+                    );
+                }
+
+
+                allMenuItems =
+                    await response.json();
+
+
+                populateCategories(
+                    allMenuItems
+                );
+
+
+                displayMenuItems(
+                    allMenuItems
+                );
+
+            }
+
+            catch (error) {
+
+                console.error(
+                    "Error loading menu:",
+                    error
+                );
+
+
+                const menuGrid =
+                    document.getElementById(
+                        "customer-menu-grid"
+                    );
+
+
+                menuGrid.innerHTML = `
+                    <p>
+                        Unable to load the menu.
+                    </p>
+                `;
+            }
+        }
+
+
+        // --------------------------------
+        // CATEGORY FILTER OPTIONS
+        // --------------------------------
+
+        function populateCategories(items) {
+
+            const categoryFilter =
+                document.getElementById(
+                    "category-filter"
+                );
+
+
+            const categories = [
+                ...new Set(
+                    items
+                        .map(
+                            item =>
+                                item.category
+                        )
+                        .filter(Boolean)
+                )
+            ];
+
+
+            categories.sort();
+
+
+            categories.forEach(
+                categoryName => {
+
+                    const option =
+                        document.createElement(
+                            "option"
+                        );
+
+                    option.value =
+                        categoryName;
+
+                    option.textContent =
+                        categoryName;
+
+
+                    categoryFilter.appendChild(
+                        option
+                    );
+                }
+            );
+        }
+
+
+        // --------------------------------
+        // SEARCH + FILTER
+        // --------------------------------
+
+        function filterMenuItems() {
+
+            const searchValue =
+                document.getElementById(
+                    "menu-search"
+                )
+                .value
+                .toLowerCase()
+                .trim();
+
+
+            const selectedCategory =
+                document.getElementById(
+                    "category-filter"
+                ).value;
+
+
+            const filteredItems =
+                allMenuItems.filter(
+                    item => {
+
+                        const name =
+                            (
+                                item.name ||
+                                ""
+                            ).toLowerCase();
+
+
+                        const category =
+                            (
+                                item.category ||
+                                ""
+                            ).toLowerCase();
+
+
+                        const description =
+                            (
+                                item.description ||
+                                ""
+                            ).toLowerCase();
+
+
+                        const matchesSearch =
+                            name.includes(
+                                searchValue
+                            ) ||
+
+                            category.includes(
+                                searchValue
+                            ) ||
+
+                            description.includes(
+                                searchValue
+                            );
+
+
+                        const matchesCategory =
+                            selectedCategory === "" ||
+
+                            item.category ===
+                                selectedCategory;
+
+
+                        return (
+                            matchesSearch &&
+                            matchesCategory
+                        );
+                    }
+                );
+
+
+            displayMenuItems(
+                filteredItems
+            );
+        }
+
+
+        document
+            .getElementById(
+                "menu-search"
+            )
+            .addEventListener(
+                "input",
+                filterMenuItems
+            );
+
+
+        document
+            .getElementById(
+                "category-filter"
+            )
+            .addEventListener(
+                "change",
+                filterMenuItems
+            );
+
+
+        // --------------------------------
+        // ORDER INTEGRATION PLACEHOLDER
+        // --------------------------------
+
+        function handleAddToOrder(item) {
+
+            alert(
+                `${item.name} is ready to be sent to the Order service.`
+            );
+        }
+
+
+        // --------------------------------
+        // INITIAL LOAD
+        // --------------------------------
+
+        loadMenuItems();
+
+    </script>
 
 </body>
 
