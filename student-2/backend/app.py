@@ -75,9 +75,7 @@ def create_menu():
     data = request.get_json()
 
     if not data:
-        return jsonify({
-            "error": "Request body is required"
-        }), 400
+        return jsonify({"error": "Request body is required"}), 400
 
     name = data.get("name")
     category = data.get("category")
@@ -89,48 +87,25 @@ def create_menu():
             "error": "Name, category and price are required"
         }), 400
 
-    try:
-        price = float(price)
-
-        if price < 0:
-            raise ValueError
-
-    except (TypeError, ValueError):
-        return jsonify({
-            "error": "Price must be a valid positive number"
-        }), 400
-
     conn = get_db_connection()
 
-    cursor = conn.execute("""
-        INSERT INTO menus
-        (name, category, description, price)
+    cursor = conn.execute(
+        """
+        INSERT INTO menus (name, category, description, price)
         VALUES (?, ?, ?, ?)
-    """, (
-        name,
-        category,
-        description,
-        price
-    ))
+        """,
+        (name, category, description, price)
+    )
 
     conn.commit()
 
     new_menu_id = cursor.lastrowid
-
-    menu = conn.execute("""
-        SELECT
-            menu_id,
-            name,
-            category,
-            description,
-            price
-        FROM menus
-        WHERE menu_id = ?
-    """, (new_menu_id,)).fetchone()
-
     conn.close()
 
-    return jsonify(dict(menu)), 201
+    return jsonify({
+        "message": "Menu item created successfully",
+        "menu_id": new_menu_id
+    }), 201
 
 
 # -----------------------------
