@@ -1,7 +1,11 @@
 from flask import Flask, render_template, request, redirect, session
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.middleware.dispatcher import DispatcherMiddleware
+import importlib.util
 import sqlite3
 import os
+import sys
+from pathlib import Path
 
 
 app = Flask(
@@ -11,6 +15,24 @@ app = Flask(
 )
 
 app.secret_key = "temporary-secret-key"
+
+
+def load_inventory_app():
+    """Load the Student 3 Flask app without requiring student-3 to be a package."""
+    project_root = Path(__file__).resolve().parents[2]
+    inventory_app_path = project_root / "student-3" / "app.py"
+    spec = importlib.util.spec_from_file_location(
+        "student_3_inventory_app",
+        inventory_app_path
+    )
+
+    if spec is None or spec.loader is None:
+        raise RuntimeError("Could not load the Student 3 inventory application")
+
+    inventory_module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = inventory_module
+    spec.loader.exec_module(inventory_module)
+    return inventory_module.app
 
 
 DB_PATH = os.path.join(
@@ -246,6 +268,13 @@ def staff_dashboard():
         staff_name=session.get("staff_name"),
         staff_role=session.get("staff_role")
     )
+
+
+# Serve the Student 3 application from the same server under /inventory.
+app.wsgi_app = DispatcherMiddleware(
+    app.wsgi_app,
+    {"/inventory": load_inventory_app()}
+)
 
 if __name__ == "__main__":
     app.run(
