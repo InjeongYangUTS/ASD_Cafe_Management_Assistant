@@ -507,6 +507,44 @@ def update_ingredient(ingredient_id):
     })
 
 # -----------------------------
+# DELETE INGREDIENT
+# -----------------------------
+
+@app.route("/api/ingredients/<int:ingredient_id>", methods=["DELETE"])
+def delete_ingredient(ingredient_id):
+    conn = get_db_connection()
+
+    ingredient = conn.execute("""
+        SELECT *
+        FROM ingredients
+        WHERE ingredient_id = ?
+    """, (ingredient_id,)).fetchone()
+
+    if ingredient is None:
+        conn.close()
+
+        return jsonify({
+            "error": "Ingredient not found"
+        }), 404
+
+    conn.execute("""
+        DELETE FROM ingredient_costs
+        WHERE ingredient_id = ?
+    """, (ingredient_id,))
+
+    conn.execute("""
+        DELETE FROM ingredients
+        WHERE ingredient_id = ?
+    """, (ingredient_id,))
+
+    conn.commit()
+    conn.close()
+
+    return jsonify({
+        "message": "Ingredient deleted successfully"
+    })
+
+# -----------------------------
 # TEST ROUTE
 # -----------------------------
 
