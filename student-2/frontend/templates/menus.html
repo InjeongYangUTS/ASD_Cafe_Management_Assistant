@@ -25,7 +25,6 @@
             </a>
         </header>
 
-
         <!-- ADD MENU ITEM -->
 
         <section class="management-section">
@@ -113,6 +112,8 @@
 
                 </div>
 
+                <p id="menu-success-message" class="success-message"></p>
+
             </form>
 
         </section>
@@ -178,6 +179,19 @@
         const MENU_API = "http://localhost:5201/api/menus";
 
         let editingMenuId = null;
+
+        function showSuccessMessage(message) {
+
+            const successMessage =
+                document.getElementById("menu-success-message");
+
+            successMessage.textContent = message;
+            successMessage.style.display = "block";
+
+            setTimeout(() => {
+                successMessage.style.display = "none";
+            }, 3000);
+        }
 
         // --------------------------------
         // LOAD MENU ITEMS FROM BACKEND
@@ -354,6 +368,14 @@
 
                 await loadMenus();
 
+                showSuccessMessage("Menu item deleted successfully.");
+
+                document
+                    .getElementById("menu-success-message")
+                    .scrollIntoView({
+                        behavior: "smooth",
+                        block: "center"
+                    });
             }
 
             catch (error) {
@@ -400,6 +422,7 @@
 
 
             try {
+                const wasEditing = editingMenuId !== null;
 
                 let url = MENU_API;
                 let method = "POST";
@@ -444,6 +467,11 @@
                 // Reload table with new database data
                 await loadMenus();
 
+                if (wasEditing) {
+                    showSuccessMessage("Menu item updated successfully.");
+                } else {
+                    showSuccessMessage("Menu item added successfully.");
+                }
             }
 
             catch (error) {
