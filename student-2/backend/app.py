@@ -428,6 +428,85 @@ def create_ingredient():
     }), 201
 
 # -----------------------------
+# UPDATE INGREDIENT
+# -----------------------------
+
+@app.route("/api/ingredients/<int:ingredient_id>", methods=["PUT"])
+def update_ingredient(ingredient_id):
+    data = request.get_json()
+
+    if not data:
+        return jsonify({
+            "error": "Request body is required"
+        }), 400
+
+    conn = get_db_connection()
+
+    ingredient = conn.execute("""
+        SELECT
+            i.ingredient_id,
+            i.name,
+            i.unit,
+            ic.unit_cost
+        FROM ingredients i
+        LEFT JOIN ingredient_costs ic
+            ON i.ingredient_id = ic.ingredient_id
+        WHERE i.ingredient_id = ?
+    """, (ingredient_id,)).fetchone()
+
+    if ingredient is None:
+        conn.close()
+
+        return jsonify({
+            "error": "Ingredient not found"
+        }), 404
+
+    name = data.get("name", ingredient["name"])
+    unit = data.get("unit", ingredient["unit"])
+    unit_cost = data.get("unit_cost", ingredient["unit_cost"])
+
+    try:
+        unit_cost = float(unit_cost)
+
+        if unit_cost < 0:
+            raise ValueError
+
+    except (TypeError, ValueError):
+        conn.close()
+
+        return jsonify({
+            "error": "Unit cost must be a valid positive number"
+        }), 400
+
+    conn.execute("""
+        UPDATE ingredients
+        SET
+            name = ?,
+            unit = ?
+        WHERE ingredient_id = ?
+    """, (
+        name,
+        unit,
+        ingredient_id
+    ))
+
+    conn.execute("""
+        UPDATE ingredient_costs
+        SET unit_cost = ?
+        WHERE ingredient_id = ?
+    """, (
+        unit_cost,
+        ingredient_id
+    ))
+
+    conn.commit()
+    conn.close()
+
+    return jsonify({
+        "message": "Ingredient updated successfully"
+    })
+
+# -----------------------------
 # TEST ROUTE
 # -----------------------------
 
