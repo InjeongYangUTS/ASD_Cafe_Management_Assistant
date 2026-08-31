@@ -336,6 +336,36 @@ def get_ingredients():
     return jsonify([dict(ingredient) for ingredient in ingredients])
 
 # -----------------------------
+# GET ONE INGREDIENT
+# -----------------------------
+
+@app.route("/api/ingredients/<int:ingredient_id>", methods=["GET"])
+def get_ingredient(ingredient_id):
+    conn = get_db_connection()
+
+    ingredient = conn.execute("""
+        SELECT
+            i.ingredient_id,
+            i.name,
+            i.unit,
+            ic.unit_cost
+        FROM ingredients i
+        LEFT JOIN ingredient_costs ic
+            ON i.ingredient_id = ic.ingredient_id
+        WHERE i.ingredient_id = ?
+    """, (ingredient_id,)).fetchone()
+
+    conn.close()
+
+    if ingredient is None:
+        return jsonify({
+            "error": "Ingredient not found"
+        }), 404
+
+    return jsonify(dict(ingredient))
+
+
+# -----------------------------
 # TEST ROUTE
 # -----------------------------
 
