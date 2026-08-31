@@ -1,8 +1,10 @@
 from flask import Flask, jsonify, request
+from flask_cors import CORS
 import sqlite3
 from pathlib import Path
 
 app = Flask(__name__)
+CORS(app)
 
 DB_PATH = Path(__file__).parent.parent / "database" / "menu_recipe.db"
 
