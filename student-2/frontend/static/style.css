@@ -813,3 +813,7 @@ body {
     border: 1px solid #f6df9f;
     font-weight: 600;
 }
+
+#recipe-ingredient-form {
+    margin-bottom: 20px;
+}

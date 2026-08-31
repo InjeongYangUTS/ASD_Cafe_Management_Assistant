@@ -20,7 +20,7 @@
 
             <div>
                 <h1>Recipes</h1>
-                <p>Manage recipes for cafe menu items.</p>
+                <p>Manage recipes and recipe ingredients.</p>
             </div>
 
             <a href="/" class="secondary-button">
@@ -53,8 +53,6 @@
 
                 <div class="form-row">
 
-                    <!-- MENU ITEM -->
-
                     <div class="form-group">
 
                         <label for="recipe-menu-item">
@@ -63,7 +61,6 @@
 
                         <select
                             id="recipe-menu-item"
-                            name="menu_id"
                             required
                         >
                             <option value="">
@@ -74,8 +71,6 @@
                     </div>
 
 
-                    <!-- RECIPE NAME -->
-
                     <div class="form-group">
 
                         <label for="recipe-name">
@@ -85,7 +80,6 @@
                         <input
                             type="text"
                             id="recipe-name"
-                            name="name"
                             placeholder="e.g. Cappuccino Recipe"
                             required
                         >
@@ -95,8 +89,6 @@
                 </div>
 
 
-                <!-- INSTRUCTIONS -->
-
                 <div class="form-group">
 
                     <label for="recipe-instructions">
@@ -105,16 +97,13 @@
 
                     <textarea
                         id="recipe-instructions"
-                        name="instructions"
                         rows="5"
-                        placeholder="Enter recipe preparation instructions..."
+                        placeholder="Enter preparation instructions..."
                         required
                     ></textarea>
 
                 </div>
 
-
-                <!-- FORM BUTTONS -->
 
                 <div class="form-actions">
 
@@ -134,8 +123,6 @@
 
                 </div>
 
-
-                <!-- SUCCESS MESSAGE -->
 
                 <p
                     id="recipe-success-message"
@@ -160,9 +147,6 @@
                     </p>
                 </div>
 
-
-                <!-- SEARCH -->
-
                 <input
                     type="text"
                     id="recipe-search"
@@ -172,8 +156,6 @@
 
             </div>
 
-
-            <!-- RECIPE TABLE -->
 
             <div class="table-wrapper">
 
@@ -200,6 +182,167 @@
 
         </section>
 
+
+        <!-- RECIPE INGREDIENT MANAGEMENT -->
+
+        <section
+            id="recipe-ingredient-section"
+            class="management-section"
+            style="display: none;"
+        >
+
+            <div class="section-heading">
+
+                <div>
+                    <h2>
+                        Recipe Ingredients
+                    </h2>
+
+                    <p id="selected-recipe-name">
+                        Manage ingredients for selected recipe.
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <!-- ADD / UPDATE RECIPE INGREDIENT -->
+
+            <form
+                id="recipe-ingredient-form"
+                class="management-form"
+            >
+
+                <div class="form-row">
+
+                    <div class="form-group">
+
+                        <label for="recipe-ingredient">
+                            Ingredient
+                        </label>
+
+                        <select
+                            id="recipe-ingredient"
+                            required
+                        >
+                            <option value="">
+                                Select ingredient
+                            </option>
+                        </select>
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label for="recipe-ingredient-quantity">
+                            Quantity
+                        </label>
+
+                        <input
+                            type="number"
+                            id="recipe-ingredient-quantity"
+                            min="0.001"
+                            step="0.001"
+                            placeholder="e.g. 18"
+                            required
+                        >
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label for="recipe-ingredient-unit">
+                            Unit
+                        </label>
+
+                        <select
+                            id="recipe-ingredient-unit"
+                            required
+                        >
+                            <option value="">
+                                Select unit
+                            </option>
+
+                            <option value="g">
+                                g
+                            </option>
+
+                            <option value="ml">
+                                ml
+                            </option>
+
+                            <option value="slice">
+                                slice
+                            </option>
+
+                            <option value="each">
+                                each
+                            </option>
+
+                        </select>
+
+                    </div>
+
+                </div>
+
+
+                <div class="form-actions">
+
+                    <button
+                        type="submit"
+                        class="primary-button"
+                    >
+                        Add Ingredient
+                    </button>
+
+                    <button
+                        type="reset"
+                        class="secondary-button"
+                    >
+                        Clear
+                    </button>
+
+                </div>
+
+
+                <p
+                    id="recipe-ingredient-success-message"
+                    class="success-message"
+                ></p>
+
+            </form>
+
+
+            <!-- INGREDIENT TABLE -->
+
+            <div class="table-wrapper">
+
+                <table class="management-table">
+
+                    <thead>
+
+                        <tr>
+                            <th>ID</th>
+                            <th>Ingredient</th>
+                            <th>Quantity</th>
+                            <th>Unit</th>
+                            <th>Actions</th>
+                        </tr>
+
+                    </thead>
+
+                    <tbody id="recipe-ingredient-table-body">
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </section>
+
     </main>
 
 
@@ -215,18 +358,25 @@
         const MENU_API =
             "http://localhost:5201/api/menus";
 
+        const INGREDIENT_API =
+            "http://localhost:5201/api/ingredients";
+
 
         // --------------------------------
-        // EDITING STATE
+        // STATE
         // --------------------------------
 
         let editingRecipeId = null;
+
+        let selectedRecipeId = null;
+
+        let editingRecipeIngredientId = null;
 
         let allRecipes = [];
 
 
         // --------------------------------
-        // SUCCESS MESSAGE
+        // SUCCESS MESSAGES
         // --------------------------------
 
         function showRecipeSuccessMessage(message) {
@@ -236,14 +386,38 @@
                     "recipe-success-message"
                 );
 
-            successMessage.textContent = message;
+            successMessage.textContent =
+                message;
 
-            successMessage.style.display = "block";
-
+            successMessage.style.display =
+                "block";
 
             setTimeout(() => {
 
-                successMessage.style.display = "none";
+                successMessage.style.display =
+                    "none";
+
+            }, 3000);
+        }
+
+
+        function showRecipeIngredientSuccessMessage(message) {
+
+            const successMessage =
+                document.getElementById(
+                    "recipe-ingredient-success-message"
+                );
+
+            successMessage.textContent =
+                message;
+
+            successMessage.style.display =
+                "block";
+
+            setTimeout(() => {
+
+                successMessage.style.display =
+                    "none";
 
             }, 3000);
         }
@@ -259,14 +433,6 @@
 
                 const response =
                     await fetch(MENU_API);
-
-                if (!response.ok) {
-
-                    throw new Error(
-                        "Failed to load menu items"
-                    );
-                }
-
 
                 const menus =
                     await response.json();
@@ -303,12 +469,70 @@
                     );
                 });
 
-            }
-
-            catch (error) {
+            } catch (error) {
 
                 console.error(
                     "Error loading menu items:",
+                    error
+                );
+            }
+        }
+
+
+        // --------------------------------
+        // LOAD INGREDIENT OPTIONS
+        // --------------------------------
+
+        async function loadIngredientOptions() {
+
+            try {
+
+                const response =
+                    await fetch(
+                        INGREDIENT_API
+                    );
+
+                const ingredients =
+                    await response.json();
+
+
+                const ingredientSelect =
+                    document.getElementById(
+                        "recipe-ingredient"
+                    );
+
+
+                ingredientSelect.innerHTML = `
+                    <option value="">
+                        Select ingredient
+                    </option>
+                `;
+
+
+                ingredients.forEach(
+                    ingredient => {
+
+                        const option =
+                            document.createElement(
+                                "option"
+                            );
+
+                        option.value =
+                            ingredient.ingredient_id;
+
+                        option.textContent =
+                            ingredient.name;
+
+                        ingredientSelect.appendChild(
+                            option
+                        );
+                    }
+                );
+
+            } catch (error) {
+
+                console.error(
+                    "Error loading ingredients:",
                     error
                 );
             }
@@ -375,12 +599,35 @@
                     "action-buttons";
 
 
-                // EDIT BUTTON
+                const manageButton =
+                    document.createElement("button");
+
+                manageButton.type =
+                    "button";
+
+                manageButton.className =
+                    "secondary-button";
+
+                manageButton.textContent =
+                    "Manage Ingredients";
+
+                manageButton.addEventListener(
+                    "click",
+                    function() {
+
+                        manageRecipeIngredients(
+                            recipe.recipe_id,
+                            recipe.name
+                        );
+                    }
+                );
+
 
                 const editButton =
                     document.createElement("button");
 
-                editButton.type = "button";
+                editButton.type =
+                    "button";
 
                 editButton.className =
                     "edit-button";
@@ -399,12 +646,11 @@
                 );
 
 
-                // DELETE BUTTON
-
                 const deleteButton =
                     document.createElement("button");
 
-                deleteButton.type = "button";
+                deleteButton.type =
+                    "button";
 
                 deleteButton.className =
                     "delete-button";
@@ -425,12 +671,17 @@
 
 
                 actions.appendChild(
+                    manageButton
+                );
+
+                actions.appendChild(
                     editButton
                 );
 
                 actions.appendChild(
                     deleteButton
                 );
+
 
                 actionsCell.appendChild(
                     actions
@@ -474,15 +725,9 @@
             try {
 
                 const response =
-                    await fetch(RECIPE_API);
-
-
-                if (!response.ok) {
-
-                    throw new Error(
-                        "Failed to load recipes"
+                    await fetch(
+                        RECIPE_API
                     );
-                }
 
 
                 allRecipes =
@@ -493,9 +738,7 @@
                     allRecipes
                 );
 
-            }
-
-            catch (error) {
+            } catch (error) {
 
                 console.error(
                     "Error loading recipes:",
@@ -565,15 +808,11 @@
                 document.getElementById(
                     "recipe-form"
                 ).scrollIntoView({
-
                     behavior: "smooth",
                     block: "center"
-
                 });
 
-            }
-
-            catch (error) {
+            } catch (error) {
 
                 console.error(
                     "Error loading recipe:",
@@ -710,9 +949,7 @@
                         );
                     }
 
-                }
-
-                catch (error) {
+                } catch (error) {
 
                     console.error(
                         "Error saving recipe:",
@@ -786,15 +1023,11 @@
                         "recipe-success-message"
                     )
                     .scrollIntoView({
-
                         behavior: "smooth",
                         block: "center"
-
                     });
 
-            }
-
-            catch (error) {
+            } catch (error) {
 
                 console.error(
                     "Error deleting recipe:",
@@ -809,7 +1042,540 @@
 
 
         // --------------------------------
-        // CLEAR / RESET FORM
+        // MANAGE RECIPE INGREDIENTS
+        // --------------------------------
+
+        async function manageRecipeIngredients(
+            recipeId,
+            recipeName
+        ) {
+
+            selectedRecipeId =
+                recipeId;
+
+
+            editingRecipeIngredientId =
+                null;
+
+
+            document.getElementById(
+                "selected-recipe-name"
+            ).textContent =
+                `Ingredients for ${recipeName}`;
+
+
+            document.getElementById(
+                "recipe-ingredient-section"
+            ).style.display =
+                "block";
+
+
+            document.getElementById(
+                "recipe-ingredient-form"
+            ).reset();
+
+
+            document.querySelector(
+                "#recipe-ingredient-form .primary-button"
+            ).textContent =
+                "Add Ingredient";
+
+
+            await loadRecipeIngredients();
+
+
+            document.getElementById(
+                "recipe-ingredient-section"
+            ).scrollIntoView({
+                behavior: "smooth",
+                block: "start"
+            });
+        }
+
+
+        // --------------------------------
+        // LOAD RECIPE INGREDIENTS
+        // --------------------------------
+
+        async function loadRecipeIngredients() {
+
+            if (selectedRecipeId === null) {
+                return;
+            }
+
+
+            try {
+
+                const response =
+                    await fetch(
+                        `${RECIPE_API}/${selectedRecipeId}/ingredients`
+                    );
+
+
+                const ingredients =
+                    await response.json();
+
+
+                if (!response.ok) {
+
+                    alert(
+                        ingredients.error ||
+                        "Failed to load recipe ingredients"
+                    );
+
+                    return;
+                }
+
+
+                const tableBody =
+                    document.getElementById(
+                        "recipe-ingredient-table-body"
+                    );
+
+
+                tableBody.innerHTML =
+                    "";
+
+
+                ingredients.forEach(
+                    item => {
+
+                        const row =
+                            document.createElement(
+                                "tr"
+                            );
+
+
+                        const idCell =
+                            document.createElement(
+                                "td"
+                            );
+
+                        idCell.textContent =
+                            item.id;
+
+
+                        const ingredientCell =
+                            document.createElement(
+                                "td"
+                            );
+
+                        ingredientCell.textContent =
+                            item.ingredient_name;
+
+
+                        const quantityCell =
+                            document.createElement(
+                                "td"
+                            );
+
+                        quantityCell.textContent =
+                            item.quantity;
+
+
+                        const unitCell =
+                            document.createElement(
+                                "td"
+                            );
+
+                        unitCell.textContent =
+                            item.unit;
+
+
+                        const actionsCell =
+                            document.createElement(
+                                "td"
+                            );
+
+
+                        const actions =
+                            document.createElement(
+                                "div"
+                            );
+
+                        actions.className =
+                            "action-buttons";
+
+
+                        const editButton =
+                            document.createElement(
+                                "button"
+                            );
+
+                        editButton.type =
+                            "button";
+
+                        editButton.className =
+                            "edit-button";
+
+                        editButton.textContent =
+                            "Edit";
+
+
+                        editButton.addEventListener(
+                            "click",
+                            function() {
+
+                                editRecipeIngredient(
+                                    item
+                                );
+                            }
+                        );
+
+
+                        const deleteButton =
+                            document.createElement(
+                                "button"
+                            );
+
+                        deleteButton.type =
+                            "button";
+
+                        deleteButton.className =
+                            "delete-button";
+
+                        deleteButton.textContent =
+                            "Delete";
+
+
+                        deleteButton.addEventListener(
+                            "click",
+                            function() {
+
+                                deleteRecipeIngredient(
+                                    item.id,
+                                    item.ingredient_name
+                                );
+                            }
+                        );
+
+
+                        actions.appendChild(
+                            editButton
+                        );
+
+                        actions.appendChild(
+                            deleteButton
+                        );
+
+
+                        actionsCell.appendChild(
+                            actions
+                        );
+
+
+                        row.appendChild(
+                            idCell
+                        );
+
+                        row.appendChild(
+                            ingredientCell
+                        );
+
+                        row.appendChild(
+                            quantityCell
+                        );
+
+                        row.appendChild(
+                            unitCell
+                        );
+
+                        row.appendChild(
+                            actionsCell
+                        );
+
+
+                        tableBody.appendChild(
+                            row
+                        );
+                    }
+                );
+
+            } catch (error) {
+
+                console.error(
+                    "Error loading recipe ingredients:",
+                    error
+                );
+            }
+        }
+
+
+        // --------------------------------
+        // EDIT RECIPE INGREDIENT
+        // --------------------------------
+
+        function editRecipeIngredient(item) {
+
+            editingRecipeIngredientId =
+                item.id;
+
+
+            document.getElementById(
+                "recipe-ingredient"
+            ).value =
+                item.ingredient_id;
+
+
+            document.getElementById(
+                "recipe-ingredient-quantity"
+            ).value =
+                item.quantity;
+
+
+            document.getElementById(
+                "recipe-ingredient-unit"
+            ).value =
+                item.unit;
+
+
+            document.querySelector(
+                "#recipe-ingredient-form .primary-button"
+            ).textContent =
+                "Update Ingredient";
+
+
+            document.getElementById(
+                "recipe-ingredient-form"
+            ).scrollIntoView({
+                behavior: "smooth",
+                block: "center"
+            });
+        }
+
+
+        // --------------------------------
+        // ADD / UPDATE RECIPE INGREDIENT
+        // --------------------------------
+
+        const recipeIngredientForm =
+            document.getElementById(
+                "recipe-ingredient-form"
+            );
+
+
+        recipeIngredientForm.addEventListener(
+            "submit",
+            async function(event) {
+
+                event.preventDefault();
+
+
+                if (selectedRecipeId === null) {
+
+                    alert(
+                        "Please select a recipe first."
+                    );
+
+                    return;
+                }
+
+
+                const ingredientData = {
+
+                    ingredient_id:
+                        Number(
+                            document.getElementById(
+                                "recipe-ingredient"
+                            ).value
+                        ),
+
+                    quantity:
+                        Number(
+                            document.getElementById(
+                                "recipe-ingredient-quantity"
+                            ).value
+                        ),
+
+                    unit:
+                        document.getElementById(
+                            "recipe-ingredient-unit"
+                        ).value
+                };
+
+
+                const wasEditing =
+                    editingRecipeIngredientId !==
+                    null;
+
+
+                let url =
+                    `${RECIPE_API}/${selectedRecipeId}/ingredients`;
+
+                let method =
+                    "POST";
+
+
+                if (wasEditing) {
+
+                    url =
+                        `http://localhost:5201/api/recipe-ingredients/${editingRecipeIngredientId}`;
+
+                    method =
+                        "PUT";
+                }
+
+
+                try {
+
+                    const response =
+                        await fetch(
+                            url,
+                            {
+
+                                method: method,
+
+                                headers: {
+                                    "Content-Type":
+                                        "application/json"
+                                },
+
+                                body:
+                                    JSON.stringify(
+                                        ingredientData
+                                    )
+                            }
+                        );
+
+
+                    const result =
+                        await response.json();
+
+
+                    if (!response.ok) {
+
+                        alert(
+                            result.error ||
+                            "Failed to save recipe ingredient"
+                        );
+
+                        return;
+                    }
+
+
+                    recipeIngredientForm.reset();
+
+
+                    editingRecipeIngredientId =
+                        null;
+
+
+                    document.querySelector(
+                        "#recipe-ingredient-form .primary-button"
+                    ).textContent =
+                        "Add Ingredient";
+
+
+                    await loadRecipeIngredients();
+
+
+                    if (wasEditing) {
+
+                        showRecipeIngredientSuccessMessage(
+                            "Recipe ingredient updated successfully."
+                        );
+
+                    } else {
+
+                        showRecipeIngredientSuccessMessage(
+                            "Recipe ingredient added successfully."
+                        );
+                    }
+
+                } catch (error) {
+
+                    console.error(
+                        "Error saving recipe ingredient:",
+                        error
+                    );
+
+                    alert(
+                        "Unable to save recipe ingredient."
+                    );
+                }
+            }
+        );
+
+
+        // --------------------------------
+        // DELETE RECIPE INGREDIENT
+        // --------------------------------
+
+        async function deleteRecipeIngredient(
+            recipeIngredientId,
+            ingredientName
+        ) {
+
+            const confirmed =
+                confirm(
+                    `Are you sure you want to remove "${ingredientName}" from this recipe?`
+                );
+
+
+            if (!confirmed) {
+                return;
+            }
+
+
+            try {
+
+                const response =
+                    await fetch(
+                        `http://localhost:5201/api/recipe-ingredients/${recipeIngredientId}`,
+                        {
+                            method: "DELETE"
+                        }
+                    );
+
+
+                const result =
+                    await response.json();
+
+
+                if (!response.ok) {
+
+                    alert(
+                        result.error ||
+                        "Failed to delete recipe ingredient"
+                    );
+
+                    return;
+                }
+
+
+                await loadRecipeIngredients();
+
+
+                showRecipeIngredientSuccessMessage(
+                    "Recipe ingredient deleted successfully."
+                );
+
+
+                document
+                    .getElementById(
+                        "recipe-ingredient-success-message"
+                    )
+                    .scrollIntoView({
+                        behavior: "smooth",
+                        block: "center"
+                    });
+
+            } catch (error) {
+
+                console.error(
+                    "Error deleting recipe ingredient:",
+                    error
+                );
+
+                alert(
+                    "Unable to delete recipe ingredient."
+                );
+            }
+        }
+
+
+        // --------------------------------
+        // RESET RECIPE FORM
         // --------------------------------
 
         recipeForm.addEventListener(
@@ -824,6 +1590,26 @@
                     "#recipe-form .primary-button"
                 ).textContent =
                     "Add Recipe";
+            }
+        );
+
+
+        // --------------------------------
+        // RESET RECIPE INGREDIENT FORM
+        // --------------------------------
+
+        recipeIngredientForm.addEventListener(
+            "reset",
+            function() {
+
+                editingRecipeIngredientId =
+                    null;
+
+
+                document.querySelector(
+                    "#recipe-ingredient-form .primary-button"
+                ).textContent =
+                    "Add Ingredient";
             }
         );
 
@@ -902,6 +1688,8 @@
         // --------------------------------
 
         loadMenuItems();
+
+        loadIngredientOptions();
 
         loadRecipes();
 
