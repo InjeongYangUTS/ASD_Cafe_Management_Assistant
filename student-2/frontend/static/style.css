@@ -879,22 +879,26 @@ body {
 }
 
 .ai-menu-select {
-    width: 70%;
-    max-width: 320px;
-    padding: 14px 16px;
-    margin: 0 auto;
+    width: 55%;
+    max-width: 280px;
+    padding: 12px 35px 12px 14px;
+
     display: block;
-    border: 1px solid #dddddd;
-    border-radius: 12px;
+    margin: 0 auto;
+
+    border: 1px solid #d8d8d8;
+    border-radius: 8px;
+
     background: white;
-    font-size: 15px;
-    box-sizing: border-box;
+    font-size: 14px;
+    font-family: inherit;
+
     cursor: pointer;
+    outline: none;
 }
 
 .ai-menu-select:focus {
-    outline: none;
-    border-color: #e6c85c;
+    border-color: #e9a6b5;
 }
 
 .ai-result {

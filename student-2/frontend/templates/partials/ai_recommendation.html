@@ -1,0 +1,59 @@
+<div class="ai-metrics">
+
+    <div class="ai-metric">
+        <span class="ai-metric-label">
+            Ingredient Cost
+        </span>
+        <strong>
+            ${{ "%.2f"|format(recommendation.ingredient_cost) }}
+        </strong>
+    </div>
+
+    <div class="ai-metric">
+        <span class="ai-metric-label">
+            Current Price
+        </span>
+        <strong>
+            ${{ "%.2f"|format(recommendation.current_price) }}
+        </strong>
+    </div>
+
+    <div class="ai-metric">
+        <span class="ai-metric-label">
+            Gross Margin
+        </span>
+        <strong>
+            {{ "%.2f"|format(recommendation.gross_margin) }}%
+        </strong>
+    </div>
+
+    <div class="ai-metric">
+        <span class="ai-metric-label">
+            Suggested Price
+        </span>
+        <strong>
+            ${{ "%.2f"|format(recommendation.suggested_price) }}
+        </strong>
+    </div>
+
+</div>
+
+<div class="ai-action-box">
+    <span class="ai-metric-label">
+        Recommendation
+    </span>
+
+    <strong>
+        {{ recommendation.pricing_action }}
+    </strong>
+</div>
+
+<div class="ai-explanation-box">
+    <span class="ai-metric-label">
+        AI Explanation
+    </span>
+
+    <p>
+        {{ recommendation.ai_explanation }}
+    </p>
+</div>

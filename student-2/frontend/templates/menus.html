@@ -8,6 +8,9 @@
     <title>Menu Items | Cafe Management Assistant</title>
 
     <link rel="stylesheet" href="/static/style.css">
+
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
 </head>
 
 <body>
@@ -21,7 +24,7 @@
                 <p>Manage cafe menu items and customer-facing prices.</p>
             </div>
 
-            <a href="/" class="secondary-button">
+            <a href="/staff" class="secondary-button">
                 ← Back
             </a>
         </header>
@@ -103,11 +106,17 @@
 
                     <div class="form-actions">
 
-                        <button type="submit" class="primary-button">
+                        <button
+                            type="submit"
+                            class="primary-button"
+                        >
                             Add Menu Item
                         </button>
 
-                        <button type="reset" class="secondary-button">
+                        <button
+                            type="reset"
+                            class="secondary-button"
+                        >
                             Clear
                         </button>
 
@@ -129,6 +138,7 @@
                 <div class="section-heading">
                     <div>
                         <h2>AI Price Recommendation</h2>
+
                         <p>
                             Select a menu item to review its pricing
                             and profitability.
@@ -136,21 +146,31 @@
                     </div>
                 </div>
 
+
                 <div class="ai-controls">
 
                     <select
                         id="ai-menu-select"
+                        name="menu_id"
                         class="ai-menu-select"
                     >
                         <option value="">
                             Choose a menu item...
                         </option>
                     </select>
+
+
                     <div class="ai-button-actions">
+
                         <button
                             type="button"
                             id="generate-ai-recommendation"
                             class="ai-generate-button"
+                            hx-get="/htmx/ai-price-recommendation"
+                            hx-include="#ai-menu-select"
+                            hx-target="#ai-recommendation-result"
+                            hx-swap="innerHTML"
+                            hx-indicator="#ai-loading"
                         >
                             Generate Recommendation
                         </button>
@@ -163,7 +183,16 @@
                         >
                             Clear Recommendation
                         </button>
+
                     </div>
+
+
+                    <p
+                        id="ai-loading"
+                        class="htmx-indicator"
+                    >
+                        Generating recommendation...
+                    </p>
 
                 </div>
 
@@ -172,70 +201,7 @@
                 <div
                     id="ai-recommendation-result"
                     class="ai-result"
-                    style="display: none;"
-                >
-
-                    <div class="ai-metrics">
-
-                        <div class="ai-metric">
-                            <span class="ai-metric-label">
-                                Ingredient Cost
-                            </span>
-
-                            <strong>
-                                $<span id="ai-ingredient-cost"></span>
-                            </strong>
-                        </div>
-
-                        <div class="ai-metric">
-                            <span class="ai-metric-label">
-                                Current Price
-                            </span>
-
-                            <strong>
-                                $<span id="ai-current-price"></span>
-                            </strong>
-                        </div>
-
-                        <div class="ai-metric">
-                            <span class="ai-metric-label">
-                                Gross Margin
-                            </span>
-
-                            <strong>
-                                <span id="ai-gross-margin"></span>%
-                            </strong>
-                        </div>
-
-                        <div class="ai-metric">
-                            <span class="ai-metric-label">
-                                Suggested Price
-                            </span>
-
-                            <strong>
-                                $<span id="ai-suggested-price"></span>
-                            </strong>
-                        </div>
-
-                    </div>
-
-                    <div class="ai-action-box">
-                        <span class="ai-metric-label">
-                            Recommendation
-                        </span>
-
-                        <strong id="ai-pricing-action"></strong>
-                    </div>
-
-                    <div class="ai-explanation-box">
-                        <span class="ai-metric-label">
-                            AI Explanation
-                        </span>
-
-                        <p id="ai-explanation"></p>
-                    </div>
-
-                </div>
+                ></div>
 
             </section>
 
@@ -249,6 +215,7 @@
 
                 <div>
                     <h2>Current Menu</h2>
+
                     <p>
                         Menu items available for customers to view and order.
                     </p>
@@ -262,6 +229,7 @@
                 >
 
             </div>
+
 
             <div class="table-wrapper">
 
@@ -296,7 +264,8 @@
         // BACKEND API
         // --------------------------------
 
-        const MENU_API = "http://localhost:5201/api/menus";
+        const MENU_API =
+            "http://localhost:5201/api/menus";
 
         let editingMenuId = null;
 
@@ -308,7 +277,9 @@
         function showSuccessMessage(message) {
 
             const successMessage =
-                document.getElementById("menu-success-message");
+                document.getElementById(
+                    "menu-success-message"
+                );
 
             successMessage.textContent = message;
             successMessage.style.display = "block";
@@ -327,18 +298,27 @@
 
             try {
 
-                const response = await fetch(MENU_API);
+                const response =
+                    await fetch(MENU_API);
 
                 if (!response.ok) {
-                    throw new Error("Failed to load menu items");
+                    throw new Error(
+                        "Failed to load menu items"
+                    );
                 }
 
-                const menus = await response.json();
+                const menus =
+                    await response.json();
 
 
-                // Fill AI menu dropdown
+                // -------------------------
+                // FILL AI DROPDOWN
+                // -------------------------
+
                 const aiMenuSelect =
-                    document.getElementById("ai-menu-select");
+                    document.getElementById(
+                        "ai-menu-select"
+                    );
 
                 aiMenuSelect.innerHTML =
                     '<option value="">Choose a menu item...</option>';
@@ -346,36 +326,58 @@
                 menus.forEach(menu => {
 
                     const option =
-                        document.createElement("option");
+                        document.createElement(
+                            "option"
+                        );
 
-                    option.value = menu.menu_id;
+                    option.value =
+                        menu.menu_id;
 
                     option.textContent =
-                        `${menu.name} - $${Number(menu.price).toFixed(2)}`;
+                        `${menu.name} - $${Number(
+                            menu.price
+                        ).toFixed(2)}`;
 
-                    aiMenuSelect.appendChild(option);
+                    aiMenuSelect.appendChild(
+                        option
+                    );
 
                 });
 
 
-                // Fill menu table
+                // -------------------------
+                // FILL MENU TABLE
+                // -------------------------
+
                 const tableBody =
-                    document.getElementById("menu-table-body");
+                    document.getElementById(
+                        "menu-table-body"
+                    );
 
                 tableBody.innerHTML = "";
 
                 menus.forEach(menu => {
 
-                    const row = document.createElement("tr");
+                    const row =
+                        document.createElement(
+                            "tr"
+                        );
 
                     row.innerHTML = `
                         <td>${menu.menu_id}</td>
+
                         <td>${menu.name}</td>
+
                         <td>${menu.category}</td>
-                        <td>${menu.description || ""}</td>
 
                         <td>
-                            $${Number(menu.price).toFixed(2)}
+                            ${menu.description || ""}
+                        </td>
+
+                        <td>
+                            $${Number(
+                                menu.price
+                            ).toFixed(2)}
                         </td>
 
                         <td>
@@ -394,7 +396,10 @@
                                     data-id="${menu.menu_id}"
                                     onclick="deleteMenu(
                                         ${menu.menu_id},
-                                        '${menu.name.replace(/'/g, "\\'")}'
+                                        '${menu.name.replace(
+                                            /'/g,
+                                            "\\'"
+                                        )}'
                                     )"
                                 >
                                     Delete
@@ -431,31 +436,42 @@
             try {
 
                 const response =
-                    await fetch(`${MENU_API}/${menuId}`);
+                    await fetch(
+                        `${MENU_API}/${menuId}`
+                    );
 
                 if (!response.ok) {
-                    throw new Error("Failed to load menu item");
+                    throw new Error(
+                        "Failed to load menu item"
+                    );
                 }
 
-                const menu = await response.json();
+                const menu =
+                    await response.json();
 
-                document.getElementById("menu-name").value =
-                    menu.name;
+                document.getElementById(
+                    "menu-name"
+                ).value = menu.name;
 
-                document.getElementById("menu-category").value =
-                    menu.category;
+                document.getElementById(
+                    "menu-category"
+                ).value = menu.category;
 
-                document.getElementById("menu-description").value =
+                document.getElementById(
+                    "menu-description"
+                ).value =
                     menu.description || "";
 
-                document.getElementById("menu-price").value =
-                    menu.price;
+                document.getElementById(
+                    "menu-price"
+                ).value = menu.price;
 
                 editingMenuId = menuId;
 
                 document.querySelector(
                     "#menu-form .primary-button"
-                ).textContent = "Update Menu Item";
+                ).textContent =
+                    "Update Menu Item";
 
                 window.scrollTo({
                     top: 0,
@@ -471,7 +487,9 @@
                     error
                 );
 
-                alert("Unable to load menu item.");
+                alert(
+                    "Unable to load menu item."
+                );
 
             }
 
@@ -482,26 +500,33 @@
         // DELETE MENU ITEM
         // --------------------------------
 
-        async function deleteMenu(menuId, menuName) {
+        async function deleteMenu(
+            menuId,
+            menuName
+        ) {
 
-            const confirmed = confirm(
-                `Are you sure you want to delete "${menuName}"?`
-            );
+            const confirmed =
+                confirm(
+                    `Are you sure you want to delete "${menuName}"?`
+                );
 
             if (!confirmed) {
                 return;
             }
 
+
             try {
 
-                const response = await fetch(
-                    `${MENU_API}/${menuId}`,
-                    {
-                        method: "DELETE"
-                    }
-                );
+                const response =
+                    await fetch(
+                        `${MENU_API}/${menuId}`,
+                        {
+                            method: "DELETE"
+                        }
+                    );
 
-                const result = await response.json();
+                const result =
+                    await response.json();
 
                 if (!response.ok) {
 
@@ -513,6 +538,7 @@
                     return;
                 }
 
+
                 await loadMenus();
 
                 showSuccessMessage(
@@ -520,7 +546,9 @@
                 );
 
                 document
-                    .getElementById("menu-success-message")
+                    .getElementById(
+                        "menu-success-message"
+                    )
                     .scrollIntoView({
                         behavior: "smooth",
                         block: "center"
@@ -535,7 +563,9 @@
                     error
                 );
 
-                alert("Unable to delete menu item.");
+                alert(
+                    "Unable to delete menu item."
+                );
 
             }
 
@@ -547,7 +577,9 @@
         // --------------------------------
 
         const menuForm =
-            document.getElementById("menu-form");
+            document.getElementById(
+                "menu-form"
+            );
 
         menuForm.addEventListener(
             "submit",
@@ -555,11 +587,16 @@
 
                 event.preventDefault();
 
+
                 const name =
-                    document.getElementById("menu-name").value;
+                    document.getElementById(
+                        "menu-name"
+                    ).value;
 
                 const category =
-                    document.getElementById("menu-category").value;
+                    document.getElementById(
+                        "menu-category"
+                    ).value;
 
                 const description =
                     document.getElementById(
@@ -567,7 +604,9 @@
                     ).value;
 
                 const price =
-                    document.getElementById("menu-price").value;
+                    document.getElementById(
+                        "menu-price"
+                    ).value;
 
 
                 const menuData = {
@@ -586,6 +625,7 @@
                     let url = MENU_API;
                     let method = "POST";
 
+
                     if (editingMenuId !== null) {
 
                         url =
@@ -596,19 +636,23 @@
                     }
 
 
-                    const response = await fetch(
-                        url,
-                        {
-                            method: method,
+                    const response =
+                        await fetch(
+                            url,
+                            {
+                                method: method,
 
-                            headers: {
-                                "Content-Type":
-                                    "application/json"
-                            },
+                                headers: {
+                                    "Content-Type":
+                                        "application/json"
+                                },
 
-                            body: JSON.stringify(menuData)
-                        }
-                    );
+                                body:
+                                    JSON.stringify(
+                                        menuData
+                                    )
+                            }
+                        );
 
 
                     const result =
@@ -633,7 +677,8 @@
 
                     document.querySelector(
                         "#menu-form .primary-button"
-                    ).textContent = "Add Menu Item";
+                    ).textContent =
+                        "Add Menu Item";
 
 
                     // Reload menu data
@@ -665,7 +710,9 @@
                         error
                     );
 
-                    alert("Unable to save menu item.");
+                    alert(
+                        "Unable to save menu item."
+                    );
 
                 }
 
@@ -674,145 +721,56 @@
 
 
         // --------------------------------
-        // AI PRICE RECOMMENDATION
-        // --------------------------------
-
-        const generateAIButton =
-            document.getElementById(
-                "generate-ai-recommendation"
-            );
-
-        generateAIButton.addEventListener(
-            "click",
-            async function() {
-
-                const menuId =
-                    document.getElementById(
-                        "ai-menu-select"
-                    ).value;
-
-                if (!menuId) {
-
-                    alert(
-                        "Please select a menu item."
-                    );
-
-                    return;
-                }
-
-
-                try {
-
-                    const response = await fetch(
-                        `http://localhost:5201/api/ai/price-recommendation/${menuId}`
-                    );
-
-                    const data =
-                        await response.json();
-
-
-                    if (!response.ok) {
-
-                        alert(
-                            data.error ||
-                            "Unable to generate AI recommendation."
-                        );
-
-                        return;
-                    }
-
-
-                    document.getElementById(
-                        "ai-ingredient-cost"
-                    ).textContent =
-                        Number(
-                            data.ingredient_cost
-                        ).toFixed(2);
-
-
-                    document.getElementById(
-                        "ai-current-price"
-                    ).textContent =
-                        Number(
-                            data.current_price
-                        ).toFixed(2);
-
-
-                    document.getElementById(
-                        "ai-gross-margin"
-                    ).textContent =
-                        Number(
-                            data.gross_margin
-                        ).toFixed(2);
-
-
-                    document.getElementById(
-                        "ai-suggested-price"
-                    ).textContent =
-                        Number(
-                            data.suggested_price
-                        ).toFixed(2);
-
-
-                    document.getElementById(
-                        "ai-pricing-action"
-                    ).textContent =
-                        data.pricing_action;
-
-
-                    document.getElementById(
-                        "ai-explanation"
-                    ).textContent =
-                        data.ai_explanation;
-
-
-                    document.getElementById(
-                        "ai-recommendation-result"
-                    ).style.display = "block";
-
-                    clearAIButton.style.display = "inline-block";
-
-                }
-
-                catch (error) {
-
-                    console.error(
-                        "Error generating AI recommendation:",
-                        error
-                    );
-
-                    alert(
-                        "Unable to connect to the AI service."
-                    );
-
-                }
-
-            }
-        );
-
-        // --------------------------------
-        // CLEAR RECOMMENDATION
+        // CLEAR AI RECOMMENDATION
         // --------------------------------
 
         const clearAIButton =
-            document.getElementById("clear-ai-recommendation");
-
-        clearAIButton.addEventListener("click", function() {
-
-            // Hide the recommendation
             document.getElementById(
-                "ai-recommendation-result"
-            ).style.display = "none";
+                "clear-ai-recommendation"
+            );
 
-            // Reset the menu dropdown
-            document.getElementById(
-                "ai-menu-select"
-            ).value = "";
+        clearAIButton.addEventListener(
+            "click",
+            function() {
 
-            // Hide the Clear button
-            clearAIButton.style.display = "none";
+                document.getElementById(
+                    "ai-recommendation-result"
+                ).innerHTML = "";
 
-        });
+                document.getElementById(
+                    "ai-menu-select"
+                ).value = "";
+
+                clearAIButton.style.display =
+                    "none";
+
+            }
+        );
+
+
+        // Show Clear button after successful
+        // HTMX content replacement
+        document.body.addEventListener(
+            "htmx:afterSwap",
+            function(event) {
+
+                if (
+                    event.detail.target.id ===
+                    "ai-recommendation-result"
+                ) {
+
+                    if (
+                        event.detail.target
+                            .innerHTML.trim() !== ""
+                    ) {
+                        clearAIButton.style.display =
+                            "inline-block";
+                    }
+
+                }
+
+            }
+        );
 
 
         // --------------------------------
@@ -820,7 +778,9 @@
         // --------------------------------
 
         const menuSearch =
-            document.getElementById("menu-search");
+            document.getElementById(
+                "menu-search"
+            );
 
         menuSearch.addEventListener(
             "input",
@@ -839,16 +799,24 @@
                 rows.forEach(row => {
 
                     const rowText =
-                        row.textContent.toLowerCase();
+                        row.textContent
+                            .toLowerCase();
 
                     if (
-                        rowText.includes(searchValue)
+                        rowText.includes(
+                            searchValue
+                        )
                     ) {
+
                         row.style.display = "";
+
                     }
 
                     else {
-                        row.style.display = "none";
+
+                        row.style.display =
+                            "none";
+
                     }
 
                 });

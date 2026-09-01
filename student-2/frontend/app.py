@@ -1,4 +1,5 @@
-from flask import Flask, render_template, redirect, session
+from flask import Flask, render_template, redirect, session, request
+import requests
 
 app = Flask(__name__)
 
@@ -81,6 +82,48 @@ def customer_menu():
 
     return render_template("customer_menu.html")
 
+@app.route("/htmx/ai-price-recommendation")
+def htmx_ai_price_recommendation():
+
+    # Staff only
+    if "staff_id" not in session:
+        return "Unauthorized", 401
+
+    menu_id = request.args.get("menu_id")
+
+    if not menu_id:
+        return """
+            <p class="error-message">
+                Please select a menu item.
+            </p>
+        """
+
+    try:
+        response = requests.get(
+            f"http://student2-backend:5201/api/ai/price-recommendation/{menu_id}",
+            timeout=60
+        )
+
+        if not response.ok:
+            return """
+                <p class="error-message">
+                    Unable to generate AI recommendation.
+                </p>
+            """
+
+        data = response.json()
+
+        return render_template(
+            "partials/ai_recommendation.html",
+            recommendation=data
+        )
+
+    except requests.RequestException:
+        return """
+            <p class="error-message">
+                Unable to connect to the AI service.
+            </p>
+        """
 
 if __name__ == "__main__":
     app.run(
