@@ -44,6 +44,11 @@ jobs:
         run: |
           python -m py_compile student-2/frontend/app.py
 
+      - name: Run Student 2 backend tests
+        run: |
+          pip install pytest
+          pytest student-2/tests/test_backend.py -v
+
       - name: Build backend Docker image
         run: |
           docker build \
