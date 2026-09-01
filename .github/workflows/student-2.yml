@@ -1,0 +1,58 @@
+name: Student 2 CI
+
+on:
+  push:
+    branches:
+      - student-2-menu-recipe
+    paths:
+      - "student-2/**"
+      - ".github/workflows/student-2.yml"
+      - "docker-compose.yml"
+
+  pull_request:
+    paths:
+      - "student-2/**"
+      - ".github/workflows/student-2.yml"
+      - "docker-compose.yml"
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install backend dependencies
+        run: |
+          pip install -r student-2/backend/requirements.txt
+
+      - name: Install frontend dependencies
+        run: |
+          pip install -r student-2/frontend/requirements.txt
+
+      - name: Check backend Python syntax
+        run: |
+          python -m py_compile student-2/backend/app.py
+
+      - name: Check frontend Python syntax
+        run: |
+          python -m py_compile student-2/frontend/app.py
+
+      - name: Build backend Docker image
+        run: |
+          docker build \
+            -t student2-backend \
+            -f student-2/backend/Dockerfile \
+            ./student-2
+
+      - name: Build frontend Docker image
+        run: |
+          docker build \
+            -t student2-frontend \
+            ./student-2/frontend
