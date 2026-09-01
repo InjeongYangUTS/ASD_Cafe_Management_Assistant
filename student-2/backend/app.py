@@ -2,6 +2,7 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 import sqlite3
 from pathlib import Path
+import requests
 
 app = Flask(__name__)
 CORS(app)
@@ -1012,7 +1013,127 @@ def delete_recipe_ingredient(recipe_ingredient_id):
         "message": "Recipe ingredient deleted successfully"
     })
 
+# -----------------------------
+# AI PRICE RECOMMENDATION
+# -----------------------------
 
+@app.route("/api/ai/price-recommendation/<int:menu_id>", methods=["GET"])
+def ai_price_recommendation(menu_id):
+    conn = get_db_connection()
+
+    menu = conn.execute(
+        """
+        SELECT menu_id, name, price
+        FROM menus
+        WHERE menu_id = ?
+        """,
+        (menu_id,)
+    ).fetchone()
+
+    if menu is None:
+        conn.close()
+        return jsonify({
+            "error": "Menu item not found"
+        }), 404
+
+    cost_result = conn.execute(
+        """
+        SELECT
+            SUM(ri.quantity * ic.unit_cost) AS ingredient_cost
+        FROM recipes r
+        JOIN recipe_ingredients ri
+            ON r.recipe_id = ri.recipe_id
+        JOIN ingredient_costs ic
+            ON ri.ingredient_id = ic.ingredient_id
+        WHERE r.menu_id = ?
+        """,
+        (menu_id,)
+    ).fetchone()
+
+    conn.close()
+
+    ingredient_cost = cost_result["ingredient_cost"]
+
+    if ingredient_cost is None:
+        return jsonify({
+            "error": "No ingredient cost data found for this menu item"
+        }), 400
+
+    menu_name = menu["name"]
+    current_price = float(menu["price"])
+    ingredient_cost = float(ingredient_cost)
+
+    gross_profit = current_price - ingredient_cost
+    gross_margin = (gross_profit / current_price) * 100
+
+    target_margin = 70.0
+
+    if gross_margin >= target_margin:
+        suggested_price = current_price
+        pricing_action = "Maintain the current price"
+    else:
+        suggested_price = ingredient_cost / (
+            1 - (target_margin / 100)
+        )
+
+        suggested_price = round(suggested_price, 2)
+        pricing_action = "Increase the current price"
+
+    prompt = f"""
+You are assisting staff with cafe menu pricing.
+
+Use only the information below.
+
+Menu item: {menu_name}
+Current price: ${current_price:.2f}
+Suggested price: ${suggested_price:.2f}
+Current gross margin: {gross_margin:.2f}%
+Target gross margin: {target_margin:.2f}%
+Pricing action: {pricing_action}
+
+Write exactly one short sentence explaining the pricing action.
+
+Do not calculate anything.
+Do not mention formulas.
+Do not suggest another price.
+Do not change any numbers.
+Do not add extra details.
+"""
+
+    try:
+        ollama_response = requests.post(
+            "http://localhost:11434/api/generate",
+            json={
+                "model": "qwen2.5:0.5b",
+                "prompt": prompt,
+                "stream": False
+            },
+            timeout=60
+        )
+
+        ollama_response.raise_for_status()
+
+        result = ollama_response.json()
+
+        return jsonify({
+            "menu_id": menu_id,
+            "menu_name": menu_name,
+            "ingredient_cost": round(ingredient_cost, 2),
+            "current_price": round(current_price, 2),
+            "gross_profit": round(gross_profit, 2),
+            "gross_margin": round(gross_margin, 2),
+            "target_margin": target_margin,
+            "suggested_price": suggested_price,
+            "pricing_action": pricing_action,
+            "ai_explanation": result.get("response", "")
+        })
+
+    except requests.RequestException as error:
+        return jsonify({
+            "error": "Unable to connect to Ollama",
+            "details": str(error)
+        }), 503
+    
 # -----------------------------
 # TEST ROUTE
 # -----------------------------
