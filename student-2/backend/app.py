@@ -1115,7 +1115,7 @@ Do not add extra details.
 
     try:
         ollama_response = requests.post(
-            "http://localhost:11434/api/generate",
+            "http://host.docker.internal:11434/api/generate",
             json={
                 "model": "qwen2.5:0.5b",
                 "prompt": prompt,
