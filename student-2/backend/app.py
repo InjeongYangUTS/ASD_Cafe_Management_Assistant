@@ -13,6 +13,7 @@ DB_PATH = Path(__file__).parent.parent / "database" / "menu_recipe.db"
 def get_db_connection():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
     return conn
 
 
@@ -88,6 +89,18 @@ def create_menu():
     if not name or not category or price is None:
         return jsonify({
             "error": "Name, category and price are required"
+        }), 400
+    try:
+        price = float(price)
+
+        if price < 0:
+            return jsonify({
+                "error": "Price must be 0 or greater"
+            }), 400
+
+    except (TypeError, ValueError):
+        return jsonify({
+            "error": "Price must be a valid number"
         }), 400
 
     conn = get_db_connection()
