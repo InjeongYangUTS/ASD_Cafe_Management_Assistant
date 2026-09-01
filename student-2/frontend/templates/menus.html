@@ -14,6 +14,7 @@
 
     <main class="management-container">
 
+        <!-- PAGE HEADER -->
         <header class="management-header">
             <div>
                 <h1>Menu Items</h1>
@@ -25,109 +26,232 @@
             </a>
         </header>
 
-        <!-- ADD MENU ITEM -->
 
-        <section class="management-section">
+        <!-- ADD MENU ITEM + AI PRICE RECOMMENDATION -->
+        <div class="menu-top-grid">
 
-            <div class="section-heading">
-                <div>
-                    <h2>Add Menu Item</h2>
-                    <p>Create a new item for the cafe menu.</p>
+            <!-- ADD MENU ITEM -->
+            <section class="management-section">
+
+                <div class="section-heading">
+                    <div>
+                        <h2>Add Menu Item</h2>
+                        <p>Create a new item for the cafe menu.</p>
+                    </div>
                 </div>
-            </div>
 
-            <form id="menu-form" class="management-form">
+                <form id="menu-form" class="management-form">
 
-                <div class="form-row">
+                    <div class="form-row">
+
+                        <div class="form-group">
+                            <label for="menu-name">Name</label>
+
+                            <input
+                                type="text"
+                                id="menu-name"
+                                name="name"
+                                placeholder="e.g. Cappuccino"
+                                required
+                            >
+                        </div>
+
+                        <div class="form-group">
+                            <label for="menu-category">Category</label>
+
+                            <select
+                                id="menu-category"
+                                name="category"
+                                required
+                            >
+                                <option value="">Select category</option>
+                                <option value="Coffee">Coffee</option>
+                                <option value="Iced Coffee">Iced Coffee</option>
+                                <option value="Drink">Drink</option>
+                                <option value="Food">Food</option>
+                                <option value="Dessert">Dessert</option>
+                                <option value="Pastry">Pastry</option>
+                            </select>
+                        </div>
+
+                    </div>
 
                     <div class="form-group">
-                        <label for="menu-name">Name</label>
+                        <label for="menu-description">Description</label>
+
+                        <textarea
+                            id="menu-description"
+                            name="description"
+                            rows="3"
+                            placeholder="Enter a short menu description"
+                        ></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="menu-price">Price ($)</label>
 
                         <input
-                            type="text"
-                            id="menu-name"
-                            name="name"
-                            placeholder="e.g. Cappuccino"
+                            type="number"
+                            id="menu-price"
+                            name="price"
+                            min="0"
+                            step="0.01"
+                            placeholder="0.00"
                             required
                         >
                     </div>
 
-                    <div class="form-group">
-                        <label for="menu-category">Category</label>
+                    <div class="form-actions">
 
-                        <select
-                            id="menu-category"
-                            name="category"
-                            required
-                        >
-                            <option value="">Select category</option>
-                            <option value="Coffee">Coffee</option>
-                            <option value="Iced Coffee">Iced Coffee</option>
-                            <option value="Drink">Drink</option>
-                            <option value="Food">Food</option>
-                            <option value="Dessert">Dessert</option>
-                            <option value="Pastry">Pastry</option>
-                        </select>
+                        <button type="submit" class="primary-button">
+                            Add Menu Item
+                        </button>
+
+                        <button type="reset" class="secondary-button">
+                            Clear
+                        </button>
+
                     </div>
 
+                    <p
+                        id="menu-success-message"
+                        class="success-message"
+                    ></p>
+
+                </form>
+
+            </section>
+
+
+            <!-- AI PRICE RECOMMENDATION -->
+            <section class="management-section ai-section">
+
+                <div class="section-heading">
+                    <div>
+                        <h2>AI Price Recommendation</h2>
+                        <p>
+                            Select a menu item to review its pricing
+                            and profitability.
+                        </p>
+                    </div>
                 </div>
 
+                <div class="ai-controls">
 
-                <div class="form-group">
-                    <label for="menu-description">Description</label>
-
-                    <textarea
-                        id="menu-description"
-                        name="description"
-                        rows="3"
-                        placeholder="Enter a short menu description"
-                    ></textarea>
-                </div>
-
-
-                <div class="form-group">
-                    <label for="menu-price">Price ($)</label>
-
-                    <input
-                        type="number"
-                        id="menu-price"
-                        name="price"
-                        min="0"
-                        step="0.01"
-                        placeholder="0.00"
-                        required
+                    <select
+                        id="ai-menu-select"
+                        class="ai-menu-select"
                     >
+                        <option value="">
+                            Choose a menu item...
+                        </option>
+                    </select>
+                    <div class="ai-button-actions">
+                        <button
+                            type="button"
+                            id="generate-ai-recommendation"
+                            class="ai-generate-button"
+                        >
+                            Generate Recommendation
+                        </button>
+
+                        <button
+                            type="button"
+                            id="clear-ai-recommendation"
+                            class="ai-clear-button"
+                            style="display: none;"
+                        >
+                            Clear Recommendation
+                        </button>
+                    </div>
+
                 </div>
 
 
-                <div class="form-actions">
+                <!-- AI RESULT -->
+                <div
+                    id="ai-recommendation-result"
+                    class="ai-result"
+                    style="display: none;"
+                >
 
-                    <button type="submit" class="primary-button">
-                        Add Menu Item
-                    </button>
+                    <div class="ai-metrics">
 
-                    <button type="reset" class="secondary-button">
-                        Clear
-                    </button>
+                        <div class="ai-metric">
+                            <span class="ai-metric-label">
+                                Ingredient Cost
+                            </span>
+
+                            <strong>
+                                $<span id="ai-ingredient-cost"></span>
+                            </strong>
+                        </div>
+
+                        <div class="ai-metric">
+                            <span class="ai-metric-label">
+                                Current Price
+                            </span>
+
+                            <strong>
+                                $<span id="ai-current-price"></span>
+                            </strong>
+                        </div>
+
+                        <div class="ai-metric">
+                            <span class="ai-metric-label">
+                                Gross Margin
+                            </span>
+
+                            <strong>
+                                <span id="ai-gross-margin"></span>%
+                            </strong>
+                        </div>
+
+                        <div class="ai-metric">
+                            <span class="ai-metric-label">
+                                Suggested Price
+                            </span>
+
+                            <strong>
+                                $<span id="ai-suggested-price"></span>
+                            </strong>
+                        </div>
+
+                    </div>
+
+                    <div class="ai-action-box">
+                        <span class="ai-metric-label">
+                            Recommendation
+                        </span>
+
+                        <strong id="ai-pricing-action"></strong>
+                    </div>
+
+                    <div class="ai-explanation-box">
+                        <span class="ai-metric-label">
+                            AI Explanation
+                        </span>
+
+                        <p id="ai-explanation"></p>
+                    </div>
 
                 </div>
 
-                <p id="menu-success-message" class="success-message"></p>
+            </section>
 
-            </form>
-
-        </section>
+        </div>
 
 
         <!-- CURRENT MENU -->
-
         <section class="management-section">
 
             <div class="section-heading">
 
                 <div>
                     <h2>Current Menu</h2>
-                    <p>Menu items available for customers to view and order.</p>
+                    <p>
+                        Menu items available for customers to view and order.
+                    </p>
                 </div>
 
                 <input
@@ -138,7 +262,6 @@
                 >
 
             </div>
-
 
             <div class="table-wrapper">
 
@@ -155,12 +278,6 @@
                         </tr>
                     </thead>
 
-                    <!--
-                        Menu items will now be loaded from
-                        the backend API instead of being
-                        hard-coded here.
-                    -->
-
                     <tbody id="menu-table-body">
                     </tbody>
 
@@ -175,10 +292,18 @@
 
     <script>
 
-        // Backend API address
+        // --------------------------------
+        // BACKEND API
+        // --------------------------------
+
         const MENU_API = "http://localhost:5201/api/menus";
 
         let editingMenuId = null;
+
+
+        // --------------------------------
+        // SUCCESS MESSAGE
+        // --------------------------------
 
         function showSuccessMessage(message) {
 
@@ -193,8 +318,9 @@
             }, 3000);
         }
 
+
         // --------------------------------
-        // LOAD MENU ITEMS FROM BACKEND
+        // LOAD MENU ITEMS
         // --------------------------------
 
         async function loadMenus() {
@@ -209,11 +335,34 @@
 
                 const menus = await response.json();
 
+
+                // Fill AI menu dropdown
+                const aiMenuSelect =
+                    document.getElementById("ai-menu-select");
+
+                aiMenuSelect.innerHTML =
+                    '<option value="">Choose a menu item...</option>';
+
+                menus.forEach(menu => {
+
+                    const option =
+                        document.createElement("option");
+
+                    option.value = menu.menu_id;
+
+                    option.textContent =
+                        `${menu.name} - $${Number(menu.price).toFixed(2)}`;
+
+                    aiMenuSelect.appendChild(option);
+
+                });
+
+
+                // Fill menu table
                 const tableBody =
                     document.getElementById("menu-table-body");
 
                 tableBody.innerHTML = "";
-
 
                 menus.forEach(menu => {
 
@@ -221,11 +370,8 @@
 
                     row.innerHTML = `
                         <td>${menu.menu_id}</td>
-
                         <td>${menu.name}</td>
-
                         <td>${menu.category}</td>
-
                         <td>${menu.description || ""}</td>
 
                         <td>
@@ -246,7 +392,10 @@
                                 <button
                                     class="delete-button"
                                     data-id="${menu.menu_id}"
-                                    onclick="deleteMenu(${menu.menu_id}, '${menu.name.replace(/'/g, "\\'")}')"
+                                    onclick="deleteMenu(
+                                        ${menu.menu_id},
+                                        '${menu.name.replace(/'/g, "\\'")}'
+                                    )"
                                 >
                                     Delete
                                 </button>
@@ -273,9 +422,6 @@
         }
 
 
-        // Load menu items when the page opens
-        loadMenus();
-
         // --------------------------------
         // EDIT MENU ITEM
         // --------------------------------
@@ -284,7 +430,8 @@
 
             try {
 
-                const response = await fetch(`${MENU_API}/${menuId}`);
+                const response =
+                    await fetch(`${MENU_API}/${menuId}`);
 
                 if (!response.ok) {
                     throw new Error("Failed to load menu item");
@@ -292,7 +439,6 @@
 
                 const menu = await response.json();
 
-                // Fill the form with the existing menu details
                 document.getElementById("menu-name").value =
                     menu.name;
 
@@ -305,15 +451,12 @@
                 document.getElementById("menu-price").value =
                     menu.price;
 
-                // Remember which menu item is being edited
                 editingMenuId = menuId;
 
-                // Change button text
                 document.querySelector(
                     "#menu-form .primary-button"
                 ).textContent = "Update Menu Item";
 
-                // Move back to the form
                 window.scrollTo({
                     top: 0,
                     behavior: "smooth"
@@ -331,7 +474,9 @@
                 alert("Unable to load menu item.");
 
             }
+
         }
+
 
         // --------------------------------
         // DELETE MENU ITEM
@@ -359,16 +504,20 @@
                 const result = await response.json();
 
                 if (!response.ok) {
+
                     alert(
                         result.error ||
                         "Failed to delete menu item"
                     );
+
                     return;
                 }
 
                 await loadMenus();
 
-                showSuccessMessage("Menu item deleted successfully.");
+                showSuccessMessage(
+                    "Menu item deleted successfully."
+                );
 
                 document
                     .getElementById("menu-success-message")
@@ -376,6 +525,7 @@
                         behavior: "smooth",
                         block: "center"
                     });
+
             }
 
             catch (error) {
@@ -388,104 +538,330 @@
                 alert("Unable to delete menu item.");
 
             }
+
         }
 
+
         // --------------------------------
-        // ADD NEW MENU ITEM
+        // ADD / UPDATE MENU ITEM
         // --------------------------------
 
-        const menuForm = document.getElementById("menu-form");
+        const menuForm =
+            document.getElementById("menu-form");
 
-        menuForm.addEventListener("submit", async function(event) {
+        menuForm.addEventListener(
+            "submit",
+            async function(event) {
 
-            event.preventDefault();
+                event.preventDefault();
 
-            const name =
-                document.getElementById("menu-name").value;
+                const name =
+                    document.getElementById("menu-name").value;
 
-            const category =
-                document.getElementById("menu-category").value;
+                const category =
+                    document.getElementById("menu-category").value;
 
-            const description =
-                document.getElementById("menu-description").value;
+                const description =
+                    document.getElementById(
+                        "menu-description"
+                    ).value;
 
-            const price =
-                document.getElementById("menu-price").value;
-
-
-            const newMenu = {
-                name: name,
-                category: category,
-                description: description,
-                price: Number(price)
-            };
+                const price =
+                    document.getElementById("menu-price").value;
 
 
-            try {
-                const wasEditing = editingMenuId !== null;
+                const menuData = {
+                    name: name,
+                    category: category,
+                    description: description,
+                    price: Number(price)
+                };
 
-                let url = MENU_API;
-                let method = "POST";
 
-                // If editingMenuId has a value,
-                // update the existing menu instead
-                if (editingMenuId !== null) {
-                    url = `${MENU_API}/${editingMenuId}`;
-                    method = "PUT";
+                try {
+
+                    const wasEditing =
+                        editingMenuId !== null;
+
+                    let url = MENU_API;
+                    let method = "POST";
+
+                    if (editingMenuId !== null) {
+
+                        url =
+                            `${MENU_API}/${editingMenuId}`;
+
+                        method = "PUT";
+
+                    }
+
+
+                    const response = await fetch(
+                        url,
+                        {
+                            method: method,
+
+                            headers: {
+                                "Content-Type":
+                                    "application/json"
+                            },
+
+                            body: JSON.stringify(menuData)
+                        }
+                    );
+
+
+                    const result =
+                        await response.json();
+
+
+                    if (!response.ok) {
+
+                        alert(
+                            result.error ||
+                            "Failed to save menu item"
+                        );
+
+                        return;
+                    }
+
+
+                    // Reset form
+                    menuForm.reset();
+
+                    editingMenuId = null;
+
+                    document.querySelector(
+                        "#menu-form .primary-button"
+                    ).textContent = "Add Menu Item";
+
+
+                    // Reload menu data
+                    await loadMenus();
+
+
+                    if (wasEditing) {
+
+                        showSuccessMessage(
+                            "Menu item updated successfully."
+                        );
+
+                    }
+
+                    else {
+
+                        showSuccessMessage(
+                            "Menu item added successfully."
+                        );
+
+                    }
+
                 }
 
-                const response = await fetch(url, {
-                    method: method,
+                catch (error) {
 
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
+                    console.error(
+                        "Error saving menu item:",
+                        error
+                    );
 
-                    body: JSON.stringify(newMenu)
-                });
+                    alert("Unable to save menu item.");
+
+                }
+
+            }
+        );
 
 
-                const result = await response.json();
+        // --------------------------------
+        // AI PRICE RECOMMENDATION
+        // --------------------------------
 
+        const generateAIButton =
+            document.getElementById(
+                "generate-ai-recommendation"
+            );
 
-                if (!response.ok) {
-                    alert(result.error || "Failed to add menu item");
+        generateAIButton.addEventListener(
+            "click",
+            async function() {
+
+                const menuId =
+                    document.getElementById(
+                        "ai-menu-select"
+                    ).value;
+
+                if (!menuId) {
+
+                    alert(
+                        "Please select a menu item."
+                    );
+
                     return;
                 }
 
 
-                // Clear the form
-                menuForm.reset();
+                try {
 
-                // Return form to Add mode
-                editingMenuId = null;
+                    const response = await fetch(
+                        `http://localhost:5201/api/ai/price-recommendation/${menuId}`
+                    );
 
-                document.querySelector(
-                    "#menu-form .primary-button"
-                ).textContent = "Add Menu Item";
+                    const data =
+                        await response.json();
 
-                // Reload table with new database data
-                await loadMenus();
 
-                if (wasEditing) {
-                    showSuccessMessage("Menu item updated successfully.");
-                } else {
-                    showSuccessMessage("Menu item added successfully.");
+                    if (!response.ok) {
+
+                        alert(
+                            data.error ||
+                            "Unable to generate AI recommendation."
+                        );
+
+                        return;
+                    }
+
+
+                    document.getElementById(
+                        "ai-ingredient-cost"
+                    ).textContent =
+                        Number(
+                            data.ingredient_cost
+                        ).toFixed(2);
+
+
+                    document.getElementById(
+                        "ai-current-price"
+                    ).textContent =
+                        Number(
+                            data.current_price
+                        ).toFixed(2);
+
+
+                    document.getElementById(
+                        "ai-gross-margin"
+                    ).textContent =
+                        Number(
+                            data.gross_margin
+                        ).toFixed(2);
+
+
+                    document.getElementById(
+                        "ai-suggested-price"
+                    ).textContent =
+                        Number(
+                            data.suggested_price
+                        ).toFixed(2);
+
+
+                    document.getElementById(
+                        "ai-pricing-action"
+                    ).textContent =
+                        data.pricing_action;
+
+
+                    document.getElementById(
+                        "ai-explanation"
+                    ).textContent =
+                        data.ai_explanation;
+
+
+                    document.getElementById(
+                        "ai-recommendation-result"
+                    ).style.display = "block";
+
+                    clearAIButton.style.display = "inline-block";
+
                 }
+
+                catch (error) {
+
+                    console.error(
+                        "Error generating AI recommendation:",
+                        error
+                    );
+
+                    alert(
+                        "Unable to connect to the AI service."
+                    );
+
+                }
+
             }
+        );
 
-            catch (error) {
+        // --------------------------------
+        // CLEAR RECOMMENDATION
+        // --------------------------------
 
-                console.error(
-                    "Error adding menu item:",
-                    error
-                );
+        const clearAIButton =
+            document.getElementById("clear-ai-recommendation");
 
-                alert("Unable to add menu item.");
+        clearAIButton.addEventListener("click", function() {
 
-            }
+            // Hide the recommendation
+            document.getElementById(
+                "ai-recommendation-result"
+            ).style.display = "none";
+
+            // Reset the menu dropdown
+            document.getElementById(
+                "ai-menu-select"
+            ).value = "";
+
+            // Hide the Clear button
+            clearAIButton.style.display = "none";
 
         });
+
+
+        // --------------------------------
+        // MENU SEARCH
+        // --------------------------------
+
+        const menuSearch =
+            document.getElementById("menu-search");
+
+        menuSearch.addEventListener(
+            "input",
+            function() {
+
+                const searchValue =
+                    menuSearch.value
+                        .toLowerCase()
+                        .trim();
+
+                const rows =
+                    document.querySelectorAll(
+                        "#menu-table-body tr"
+                    );
+
+                rows.forEach(row => {
+
+                    const rowText =
+                        row.textContent.toLowerCase();
+
+                    if (
+                        rowText.includes(searchValue)
+                    ) {
+                        row.style.display = "";
+                    }
+
+                    else {
+                        row.style.display = "none";
+                    }
+
+                });
+
+            }
+        );
+
+
+        // --------------------------------
+        // INITIAL LOAD
+        // --------------------------------
+
+        loadMenus();
 
     </script>
 
