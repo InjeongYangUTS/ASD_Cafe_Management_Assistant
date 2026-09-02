@@ -329,6 +329,7 @@ def analyse(orders, ollama, now=None):
         "analysis": fallback,
         "raw_response": None,
         "note": None,
+        "corrections": [],
     }
 
     if not metrics["tickets"]:
@@ -354,13 +355,45 @@ def analyse(orders, ollama, now=None):
                           "showing rule-based analysis, raw reply kept below.")
         return result
 
+    # ------------------------------------------------------------------
+    # Validate the model's narrative against the measured facts.
+    #
+    # The LLM writes the prose, but it does not get to contradict the
+    # numbers we computed. Observed in testing: llama3.2 reported
+    # "DELAY RISK: none" on the same screen where it had just said a ticket
+    # was over the 12-minute target. Where the two disagree, the computed
+    # answer wins and the override is recorded so it stays visible.
+    # ------------------------------------------------------------------
+    corrections = []
+
+    delay_risk = parsed["delay_risk"] or fallback["delay_risk"]
+    says_none = delay_risk.strip().lower().startswith(("none", "no ", "n/a"))
+
+    if metrics["at_risk_orders"] and says_none:
+        delay_risk = fallback["delay_risk"]
+        corrections.append(
+            "Delay risk replaced with the measured value: the model reported "
+            "'none' while %d ticket(s) were already past the %d-minute service "
+            "target (%s)."
+            % (len(metrics["at_risk_orders"]), SLA_MINUTES,
+               ", ".join(metrics["at_risk_orders"]))
+        )
+
+    if not metrics["at_risk_orders"] and not says_none:
+        delay_risk = "none"
+        corrections.append(
+            "Delay risk replaced with the measured value: no ticket is past "
+            "the %d-minute service target." % SLA_MINUTES
+        )
+
     result["mode"] = "ollama"
     result["raw_response"] = raw
+    result["corrections"] = corrections
     result["analysis"] = {
         "congestion": parsed["congestion"] or fallback["congestion"],
         "sequence_text": parsed["sequence"],
         "sequence": fallback["sequence"],
-        "delay_risk": parsed["delay_risk"] or fallback["delay_risk"],
+        "delay_risk": delay_risk,
         "action": parsed["action"] or fallback["action"],
     }
 

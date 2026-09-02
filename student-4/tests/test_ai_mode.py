@@ -174,6 +174,53 @@ def test_analysis_uses_the_model_when_it_answers_in_format(ai_module):
     assert result["analysis"]["action"] == "Start the lattes now."
 
 
+def test_model_cannot_claim_no_delay_when_a_ticket_is_over_target(ai_module):
+    """The measured facts override the model's narrative where they disagree."""
+
+    class ContradictingOllama:
+        model = "llama3.2"
+
+        def generate(self, prompt, system=None, temperature=0.2):
+            return (
+                "CONGESTION: One ticket is over 12 minutes behind target.\n"
+                "SEQUENCE: A-1013 first.\n"
+                "DELAY RISK: none\n"
+                "ACTION: Start it now."
+            )
+
+    now = datetime.now()
+    orders = [make_order(1, "A-1013", "PENDING", 13, [latte(2)], now=now)]
+
+    result = ai_module.analyse(orders, ContradictingOllama(), now=now)
+
+    assert result["mode"] == "ollama"
+    assert result["analysis"]["delay_risk"] != "none"
+    assert "A-1013" in result["analysis"]["delay_risk"]
+    assert result["corrections"]
+    assert "A-1013" in result["corrections"][0]
+
+
+def test_model_cannot_invent_a_delay_when_nothing_is_late(ai_module):
+    class AlarmistOllama:
+        model = "llama3.2"
+
+        def generate(self, prompt, system=None, temperature=0.2):
+            return (
+                "CONGESTION: Quiet.\n"
+                "SEQUENCE: A-2001 first.\n"
+                "DELAY RISK: A-2001 will definitely be late.\n"
+                "ACTION: Hurry."
+            )
+
+    now = datetime.now()
+    orders = [make_order(1, "A-2001", "PENDING", 2, [latte()], now=now)]
+
+    result = ai_module.analyse(orders, AlarmistOllama(), now=now)
+
+    assert result["analysis"]["delay_risk"] == "none"
+    assert result["corrections"]
+
+
 def test_prompt_contains_the_queue_facts_and_no_raw_database_rows(ai_module):
     now = datetime.now()
     orders = [make_order(1, "A-1001", "PENDING", 3, [latte(2)], now=now)]
