@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Supplier Management</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            background-color: #ffffff;
+            color: #222;
+        }
+
+        /* 전체 페이지 */
+        .page-container {
+            width: 90%;
+            max-width: 1500px;
+            margin: 0 auto;
+            padding-top: 50px;
+        }
+
+
+        /* ========================================
+           HEADER
+        ======================================== */
+
+        .header {
+            display: flex;
+            align-items: center;
+            gap: 55px;
+        }
+
+        .title-box {
+            width: 75%;
+            background-color: #68a17e;
+            border-radius: 45px;
+            padding: 25px 50px;
+            text-align: center;
+        }
+
+        .title-box h1 {
+            margin: 0;
+            color: white;
+            font-size: 52px;
+            font-weight: 700;
+        }
+
+        .back-link {
+            font-size: 22px;
+            color: #5d97cf;
+            text-decoration: underline;
+            white-space: nowrap;
+        }
+
+
+        /* ========================================
+           SEARCH + ADD SUPPLIER
+        ======================================== */
+
+        .supplier-controls {
+            margin-top: 145px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+
+        /* 검색창 */
+        .search-container {
+            width: 540px;
+            display: flex;
+        }
+
+        .search-container input {
+            width: calc(100% - 60px);
+            height: 60px;
+
+            border: 2px solid #666;
+            border-right: none;
+
+            padding: 0 22px;
+
+            font-size: 22px;
+            outline: none;
+
+            background-color: #f3f3f3;
+        }
+
+        .search-button {
+            width: 60px;
+            height: 60px;
+
+            border: 2px solid #666;
+
+            background-color: white;
+
+            cursor: pointer;
+
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+
+     
+        .search-icon {
+            width: 28px;
+            height: 28px;
+
+            border: 3px solid #111;
+            border-radius: 50%;
+
+            position: relative;
+        }
+
+        .search-icon::after {
+            content: "";
+
+            width: 15px;
+            height: 3px;
+
+            background-color: #111;
+
+            position: absolute;
+
+            right: -11px;
+            bottom: -6px;
+
+            transform: rotate(45deg);
+        }
+
+
+        /* Add supplier */
+        .add-button {
+            background-color: #62a078;
+            color: white;
+
+            border: none;
+            border-radius: 18px;
+
+            padding: 17px 35px;
+
+            font-size: 21px;
+            font-weight: 700;
+
+            cursor: pointer;
+        }
+
+        .add-button:hover {
+            background-color: #548d69;
+        }
+
+
+        /* ========================================
+           SUPPLIER TABLE
+        ======================================== */
+
+        .supplier-table-container {
+            margin-top: 50px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        th,
+        td {
+            border: 1px solid #b8b8b8;
+            height: 42px;
+            padding: 8px 12px;
+        }
+
+        th {
+            background-color: #f8f8f8;
+            font-size: 20px;
+            font-weight: 700;
+            text-align: center;
+        }
+
+        td {
+            font-size: 17px;
+        }
+
+
+        /* 컬럼 너비 */
+        th:nth-child(1),
+        td:nth-child(1) {
+            width: 23%;
+        }
+
+        th:nth-child(2),
+        td:nth-child(2) {
+            width: 17%;
+        }
+
+        th:nth-child(3),
+        td:nth-child(3) {
+            width: 16%;
+        }
+
+        th:nth-child(4),
+        td:nth-child(4) {
+            width: 18%;
+        }
+
+        th:nth-child(5),
+        td:nth-child(5) {
+            width: 26%;
+        }
+
+
+        /* ========================================
+           BOTTOM CONTROLS
+        ======================================== */
+
+        .bottom-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+
+            margin-top: 50px;
+        }
+
+
+        /* Previous / Next */
+        .pagination {
+            font-size: 22px;
+            color: #555;
+        }
+
+        .pagination a {
+            color: #555;
+            text-decoration: none;
+        }
+
+        .pagination a:hover {
+            text-decoration: underline;
+        }
+
+        .separator {
+            margin: 0 15px;
+        }
+
+        /* Edit / Delete */
+        .action-buttons {
+            display: flex;
+            gap: 55px;
+        }
+
+        .action-button {
+            min-width: 225px;
+
+            background-color: #225d36;
+            color: white;
+
+            border: none;
+            border-radius: 18px;
+
+            padding: 18px 30px;
+
+            font-size: 21px;
+            font-weight: 700;
+
+            cursor: pointer;
+        }
+
+        .action-button:hover {
+            background-color: #19492a;
+        }
+
+
+        /* ========================================
+           RESPONSIVE
+        ======================================== */
+
+        @media (max-width: 1000px) {
+
+            .header {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 20px;
+            }
+
+            .title-box {
+                width: 100%;
+            }
+
+            .title-box h1 {
+                font-size: 40px;
+            }
+
+            .supplier-controls {
+                margin-top: 80px;
+            }
+
+            .search-container {
+                width: 50%;
+            }
+
+            .action-buttons {
+                gap: 20px;
+            }
+
+            .action-button {
+                min-width: 150px;
+            }
+        }
+
+    </style>
+</head>
+
+<body>
+
+<div class="page-container">
+
+
+    <!-- ========================================
+         HEADER
+    ======================================== -->
+
+    <div class="header">
+
+        <div class="title-box">
+            <h1>Supplier Management</h1>
+        </div>
+
+        <a href="{{ url_for('inventory_dashboard') }}" class="back-link">
+            ← Back to Inventory Dashboard
+        </a>
+
+    </div>
+
+
+    <!-- ========================================
+         SEARCH + ADD SUPPLIER
+    ======================================== -->
+
+    <div class="supplier-controls">
+
+        <!-- Search -->
+        <form
+            class="search-container"
+            method="GET"
+            action="{{ url_for('supplier_management') }}"
+        >
+
+            <input
+                type="text"
+                name="search"
+                value="{{ search }}"
+                placeholder="Search suppliers . . ."
+            >
+
+            <button type="submit" class="search-button">
+                <span class="search-icon"></span>
+            </button>
+
+        </form>
+
+
+        <!-- Add supplier -->
+        <button class="add-button">
+            + Add supplier
+        </button>
+
+    </div>
+
+
+
+    <!-- ========================================
+         SUPPLIER TABLE
+    ======================================== -->
+
+    <div class="supplier-table-container">
+
+        <table>
+
+            <thead>
+                <tr>
+                    <th>Supplier</th>
+                    <th>Contact</th>
+                    <th>Phone</th>
+                    <th>Supplies</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+
+
+            <tbody>
+
+                {% for supplier in suppliers %}
+
+                    <tr>
+                        <td>{{ supplier["name"] }}</td>
+                        <td>{{ supplier["contact_name"] }}</td>
+                        <td>{{ supplier["phone"] }}</td>
+                        <td>{{ supplier["supplies"] }}</td>
+                        <td>{{ supplier["status"] }}</td>
+                    </tr>
+
+                {% endfor %}
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+
+
+    <!-- ========================================
+         BOTTOM
+    ======================================== -->
+
+    <div class="bottom-section">
+
+        <!-- Pagination -->
+
+        <div class="pagination">
+
+            {% if page > 1 %}
+
+                <a href="{{ url_for(
+                    'supplier_management',
+                    page=page - 1,
+                    search=search
+                ) }}">
+                    ← Previous
+                </a>
+
+            {% else %}
+
+                <span>← Previous</span>
+
+            {% endif %}
+
+
+            <span class="separator">|</span>
+
+
+            {% if page < total_pages %}
+
+                <a href="{{ url_for(
+                    'supplier_management',
+                    page=page + 1,
+                    search=search
+                ) }}">
+                    Next →
+                </a>
+
+            {% else %}
+
+                <span>Next →</span>
+
+            {% endif %}
+
+        </div>
+
+
+
+        <!-- Action buttons -->
+
+        <div class="action-buttons">
+
+            <button class="action-button">
+                Edit
+            </button>
+
+            <button class="action-button">
+                Delete
+            </button>
+
+        </div>
+
+
+    </div>
+
+
+</div>
+
+</body>
+</html>

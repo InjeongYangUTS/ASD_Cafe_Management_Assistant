@@ -32,9 +32,33 @@ def initialise_database():
             quantity REAL NOT NULL,
             unit TEXT NOT NULL,
             minimum_stock REAL NOT NULL,
-            status TEXT NOT NULL
+            status TEXT NOT NULL,
+            supplier_id INTEGER,
+
+            FOREIGN KEY (supplier_id)
+                REFERENCES suppliers(id)
         )
     """)
+    
+    # =====================================================
+    # ADD supplier_id TO EXISTING INVENTORY TABLE
+    # =====================================================
+
+    cursor.execute("""
+        PRAGMA table_info(inventory)
+    """)
+
+    inventory_columns = [
+        column[1]
+        for column in cursor.fetchall()
+    ]
+
+    if "supplier_id" not in inventory_columns:
+
+        cursor.execute("""
+            ALTER TABLE inventory
+            ADD COLUMN supplier_id INTEGER
+        """)
 
 
     # =====================================================
@@ -47,7 +71,9 @@ def initialise_database():
             name TEXT NOT NULL,
             contact_name TEXT,
             email TEXT,
-            phone TEXT
+            phone TEXT,
+            supplies TEXT,
+            status TEXT NOT NULL DEFAULT 'Active'
         )
     """)
 
@@ -117,42 +143,134 @@ def initialise_database():
     # SUPPLIER DUMMY DATA
     # =====================================================
 
-    cursor.execute("SELECT COUNT(*) FROM suppliers")
+    
 
-    if cursor.fetchone()[0] == 0:
+    supplier_data = [
+    (
+        "Sydney Coffee Supplies",
+        "James Lee",
+        "james@sydneycoffee.com",
+        "0400 000 001",
+        "Coffee beans, chocolate powder",
+        "Active"
+    ),
+    (
+        "Fresh Food Distribution",
+        "Sarah Kim",
+        "sarah@freshfood.com",
+        "0400 000 002",
+        "Chicken, lettuce, avocado",
+        "Active"
+    ),
+    (
+        "Cafe Essentials Australia",
+        "Michael Chen",
+        "michael@cafeessentials.com",
+        "0400 000 003",
+        "Syrups, mayonnaise",
+        "Active"
+    ),
+    (
+        "Sydney Dairy Wholesale",
+        "Emma Wilson",
+        "emma@sydneydairy.com",
+        "0400 000 004",
+        "Milk, butter, cheese",
+        "Active"
+    ),
+    (
+        "Golden Bakery Supplies",
+        "Daniel Park",
+        "daniel@goldenbakery.com",
+        "0400 000 005",
+        "Bread, croissants",
+        "Active"
+    ),
+    (
+        "Sweet Treats Wholesale",
+        "Olivia Brown",
+        "olivia@sweettreats.com",
+        "0400 000 006",
+        "Cake slices, muffins",
+        "Active"
+    ),
+    (
+        "Australian Ice Company",
+        "Noah Taylor",
+        "noah@australianice.com",
+        "0400 000 007",
+        "Ice",
+        "Active"
+    ),
+    (
+        "Metro Food Services",
+        "Sophia Nguyen",
+        "sophia@metrofood.com",
+        "0400 000 008",
+        "Ham, chicken, cheese",
+        "Active"
+    ),
+    (
+        "Premium Syrup Co.",
+        "William Zhang",
+        "william@premiumsyrup.com",
+        "0400 000 009",
+        "Vanilla and caramel syrup",
+        "Inactive"
+    ),
+    (
+        "Daily Fresh Produce",
+        "Ava Thompson",
+        "ava@dailyfresh.com",
+        "0400 000 010",
+        "Lettuce, avocado",
+        "Active"
+    )
+]
 
-        supplier_data = [
-            (
-                "Sydney Coffee Supplies",
-                "James Lee",
-                "james@sydneycoffee.com",
-                "0400000001"
-            ),
+    for supplier in supplier_data:
 
-            (
-                "Fresh Food Distribution",
-                "Sarah Kim",
-                "sarah@freshfood.com",
-                "0400000002"
-            ),
+        cursor.execute("""
+            SELECT id
+            FROM suppliers
+            WHERE name = ?
+        """, (supplier[0],))
 
-            (
-                "Cafe Essentials Australia",
-                "Michael Chen",
-                "michael@cafeessentials.com",
-                "0400000003"
-            )
-        ]
+        existing_supplier = cursor.fetchone()
 
-        cursor.executemany("""
-            INSERT INTO suppliers (
-                name,
-                contact_name,
-                email,
-                phone
-            )
-            VALUES (?, ?, ?, ?)
-        """, supplier_data)
+        if existing_supplier:
+
+            cursor.execute("""
+                UPDATE suppliers
+                SET
+                    contact_name = ?,
+                    email = ?,
+                    phone = ?,
+                    supplies = ?,
+                    status = ?
+                WHERE id = ?
+            """, (
+                supplier[1],
+                supplier[2],
+                supplier[3],
+                supplier[4],
+                supplier[5],
+                existing_supplier[0]
+            ))
+
+        else:
+
+            cursor.execute("""
+                INSERT INTO suppliers (
+                    name,
+                    contact_name,
+                    email,
+                    phone,
+                    supplies,
+                    status
+                )
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, supplier)
 
     # =====================================================
     # RESTOCK ORDER DUMMY DATA

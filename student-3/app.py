@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, url_for, request, redirect
 import sqlite3
 import os 
 
@@ -195,7 +195,8 @@ def inventory_management():
                 quantity,
                 unit,
                 minimum_stock,
-                status
+                status,
+                supplier_id
             FROM inventory
             WHERE category = ?
             ORDER BY id ASC
@@ -212,7 +213,8 @@ def inventory_management():
                 quantity,
                 unit,
                 minimum_stock,
-                status
+                status,
+                supplier_id
             FROM inventory
             ORDER BY id ASC
             LIMIT ? OFFSET ?
@@ -220,15 +222,167 @@ def inventory_management():
 
     inventory_items = cursor.fetchall()
 
+    # Supplier dropdown data
+    cursor.execute("""
+        SELECT
+            id,
+            name
+        FROM suppliers
+        ORDER BY name ASC
+    """)
+
+    suppliers = cursor.fetchall()
+
     connection.close()
 
     return render_template(
         "inventory_management.html",
         inventory_items=inventory_items,
+        suppliers=suppliers,
         page=page,
         total_pages=total_pages,
         selected_category=category
     )
+
+@app.route("/inventory/add", methods=["POST"])
+def add_inventory_item():
+    
+    name = request.form["name"]
+    category = request.form["category"]
+    unit = request.form["unit"]
+    quantity = request.form["quantity"]
+    minimum_stock = request.form["minimum_stock"]
+    supplier_id = request.form["supplier_id"]
+    
+    quantity = float(quantity)
+    minimum_stock = float(minimum_stock)
+    
+    if quantity == 0:
+        status = "OUT OF STOCK"
+    elif quantity <= minimum_stock:
+        status = "LOW"
+    else:
+        status = "OK"
+        
+    connection = get_db_connection()
+    cursor = connection.cursor()
+    
+    cursor.execute(
+        """
+        INSERT INTO inventory
+        (
+            name,
+            category,
+            quantity,
+            unit,
+            minimum_stock,
+            status,
+            supplier_id
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            name,
+            category,
+            quantity,
+            unit,
+            minimum_stock,
+            status,
+            supplier_id
+        )
+    )
+
+    connection.commit()
+    connection.close()
+
+    return redirect(url_for("inventory_management"))
+
+@app.route("/inventory/edit", methods=["POST"])
+def edit_inventory_item():
+
+    item_id = request.form["item_id"]
+    name = request.form["name"]
+    category = request.form["category"]
+    unit = request.form["unit"]
+
+    quantity = float(request.form["quantity"])
+    minimum_stock = float(request.form["minimum_stock"])
+
+    supplier_id = request.form["supplier_id"]
+
+
+    # Status 자동 계산
+
+    if quantity == 0:
+        status = "OUT OF STOCK"
+
+    elif quantity <= minimum_stock:
+        status = "LOW"
+
+    else:
+        status = "OK"
+
+
+    connection = get_db_connection()
+    cursor = connection.cursor()
+
+
+    cursor.execute("""
+        UPDATE inventory
+        SET
+            name = ?,
+            category = ?,
+            quantity = ?,
+            unit = ?,
+            minimum_stock = ?,
+            status = ?,
+            supplier_id = ?
+        WHERE id = ?
+    """, (
+        name,
+        category,
+        quantity,
+        unit,
+        minimum_stock,
+        status,
+        supplier_id,
+        item_id
+    ))
+
+
+    connection.commit()
+    connection.close()
+
+
+    return redirect(url_for("inventory_management"))
+
+@app.route("/inventory/delete", methods=["POST"])
+def delete_inventory_item():
+
+    item_id = request.form["item_id"]
+
+    connection = get_db_connection()
+    cursor = connection.cursor()
+
+    cursor.execute("""
+        DELETE FROM restock_orders
+        WHERE inventory_id = ?
+    """, (item_id,))
+
+
+    # Inventory item 삭제
+
+    cursor.execute("""
+        DELETE FROM inventory
+        WHERE id = ?
+    """, (item_id,))
+
+
+    connection.commit()
+    connection.close()
+
+
+    return redirect(url_for("inventory_management"))
 
 # =========================================================
 # Supplier Management
@@ -236,7 +390,109 @@ def inventory_management():
 
 @app.route("/supplier-management")
 def supplier_management():
-    return render_template("supplier_management.html")
+
+    page = request.args.get("page", 1, type=int)
+    search = request.args.get("search", "").strip()
+
+    per_page = 6
+
+    if page < 1:
+        page = 1
+
+    connection = get_db_connection()
+    cursor = connection.cursor()
+
+    if search:
+
+        search_value = f"%{search}%"
+
+        cursor.execute("""
+            SELECT COUNT(*)
+            FROM suppliers
+            WHERE name LIKE ?
+               OR contact_name LIKE ?
+               OR supplies LIKE ?
+               OR status LIKE ?
+        """, (
+            search_value,
+            search_value,
+            search_value,
+            search_value
+        ))
+
+    else:
+
+        cursor.execute("""
+            SELECT COUNT(*)
+            FROM suppliers
+        """)
+
+    total_suppliers = cursor.fetchone()[0]
+    total_pages = max(
+        1,
+        (total_suppliers + per_page - 1) // per_page
+    )
+
+    if page > total_pages:
+        page = total_pages
+
+    offset = (page - 1) * per_page
+
+    if search:
+
+        cursor.execute("""
+            SELECT
+                id,
+                name,
+                contact_name,
+                phone,
+                supplies,
+                status
+            FROM suppliers
+            WHERE name LIKE ?
+               OR contact_name LIKE ?
+               OR supplies LIKE ?
+               OR status LIKE ?
+            ORDER BY id ASC
+            LIMIT ? OFFSET ?
+        """, (
+            search_value,
+            search_value,
+            search_value,
+            search_value,
+            per_page,
+            offset
+        ))
+
+    else:
+
+        cursor.execute("""
+            SELECT
+                id,
+                name,
+                contact_name,
+                phone,
+                supplies,
+                status
+            FROM suppliers
+            ORDER BY id ASC
+            LIMIT ? OFFSET ?
+        """, (
+            per_page,
+            offset
+        ))
+
+    suppliers = cursor.fetchall()
+
+    connection.close()
+
+    return render_template(
+        "supplier_management.html",
+        suppliers=suppliers,
+        page=page,
+        total_pages=total_pages,
+        search=search
+    )
 
 
 # =========================================================

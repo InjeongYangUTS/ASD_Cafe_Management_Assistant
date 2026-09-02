@@ -346,7 +346,246 @@
             background-color: #174829;
         }
 
-        /* =========================
+    /* =========================
+        Add Item Modal
+    ========================= */
+
+    .modal-overlay {
+        display: none;
+
+        position: fixed;
+        top: 0;
+        left: 0;
+
+        width: 100%;
+        height: 100%;
+
+        background-color: rgba(0, 0, 0, 0.45);
+
+        z-index: 1000;
+
+        justify-content: center;
+        align-items: center;
+    }
+
+    .modal-overlay.active {
+        display: flex;
+    }
+
+    .add-item-modal {
+        position: relative;
+
+        width: 620px;
+        max-height: 90vh;
+
+        background-color: white;
+
+        padding: 35px 55px 40px;
+
+        border-radius: 8px;
+
+        overflow-y: auto;
+    }
+
+    .modal-title {
+        margin: 0 0 30px;
+
+        text-align: center;
+
+        color: #08752d;
+
+        font-size: 28px;
+        font-weight: bold;
+    }
+
+
+    /* Close button */
+
+    .modal-close {
+        position: absolute;
+
+        top: 20px;
+        right: 20px;
+
+        width: 45px;
+        height: 45px;
+
+        border: 2px solid #ff6b6b;
+
+        background-color: #ffe3e3;
+
+        color: #ff5b5b;
+
+        font-size: 32px;
+        line-height: 35px;
+
+        cursor: pointer;
+    }
+
+
+    /* Form fields */
+
+    .modal-field {
+        margin-bottom: 25px;
+    }
+
+    .modal-field label {
+        display: block;
+
+        margin-bottom: 7px;
+
+        font-size: 18px;
+    }
+
+    .modal-field input,
+    .modal-field select {
+        width: 100%;
+        height: 48px;
+
+        border: 2px solid #666;
+
+        background-color: #eeeeee;
+
+        padding: 0 12px;
+
+        font-size: 17px;
+    }
+
+
+    /* Bottom buttons */
+
+    .modal-buttons {
+        display: flex;
+        justify-content: flex-end;
+
+        gap: 30px;
+
+        margin-top: 35px;
+    }
+
+    .modal-cancel,
+    .modal-add {
+        width: 135px;
+        height: 48px;
+
+        border: none;
+        border-radius: 18px;
+
+        color: white;
+
+        font-size: 18px;
+        font-weight: bold;
+
+        cursor: pointer;
+    }
+
+    .modal-cancel {
+        background-color: #aaaaaa;
+    }
+
+    .modal-cancel:hover {
+        background-color: #929292;
+    }
+
+    .modal-add {
+        background-color: #68a47c;
+    }
+
+    .modal-add:hover {
+        background-color: #568e69;
+    }
+        
+    /* =========================
+    Delete Item Modal
+    ========================= */
+
+    .delete-item-modal {
+        position: relative;
+
+        width: 650px;
+
+        background-color: white;
+
+        padding: 40px 55px 45px;
+
+        border-radius: 8px;
+
+        text-align: center;
+    }
+
+    .delete-content {
+        margin-top: 40px;
+    }
+
+    .delete-warning-row {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+
+        gap: 35px;
+
+        margin-bottom: 45px;
+    }
+
+    .delete-warning-icon {
+        width: 80px;
+        height: 80px;
+    }
+
+    .delete-item-text {
+        font-size: 26px;
+    }
+
+    .delete-item-name {
+        font-weight: bold;
+    }
+
+    .delete-question {
+        margin: 0 0 55px;
+
+        font-size: 24px;
+    }
+
+    .delete-buttons {
+        display: flex;
+        justify-content: center;
+
+        gap: 35px;
+    }
+
+    .delete-cancel-button,
+    .delete-confirm-button {
+        width: 150px;
+        height: 52px;
+
+        border: none;
+        border-radius: 20px;
+
+        color: white;
+
+        font-size: 19px;
+        font-weight: bold;
+
+        cursor: pointer;
+    }
+
+    .delete-cancel-button {
+        background-color: #aaaaaa;
+    }
+
+    .delete-cancel-button:hover {
+        background-color: #929292;
+    }
+
+    .delete-confirm-button {
+        background-color: #cc0000;
+    }
+
+    .delete-confirm-button:hover {
+        background-color: #aa0000;
+    }       
+    
+    /* =========================
            Responsive
         ========================= */
 
@@ -518,6 +757,7 @@
         <button
             class="add-button"
             type="button"
+            id="openAddModal"
         >
             + Add item
         </button>
@@ -556,7 +796,15 @@
 
                 {% for item in inventory_items %}
 
-                <tr data-id="{{ item['id'] }}">
+                <tr
+                    data-id="{{ item['id'] }}"
+                    data-name="{{ item['name'] }}"
+                    data-category="{{ item['category'] }}"
+                    data-quantity="{{ item['quantity'] }}"
+                    data-unit="{{ item['unit'] }}"
+                    data-minimum-stock="{{ item['minimum_stock'] }}"
+                    data-supplier-id="{{ item['supplier_id'] if item['supplier_id'] else '' }}"
+                >
 
                     <td>
                         {{ item["name"] }}
@@ -629,6 +877,7 @@
             <button
                 class="action-button"
                 type="button"
+                id="openEditModal"
             >
                 Edit
             </button>
@@ -636,6 +885,7 @@
             <button
                 class="action-button"
                 type="button"
+                id="openDeleteModal"
             >
                 Delete
             </button>
@@ -646,12 +896,590 @@
 
 </div>
 
+<!-- =====================
+     Add Item Modal
+====================== -->
+
+<div
+    class="modal-overlay"
+    id="addItemModal"
+>
+
+    <div class="add-item-modal">
+
+        <!-- Close button -->
+
+        <button
+            type="button"
+            class="modal-close"
+            id="closeAddModal"
+        >
+            ×
+        </button>
+
+
+        <h2 class="modal-title">
+            Add item
+        </h2>
+
+
+        <form 
+            id="addItemForm"
+            method="POST"
+            action="{{ url_for('add_inventory_item') }}">
+
+            <!-- Item Name -->
+
+            <div class="modal-field">
+
+                <label for="newItemName">
+                    Item name
+                </label>
+
+                <input
+                    type="text"
+                    id="newItemName"
+                    name="name"
+                    required
+                >
+
+            </div>
+
+
+            <!-- Category -->
+
+            <div class="modal-field">
+
+                <label for="newItemCategory">
+                    Category
+                </label>
+
+                <select
+                    id="newItemCategory"
+                    name="category"
+                    required
+                >
+
+                    <option value="" selected disabled>
+                        Select category
+                    </option>
+
+                    <option value="Coffee">
+                        Coffee
+                    </option>
+
+                    <option value="Milk">
+                        Milk
+                    </option>
+
+                    <option value="Syrup">
+                        Syrup
+                    </option>
+
+                    <option value="Food">
+                        Food
+                    </option>
+
+                    <option value="Other">
+                        Other
+                    </option>
+
+                </select>
+
+            </div>
+
+
+            <!-- Unit -->
+
+            <div class="modal-field">
+
+                <label for="newItemUnit">
+                    Unit
+                </label>
+
+                <select
+                    id="newItemUnit"
+                    name="unit"
+                    required
+                >
+
+                    <option value="" selected disabled>
+                        Select unit
+                    </option>
+
+                    <option value="kg">
+                        kg
+                    </option>
+
+                    <option value="g">
+                        g
+                    </option>
+
+                    <option value="L">
+                        L
+                    </option>
+
+                    <option value="mL">
+                        mL
+                    </option>
+
+                    <option value="pcs">
+                        pcs
+                    </option>
+
+                </select>
+
+            </div>
+
+
+            <!-- Current Stock -->
+
+            <div class="modal-field">
+
+                <label for="newItemStock">
+                    Current stock
+                </label>
+
+                <input
+                    type="number"
+                    id="newItemStock"
+                    name="quantity"
+                    min="0"
+                    step="0.01"
+                    required
+                >
+
+            </div>
+
+
+            <!-- Reorder Level -->
+
+            <div class="modal-field">
+
+                <label for="newItemReorder">
+                    Reorder level
+                </label>
+
+                <input
+                    type="number"
+                    id="newItemReorder"
+                    name="minimum_stock"
+                    min="0"
+                    step="0.01"
+                    required
+                >
+
+            </div>
+
+
+            <!-- Supplier -->
+
+            <div class="modal-field">
+
+                <label for="newItemSupplier">
+                    Supplier
+                </label>
+
+                <select
+                    id="newItemSupplier"
+                    name="supplier_id"
+                    required
+                >
+
+                    <option value="" selected disabled>
+                        Select supplier
+                    </option>
+
+                    {% for supplier in suppliers %}
+
+                        <option value="{{ supplier['id'] }}">
+                            {{ supplier['name'] }}
+                        </option>
+
+                    {% endfor %}
+
+                </select>
+
+            </div>
+
+
+            <!-- Buttons -->
+
+            <div class="modal-buttons">
+
+                <button
+                    type="button"
+                    class="modal-cancel"
+                    id="cancelAddModal"
+                >
+                    Cancel
+                </button>
+
+                <button
+                    type="submit"
+                    class="modal-add"
+                >
+                    Add
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
+
+<!-- =====================
+     Edit Item Modal
+====================== -->
+
+<div class="modal-overlay" id="editItemModal">
+
+    <div class="add-item-modal">
+
+        <!-- Close button -->
+
+        <button
+            type="button"
+            class="modal-close"
+            id="closeEditModal"
+        >
+            ×
+        </button>
+
+
+        <h2 class="modal-title">
+            Edit item
+        </h2>
+
+
+        <form
+            id="editItemForm"
+            method="POST"
+            action="{{ url_for('edit_inventory_item') }}"
+        >
+
+            <!-- Item ID -->
+
+            <input
+                type="hidden"
+                id="editItemId"
+                name="item_id"
+            >
+
+
+            <!-- Item Name -->
+
+            <div class="modal-field">
+
+                <label for="editItemName">
+                    Item name
+                </label>
+
+                <input
+                    type="text"
+                    id="editItemName"
+                    name="name"
+                    required
+                >
+
+            </div>
+
+
+            <!-- Category -->
+
+            <div class="modal-field">
+
+                <label for="editItemCategory">
+                    Category
+                </label>
+
+                <select
+                    id="editItemCategory"
+                    name="category"
+                    required
+                >
+
+                    <option value="Coffee">
+                        Coffee
+                    </option>
+
+                    <option value="Milk">
+                        Milk
+                    </option>
+
+                    <option value="Syrup">
+                        Syrup
+                    </option>
+
+                    <option value="Food">
+                        Food
+                    </option>
+
+                    <option value="Other">
+                        Other
+                    </option>
+
+                </select>
+
+            </div>
+
+
+            <!-- Unit -->
+
+            <div class="modal-field">
+
+                <label for="editItemUnit">
+                    Unit
+                </label>
+
+                <select
+                    id="editItemUnit"
+                    name="unit"
+                    required
+                >
+
+                    <option value="kg">
+                        kg
+                    </option>
+
+                    <option value="g">
+                        g
+                    </option>
+
+                    <option value="L">
+                        L
+                    </option>
+
+                    <option value="mL">
+                        mL
+                    </option>
+
+                    <option value="ml">
+                        ml
+                    </option>
+
+                    <option value="pcs">
+                        pcs
+                    </option>
+
+                    <option value="each">
+                        each
+                    </option>
+
+                    <option value="slices">
+                        slices
+                    </option>
+
+                </select>
+
+            </div>
+
+
+            <!-- Current Stock -->
+
+            <div class="modal-field">
+
+                <label for="editItemStock">
+                    Current stock
+                </label>
+
+                <input
+                    type="number"
+                    id="editItemStock"
+                    name="quantity"
+                    min="0"
+                    step="0.01"
+                    required
+                >
+
+            </div>
+
+
+            <!-- Reorder Level -->
+
+            <div class="modal-field">
+
+                <label for="editItemReorder">
+                    Reorder level
+                </label>
+
+                <input
+                    type="number"
+                    id="editItemReorder"
+                    name="minimum_stock"
+                    min="0"
+                    step="0.01"
+                    required
+                >
+
+            </div>
+
+
+            <!-- Supplier -->
+
+            <div class="modal-field">
+
+                <label for="editItemSupplier">
+                    Supplier
+                </label>
+
+                <select
+                    id="editItemSupplier"
+                    name="supplier_id"
+                    required
+                >
+
+                    <option value="" disabled>
+                        Select supplier
+                    </option>
+
+                    {% for supplier in suppliers %}
+
+                        <option value="{{ supplier['id'] }}">
+                            {{ supplier['name'] }}
+                        </option>
+
+                    {% endfor %}
+
+                </select>
+
+            </div>
+
+
+            <!-- Buttons -->
+
+            <div class="modal-buttons">
+
+                <button
+                    type="button"
+                    class="modal-cancel"
+                    id="cancelEditModal"
+                >
+                    Cancel
+                </button>
+
+                <button
+                    type="submit"
+                    class="modal-add"
+                >
+                    Edit
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
+
+<!-- =====================
+     Delete Item Modal
+====================== -->
+
+<div class="modal-overlay" id="deleteItemModal">
+
+    <div class="delete-item-modal">
+
+        <!-- Close button -->
+
+        <button
+            type="button"
+            class="modal-close"
+            id="closeDeleteModal"
+        >
+            ×
+        </button>
+
+
+        <h2 class="modal-title">
+            Delete item
+        </h2>
+
+
+        <div class="delete-content">
+
+            <div class="delete-warning-row">
+
+                <img
+                    src="{{ url_for('static', filename='icons/warning.svg') }}"
+                    class="delete-warning-icon"
+                    alt="Warning"
+                >
+
+                <div class="delete-item-text">
+
+                    Delete
+
+                    <span
+                        class="delete-item-name"
+                        id="deleteItemName"
+                    >
+                    </span>
+
+                    ?
+
+                </div>
+
+            </div>
+
+
+            <p class="delete-question">
+                Are you sure you want to delete this item?
+            </p>
+
+
+            <form
+                method="POST"
+                action="{{ url_for('delete_inventory_item') }}"
+                id="deleteItemForm"
+            >
+
+                <input
+                    type="hidden"
+                    name="item_id"
+                    id="deleteItemId"
+                >
+
+
+                <div class="delete-buttons">
+
+                    <button
+                        type="button"
+                        class="delete-cancel-button"
+                        id="cancelDeleteModal"
+                    >
+                        Cancel
+                    </button>
+
+
+                    <button
+                        type="submit"
+                        class="delete-confirm-button"
+                    >
+                        Delete
+                    </button>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
 
 <script>
 
     const rows = document.querySelectorAll(
         "#inventoryTable tr"
     );
+
+    let selectedRow = null;
+
 
     rows.forEach(row => {
 
@@ -663,9 +1491,13 @@
 
             this.classList.add("selected");
 
+            selectedRow = this;
+
         });
 
     });
+
+   
 
     const categorySelect = document.getElementById("categorySelect");
     const categoryText = document.getElementById("categoryText");
@@ -673,6 +1505,226 @@
     categorySelect.addEventListener("change", function () {
         document.getElementById("categoryForm").submit();
     });
+
+    /* =========================
+    Add Item Modal
+    ========================= */
+
+    const addItemModal =
+        document.getElementById("addItemModal");
+
+    const openAddModal =
+        document.getElementById("openAddModal");
+
+    const closeAddModal =
+        document.getElementById("closeAddModal");
+
+    const cancelAddModal =
+        document.getElementById("cancelAddModal");
+
+    const addItemForm =
+        document.getElementById("addItemForm");
+
+
+    /* Open modal */
+
+    openAddModal.addEventListener("click", function () {
+
+        addItemModal.classList.add("active");
+
+        document.body.style.overflow = "hidden";
+
+    });
+
+
+    /* Close with X button */
+
+    closeAddModal.addEventListener("click", function () {
+
+        closeModal();
+
+    });
+
+
+    /* Close with Cancel button */
+
+    cancelAddModal.addEventListener("click", function () {
+
+        closeModal();
+
+    });
+
+
+    function closeModal() {
+
+        addItemModal.classList.remove("active");
+
+        document.body.style.overflow = "";
+
+        addItemForm.reset();
+
+    }
+
+    /* =========================
+    Edit Item Modal
+    ========================= */
+
+    const editItemModal =
+        document.getElementById("editItemModal");
+
+    const openEditModal =
+        document.getElementById("openEditModal");
+
+    const closeEditModal =
+        document.getElementById("closeEditModal");
+
+    const cancelEditModal =
+        document.getElementById("cancelEditModal");
+
+
+    /* Edit button */
+
+    openEditModal.addEventListener("click", function () {
+
+        if (selectedRow === null) {
+
+            alert("Please select an item first.");
+
+            return;
+        }
+
+
+        /* Selected row data */
+
+        document.getElementById("editItemId").value =
+            selectedRow.dataset.id;
+
+        document.getElementById("editItemName").value =
+            selectedRow.dataset.name;
+
+        document.getElementById("editItemCategory").value =
+            selectedRow.dataset.category;
+
+        document.getElementById("editItemUnit").value =
+            selectedRow.dataset.unit;
+
+        document.getElementById("editItemStock").value =
+            selectedRow.dataset.quantity;
+
+        document.getElementById("editItemReorder").value =
+            selectedRow.dataset.minimumStock;
+
+        document.getElementById("editItemSupplier").value =
+            selectedRow.dataset.supplierId;
+
+
+        /* Open modal */
+
+        editItemModal.classList.add("active");
+
+        document.body.style.overflow = "hidden";
+
+    });
+
+
+    /* X button */
+
+    closeEditModal.addEventListener("click", function () {
+
+        closeEditItemModal();
+
+    });
+
+
+    /* Cancel button */
+
+    cancelEditModal.addEventListener("click", function () {
+
+        closeEditItemModal();
+
+    });
+
+
+    function closeEditItemModal() {
+
+        editItemModal.classList.remove("active");
+
+        document.body.style.overflow = "";
+
+    }
+
+/* =========================
+   Delete Item Modal
+========================= */
+
+const deleteItemModal =
+    document.getElementById("deleteItemModal");
+
+const openDeleteModal =
+    document.getElementById("openDeleteModal");
+
+const closeDeleteModal =
+    document.getElementById("closeDeleteModal");
+
+const cancelDeleteModal =
+    document.getElementById("cancelDeleteModal");
+
+
+/* Delete button */
+
+openDeleteModal.addEventListener("click", function () {
+
+    if (selectedRow === null) {
+
+        alert("Please select an item first.");
+
+        return;
+    }
+
+
+    /* Selected item */
+
+    document.getElementById("deleteItemId").value =
+        selectedRow.dataset.id;
+
+    document.getElementById("deleteItemName").textContent =
+        selectedRow.dataset.name;
+
+
+    /* Open modal */
+
+    deleteItemModal.classList.add("active");
+
+    document.body.style.overflow = "hidden";
+
+});
+
+
+/* X button */
+
+closeDeleteModal.addEventListener("click", function () {
+
+    closeDeleteItemModal();
+
+});
+
+
+/* Cancel button */
+
+cancelDeleteModal.addEventListener("click", function () {
+
+    closeDeleteItemModal();
+
+});
+
+
+function closeDeleteItemModal() {
+
+    deleteItemModal.classList.remove("active");
+
+    document.body.style.overflow = "";
+
+}
 
 </script>
 
