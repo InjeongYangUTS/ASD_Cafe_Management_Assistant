@@ -306,3 +306,360 @@ body {
     font-size: 16px;
     margin-top: 10px;
 }
+
+/* =========================
+   Customer Dashboard
+   ========================= */
+
+.dashboard-selection {
+    display: flex;
+    justify-content: center;
+    align-items: stretch;
+
+    gap: 45px;
+    flex-wrap: wrap;
+}
+
+.dashboard-card {
+    width: 320px;
+    height: 390px;
+
+    background-color: #ffffff;
+
+    border-radius: 25px;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+
+    padding: 40px;
+
+    color: #333333;
+    text-decoration: none;
+    text-align: center;
+
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.06);
+
+    transition:
+        transform 0.2s ease,
+        box-shadow 0.2s ease,
+        background-color 0.2s ease,
+        border-color 0.2s ease;
+}
+
+
+/* Pink order card */
+
+.order-card {
+    border: 2px solid #ffcaca;
+}
+
+
+/* Blue feedback card */
+
+.feedback-card {
+    border: 2px solid #c7ddff;
+}
+
+
+/* Icons */
+
+.dashboard-icon {
+    width: 115px;
+    height: 115px;
+
+    margin-bottom: 35px;
+}
+
+
+/* Text */
+
+.dashboard-card h2 {
+    margin: 0 0 18px;
+
+    font-size: 29px;
+    font-weight: bold;
+}
+
+.dashboard-card p {
+    margin: 0;
+
+    font-size: 17px;
+    line-height: 1.5;
+
+    color: #777777;
+}
+
+
+/* Order hover */
+
+.order-card:hover {
+    transform: translateY(-7px);
+
+    background-color: #fff0f5;
+
+    border-color: #ebaec5;
+
+    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.10);
+}
+
+
+/* Feedback hover */
+
+.feedback-card:hover {
+    transform: translateY(-7px);
+
+    background-color: #f3f7ff;
+
+    border-color: #a9c8f5;
+
+    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.10);
+}
+
+
+/* Mobile */
+
+@media (max-width: 750px) {
+
+    .dashboard-selection {
+        flex-direction: column;
+        gap: 25px;
+    }
+
+    .dashboard-card {
+        width: 280px;
+        height: 320px;
+    }
+
+    .dashboard-icon {
+        width: 90px;
+        height: 90px;
+
+        margin-bottom: 25px;
+    }
+
+    .dashboard-card h2 {
+        font-size: 25px;
+    }
+
+    .dashboard-card p {
+        font-size: 15px;
+    }
+}
+
+/* =========================
+   STAFF DASHBOARD
+   ========================= */
+
+.staff-header {
+    text-align: center;
+    margin-bottom: 35px;
+}
+
+.staff-header h1 {
+    margin: 0 0 8px;
+    font-size: 40px;
+    font-weight: 700;
+    color: #333333;
+}
+
+.staff-header p {
+    margin: 0;
+    font-size: 17px;
+    color: #777777;
+}
+
+.staff-header .role-tag {
+    display: inline-block;
+    margin-top: 10px;
+    padding: 5px 14px;
+
+    border-radius: 999px;
+
+    background-color: #fff3d6;
+    color: #8a6d1f;
+
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+
+/* Card container */
+
+.dashboard-container {
+    width: 100%;
+    max-width: 1200px;
+
+    display: flex;
+    justify-content: center;
+    align-items: stretch;
+    flex-wrap: wrap;
+
+    gap: 30px;
+
+    padding: 0 20px;
+}
+
+
+/* Staff cards */
+
+.dashboard-container .dashboard-card {
+    width: 250px;
+    height: 320px;
+
+    background-color: #ffffff;
+
+    border-radius: 25px;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+
+    padding: 30px;
+
+    text-align: center;
+    text-decoration: none;
+    color: #333333;
+
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.06);
+
+    transition:
+        transform 0.2s ease,
+        box-shadow 0.2s ease,
+        background-color 0.2s ease,
+        border-color 0.2s ease;
+}
+
+
+/* Icons */
+
+.dashboard-container .dashboard-icon {
+    width: 90px;
+    height: 90px;
+    margin-bottom: 28px;
+}
+
+
+/* Card text */
+
+.dashboard-container .dashboard-card h2 {
+    margin: 0 0 14px;
+
+    font-size: 22px;
+    font-weight: bold;
+}
+
+.dashboard-container .dashboard-card p {
+    margin: 0;
+
+    font-size: 15px;
+    line-height: 1.5;
+    color: #777777;
+}
+
+
+/* =========================
+   CARD COLOURS + HOVER
+   ========================= */
+
+/* Kitchen - Pink */
+
+.kitchen-card {
+    border: 2px solid #ffcaca;
+}
+
+.kitchen-card:hover {
+    transform: translateY(-7px);
+    background-color: #fff0f5;
+    border-color: #ebaec5;
+    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.10);
+}
+
+
+/* Menu - Yellow */
+
+.menu-card {
+    border: 2px solid #f6df9f;
+}
+
+.menu-card:hover {
+    transform: translateY(-7px);
+    background-color: #fff9e6;
+    border-color: #efd277;
+    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.10);
+}
+
+
+/* Inventory - Green */
+
+.inventory-card {
+    border: 2px solid #cdeac0;
+}
+
+.inventory-card:hover {
+    transform: translateY(-7px);
+    background-color: #f2faef;
+    border-color: #aed99e;
+    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.10);
+}
+
+
+/* Payment - Blue */
+
+.payment-card {
+    border: 2px solid #c7ddff;
+}
+
+.payment-card:hover {
+    transform: translateY(-7px);
+    background-color: #f3f7ff;
+    border-color: #a9c8f5;
+    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.10);
+}
+
+
+/* Back link */
+
+.back-link {
+    text-align: center;
+    margin-top: 30px;
+}
+
+.back-link a {
+    color: #777777;
+    text-decoration: none;
+    font-size: 15px;
+}
+
+.back-link a:hover {
+    text-decoration: underline;
+}
+
+
+/* =========================
+   RESPONSIVE
+   ========================= */
+
+@media (max-width: 900px) {
+
+    .staff-header h1 {
+        font-size: 31px;
+    }
+
+    .staff-header p {
+        font-size: 15px;
+    }
+
+    .dashboard-container {
+        gap: 25px;
+    }
+
+    .dashboard-container .dashboard-card {
+        width: 280px;
+        height: 320px;
+    }
+}

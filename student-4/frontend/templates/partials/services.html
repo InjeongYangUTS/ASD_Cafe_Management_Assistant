@@ -1,0 +1,12 @@
+<div class="s4-service-strip"
+     hx-get="/ui/services"
+     hx-trigger="every 30s"
+     hx-swap="outerHTML">
+
+    {% for service in services %}
+    <span class="s4-chip {{ 'up' if service.up else 'down' }}">
+        {{ service.label }}: {{ "up" if service.up else "unreachable" }}
+    </span>
+    {% endfor %}
+
+</div>

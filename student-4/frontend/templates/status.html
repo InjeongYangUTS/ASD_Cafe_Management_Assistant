@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}Order Status{% endblock %}
+
+{% block content %}
+
+<div class="s4-page-head">
+    <h2>Order Status</h2>
+    <p>
+        Every order with its current state and full status history. Update,
+        cancel or delete a ticket here - the same CRUD operations the POS and
+        the kitchen board use.
+    </p>
+</div>
+
+{% include "partials/service_strip.html" %}
+
+<div class="s4-split">
+
+    <!-- ============ ORDER LIST ============ -->
+    <section class="s4-panel blue">
+
+        <h3>All orders</h3>
+        <p class="s4-panel-sub">Filter by state, then open an order to see its timeline.</p>
+
+        <form class="s4-row"
+              hx-get="/ui/status/list"
+              hx-target="#s4-status-list"
+              hx-trigger="change, submit"
+              hx-swap="innerHTML"
+              style="margin-bottom: 16px;">
+
+            <div class="s4-field">
+                <label for="status">Status</label>
+                <select id="status" name="status">
+                    <option value="">All</option>
+                    {% for state in statuses %}
+                    <option value="{{ state }}">{{ state|title }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="s4-field">
+                <label for="channel">Channel</label>
+                <select id="channel" name="channel">
+                    <option value="">All</option>
+                    <option value="DINE_IN">Dine in</option>
+                    <option value="TAKEAWAY">Takeaway</option>
+                </select>
+            </div>
+        </form>
+
+        <div id="s4-status-list"
+             hx-get="/ui/status/list"
+             hx-trigger="load, orderChanged from:body"
+             hx-swap="innerHTML">
+            <p class="s4-empty">Loading…</p>
+        </div>
+
+    </section>
+
+
+    <!-- ============ DETAIL ============ -->
+    <aside class="s4-panel pink">
+
+        <h3>Order detail</h3>
+        <p class="s4-panel-sub">Select an order from the list.</p>
+
+        <div id="s4-detail">
+            <p class="s4-empty">No order selected.</p>
+        </div>
+
+    </aside>
+
+</div>
+
+{% endblock %}
