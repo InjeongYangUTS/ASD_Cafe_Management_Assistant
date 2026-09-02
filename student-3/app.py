@@ -1,9 +1,16 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, request
 import sqlite3
-from pathlib import Path
+import os 
 
-BASE_DIR = Path(__file__).resolve().parent
-DATABASE_PATH = BASE_DIR / "database" / "inventory.db"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+DATABASE = os.path.join(
+    BASE_DIR,
+    "database",
+    "inventory.db"
+)
+
+
 
 app = Flask(
     __name__,
@@ -11,10 +18,10 @@ app = Flask(
     static_folder="assets"
 )
 
-def get_database_connection():
-    connection = sqlite3.connect(DATABASE_PATH)
-    connection.row_factory = sqlite3.Row
-    return connection
+def get_db_connection():
+    conn = sqlite3.connect(DATABASE)
+    conn.row_factory = sqlite3.Row
+    return conn
 
 
 # =========================================================
@@ -24,7 +31,7 @@ def get_database_connection():
 @app.route("/")
 def inventory_dashboard():
 
-    connection = get_database_connection()
+    connection = get_db_connection()
     cursor = connection.cursor()
 
 
@@ -144,8 +151,84 @@ def inventory_dashboard():
 
 @app.route("/inventory-management")
 def inventory_management():
-    return render_template("inventory_management.html")
 
+    page = request.args.get("page", 1, type=int)
+    category = request.args.get("category", "")
+
+    per_page = 6
+
+    if page < 1:
+        page = 1
+
+    offset = (page - 1) * per_page
+
+    connection = get_db_connection()
+    cursor = connection.cursor()
+
+    if category:
+        cursor.execute("""
+            SELECT COUNT(*)
+            FROM inventory
+            WHERE category = ?
+        """, (category,))
+    else:
+        cursor.execute("""
+            SELECT COUNT(*)
+            FROM inventory
+        """)
+
+    total_items = cursor.fetchone()[0]
+
+    total_pages = (total_items + per_page - 1) // per_page
+
+    if total_pages > 0 and page > total_pages:
+        page = total_pages
+        offset = (page - 1) * per_page
+
+    if category:
+
+        cursor.execute("""
+            SELECT
+                id,
+                name,
+                category,
+                quantity,
+                unit,
+                minimum_stock,
+                status
+            FROM inventory
+            WHERE category = ?
+            ORDER BY id ASC
+            LIMIT ? OFFSET ?
+        """, (category, per_page, offset))
+
+    else:
+
+        cursor.execute("""
+            SELECT
+                id,
+                name,
+                category,
+                quantity,
+                unit,
+                minimum_stock,
+                status
+            FROM inventory
+            ORDER BY id ASC
+            LIMIT ? OFFSET ?
+        """, (per_page, offset))
+
+    inventory_items = cursor.fetchall()
+
+    connection.close()
+
+    return render_template(
+        "inventory_management.html",
+        inventory_items=inventory_items,
+        page=page,
+        total_pages=total_pages,
+        selected_category=category
+    )
 
 # =========================================================
 # Supplier Management

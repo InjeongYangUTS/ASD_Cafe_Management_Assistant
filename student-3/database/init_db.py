@@ -28,6 +28,7 @@ def initialise_database():
         CREATE TABLE IF NOT EXISTS inventory (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
+            category TEXT NOT NULL,
             quantity REAL NOT NULL,
             unit TEXT NOT NULL,
             minimum_stock REAL NOT NULL,
@@ -81,34 +82,35 @@ def initialise_database():
     if cursor.fetchone()[0] == 0:
 
         inventory_data = [
-            ("Coffee Beans", 5000, "g", 1500, "OK"),
-            ("Full Cream Milk", 3000, "ml", 4000, "LOW"),
-            ("Ice", 8000, "g", 2000, "OK"),
-            ("Vanilla Syrup", 500, "ml", 300, "OK"),
-            ("Caramel Syrup", 150, "ml", 300, "LOW"),
-            ("Chocolate Powder", 1000, "g", 500, "OK"),
-            ("Bread", 20, "slices", 30, "LOW"),
-            ("Chicken", 1500, "g", 500, "OK"),
-            ("Lettuce", 300, "g", 400, "LOW"),
-            ("Mayonnaise", 800, "g", 300, "OK"),
-            ("Ham", 700, "g", 300, "OK"),
-            ("Cheese", 250, "g", 300, "LOW"),
-            ("Butter", 500, "g", 200, "OK"),
-            ("Avocado", 0, "g", 500, "OUT OF STOCK"),
-            ("Chocolate Cake Slice", 8, "slices", 5, "OK"),
-            ("Blueberry Muffin", 3, "each", 5, "LOW"),
-            ("Croissant", 0, "each", 5, "OUT OF STOCK")
+            ("Coffee Beans", "Coffee", 5000, "g", 1500, "OK"),
+            ("Full Cream Milk", "Milk", 3000, "ml", 4000, "LOW"),
+            ("Ice", "Other", 8000, "g", 2000, "OK"),
+            ("Vanilla Syrup", "Syrup", 500, "ml", 300, "OK"),
+            ("Caramel Syrup", "Syrup", 150, "ml", 300, "LOW"),
+            ("Chocolate Powder", "Coffee", 1000, "g", 500, "OK"),
+            ("Bread", "Food", 20, "slices", 30, "LOW"),
+            ("Chicken", "Food", 1500, "g", 500, "OK"),
+            ("Lettuce", "Food", 300, "g", 400, "LOW"),
+            ("Mayonnaise", "Food", 800, "g", 300, "OK"),
+            ("Ham", "Food", 700, "g", 300, "OK"),
+            ("Cheese", "Food", 250, "g", 300, "LOW"),
+            ("Butter", "Food", 500, "g", 200, "OK"),
+            ("Avocado", "Food", 0, "g", 500, "OUT OF STOCK"),
+            ("Chocolate Cake Slice", "Food", 8, "slices", 5, "OK"),
+            ("Blueberry Muffin", "Food", 3, "each", 5, "LOW"),
+            ("Croissant", "Food", 0, "each", 5, "OUT OF STOCK")
         ]
 
         cursor.executemany("""
             INSERT INTO inventory (
                 name,
+                category,
                 quantity,
                 unit,
                 minimum_stock,
                 status
             )
-            VALUES (?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?)
         """, inventory_data)
         
     # =====================================================

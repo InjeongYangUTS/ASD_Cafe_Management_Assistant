@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Inventory Management</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background-color: #ffffff;
+            color: #222;
+        }
+
+        .page-container {
+            width: 90%;
+            max-width: 1400px;
+            margin: 50px auto;
+        }
+
+        /* =========================
+           Header
+        ========================= */
+
+        .header {
+            display: flex;
+            align-items: center;
+            gap: 50px;
+        }
+
+        .title-box {
+            flex: 1;
+            max-width: 1000px;
+
+            background-color: #9bc9ad;
+
+            height: 100px;
+            border-radius: 30px;
+
+            display: flex;
+            align-items: center;       
+            justify-content: center;   
+
+            padding: 0;
+        }
+
+        .title-box h1 {
+            margin: 0;
+            color: white;
+            font-size: 52px;
+            font-family: Arial, sans-serif;
+            font-weight: 700;
+            text-align: center;
+        }
+
+        .back-link {
+            white-space: nowrap;
+
+            color: #5b9bd5;
+
+            font-size: 20px;
+            text-decoration: underline;
+        }
+
+        .back-link:hover {
+            color: #367ebd;
+        }
+
+        /* =========================
+           Controls
+        ========================= */
+
+        .controls {
+            margin-top: 120px;
+
+            display: flex;
+            align-items: center;
+            gap: 60px;
+        }
+
+        /* Search */
+
+        .search-container {
+            display: flex;
+
+            width: 480px;
+            height: 55px;
+
+            border: 2px solid #555;
+            background-color: #f0f0f0;
+        }
+
+        .search-container input {
+            flex: 1;
+
+            border: none;
+            outline: none;
+
+            background: transparent;
+
+            padding: 0 20px;
+
+            font-size: 20px;
+        }
+
+        .search-button {
+            width: 55px;
+
+            border: none;
+            border-left: 2px solid #555;
+
+            background-color: white;
+
+            cursor: pointer;
+        }
+
+        .search-button img {
+            width: 30px;
+            height: 30px;
+        }
+
+        /* Category */
+
+        .category-container {
+            position: relative;
+
+            width: 280px;
+            height: 55px;
+
+            border: 2px solid #555;
+            background-color: #f0f0f0;
+        }
+
+        .category-display {
+            width: 100%;
+            height: 100%;
+
+            display: flex;
+            align-items: center;
+
+            pointer-events: none;
+        }
+
+        .category-display span {
+            flex: 1;
+
+            padding-left: 20px;
+
+            font-size: 20px;
+            color: #222;
+        }
+
+        .category-icon {
+            width: 55px;
+            height: 100%;
+
+            border-left: 2px solid #555;
+
+            display: flex;
+            justify-content: center;
+            align-items: center;
+
+            background-color: white;
+        }
+
+        .category-icon img {
+            width: 28px;
+            height: 28px;
+        }
+
+
+        .category-select {
+            position: absolute;
+
+            top: 0;
+            left: 0;
+
+            width: 100%;
+            height: 100%;
+
+            opacity: 0;
+
+            cursor: pointer;
+        }
+
+        /* Add button */
+
+        .add-button {
+            margin-left: auto;
+
+            width: 200px;
+            height: 55px;
+
+            border: none;
+            border-radius: 20px;
+
+            background-color: #68a47c;
+
+            color: white;
+
+            font-size: 19px;
+            font-weight: bold;
+
+            cursor: pointer;
+        }
+
+        .add-button:hover {
+            background-color: #568e69;
+        }
+
+        /* =========================
+           Inventory Table
+        ========================= */
+
+        .table-container {
+            margin-top: 50px;
+        }
+
+        table {
+            width: 100%;
+
+            border-collapse: collapse;
+
+            table-layout: fixed;
+        }
+
+        th,
+        td {
+            border: 1px solid #bcbcbc;
+
+            height: 42px;
+
+            padding: 8px 15px;
+
+            text-align: center;
+
+            font-size: 17px;
+        }
+
+        th {
+            background-color: #f4f4f4;
+
+            font-size: 19px;
+            font-weight: bold;
+        }
+
+        tbody tr {
+            cursor: pointer;
+        }
+
+        tbody tr:hover {
+            background-color: #f2f8f4;
+        }
+
+        tbody tr.selected {
+            background-color: #dcefe3;
+        }
+
+        /* Column width */
+
+        th:nth-child(1) {
+            width: 23%;
+        }
+
+        th:nth-child(2) {
+            width: 18%;
+        }
+
+        th:nth-child(3) {
+            width: 17%;
+        }
+
+        th:nth-child(4) {
+            width: 18%;
+        }
+
+        th:nth-child(5) {
+            width: 24%;
+        }
+
+        /* =========================
+           Bottom section
+        ========================= */
+
+        .bottom-area {
+            display: flex;
+            align-items: center;
+
+            margin-top: 50px;
+        }
+
+        .pagination {
+            font-size: 19px;
+            color: #555;
+        }
+
+        .pagination a {
+            color: #555;
+            text-decoration: none;
+
+            margin: 0 5px;
+        }
+
+        .pagination .disabled {
+            color: #aaa;
+            margin: 0 5px;
+            cursor: default;
+        }
+
+        .pagination a:hover {
+            text-decoration: underline;
+        }
+
+        .action-buttons {
+            margin-left: auto;
+
+            display: flex;
+            gap: 50px;
+        }
+
+        .action-button {
+            width: 200px;
+            height: 55px;
+
+            border: none;
+            border-radius: 18px;
+
+            background-color: #205d34;
+
+            color: white;
+
+            font-size: 19px;
+            font-weight: bold;
+
+            cursor: pointer;
+        }
+
+        .action-button:hover {
+            background-color: #174829;
+        }
+
+        /* =========================
+           Responsive
+        ========================= */
+
+        @media (max-width: 1000px) {
+
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .title-box {
+                width: 100%;
+            }
+
+            .controls {
+                flex-wrap: wrap;
+                margin-top: 70px;
+            }
+
+            .add-button {
+                margin-left: 0;
+            }
+
+            .action-buttons {
+                gap: 15px;
+            }
+        }
+    </style>
+</head>
+
+
+<body>
+
+<div class="page-container">
+
+    <!-- =====================
+         Header
+    ====================== -->
+
+    <div class="header">
+
+        <div class="title-box">
+            <h1>Inventory Management</h1>
+        </div>
+
+        <a href="{{ url_for('inventory_dashboard') }}" class="back-link">
+            ← Back to Inventory Dashboard
+        </a>
+
+    </div>
+
+
+    <!-- =====================
+         Search / Filter / Add
+    ====================== -->
+
+    <div class="controls">
+
+        <!-- Search -->
+
+        <div class="search-container">
+
+            <input
+                type="text"
+                id="searchInput"
+                placeholder="Search inventory . . ."
+            >
+
+            <button class="search-button" type="button">
+
+                <img
+                    src="assets/icons/magnifier.svg"
+                    alt="Search"
+                >
+
+            </button>
+
+        </div>
+
+
+        <!-- Category -->
+
+        <form
+            method="GET"
+            action="{{ url_for('inventory_management') }}"
+            id="categoryForm"
+        >
+
+            <div class="category-container">
+
+                <div class="category-display">
+
+                    <span id="categoryText">
+                        {% if selected_category %}
+                            {{ selected_category }}
+                        {% else %}
+                            Category
+                        {% endif %}
+                    </span>
+
+                    <div class="category-icon">
+                        <img
+                            src="/assets/icons/inverted_triangle.svg"
+                            alt=""
+                        >
+                    </div>
+
+                </div>
+
+                <select
+                    id="categorySelect"
+                    class="category-select"
+                    name="category"
+                    aria-label="Category"
+                >
+                    <option
+                        value=""
+                        disabled
+                        hidden
+                        {% if not selected_category %}selected{% endif %}
+                    >
+                        Category
+                    </option>
+
+                    <option
+                        value="Coffee"
+                        {% if selected_category == "Coffee" %}selected{% endif %}
+                    >
+                        Coffee
+                    </option>
+
+                    <option
+                        value="Milk"
+                        {% if selected_category == "Milk" %}selected{% endif %}
+                    >
+                        Milk
+                    </option>
+
+                    <option
+                        value="Syrup"
+                        {% if selected_category == "Syrup" %}selected{% endif %}
+                    >
+                        Syrup
+                    </option>
+
+                    <option
+                        value="Food"
+                        {% if selected_category == "Food" %}selected{% endif %}
+                    >
+                        Food
+                    </option>
+
+                    <option
+                        value="Other"
+                        {% if selected_category == "Other" %}selected{% endif %}
+                    >
+                        Other
+                    </option>
+
+                </select>
+
+            </div>
+
+        </form>
+
+
+        <!-- Add Item -->
+
+        <button
+            class="add-button"
+            type="button"
+        >
+            + Add item
+        </button>
+
+    </div>
+
+
+    <!-- =====================
+         Inventory Table
+    ====================== -->
+
+    <div class="table-container">
+
+        <table>
+
+            <thead>
+
+                <tr>
+
+                    <th>Item</th>
+
+                    <th>Category</th>
+
+                    <th>Stock</th>
+
+                    <th>Reorder Level</th>
+
+                    <th>Status</th>
+
+                </tr>
+
+            </thead>
+
+
+            <tbody id="inventoryTable">
+
+                {% for item in inventory_items %}
+
+                <tr data-id="{{ item['id'] }}">
+
+                    <td>
+                        {{ item["name"] }}
+                    </td>
+
+                    <td>
+                        {{ item["category"] }}
+                    </td>
+
+                    <td>
+                        {{ item["quantity"] }} {{ item["unit"] }}
+                    </td>
+
+                    <td>
+                        {{ item["minimum_stock"] }} {{ item["unit"] }}
+                    </td>
+
+                    <td>
+                        {{ item["status"] }}
+                    </td>
+
+                </tr>
+
+                {% endfor %}
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+
+    <!-- =====================
+         Pagination / Actions
+    ====================== -->
+
+    <div class="bottom-area">
+
+        <div class="pagination">
+
+            {% if page > 1 %}
+                <a href="{{ url_for('inventory_management', page=page-1) }}">
+                    ← Previous
+                </a>
+            {% else %}
+                <span class="disabled">
+                    ← Previous
+                </span>
+            {% endif %}
+
+
+            <span>|</span>
+
+
+            {% if page < total_pages %}
+                <a href="{{ url_for('inventory_management', page=page+1) }}">
+                    Next →
+                </a>
+            {% else %}
+                <span class="disabled">
+                    Next →
+                </span>
+            {% endif %}
+
+        </div>
+
+
+        <div class="action-buttons">
+
+            <button
+                class="action-button"
+                type="button"
+            >
+                Edit
+            </button>
+
+            <button
+                class="action-button"
+                type="button"
+            >
+                Delete
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<script>
+
+    const rows = document.querySelectorAll(
+        "#inventoryTable tr"
+    );
+
+    rows.forEach(row => {
+
+        row.addEventListener("click", function () {
+
+            rows.forEach(r => {
+                r.classList.remove("selected");
+            });
+
+            this.classList.add("selected");
+
+        });
+
+    });
+
+    const categorySelect = document.getElementById("categorySelect");
+    const categoryText = document.getElementById("categoryText");
+
+    categorySelect.addEventListener("change", function () {
+        document.getElementById("categoryForm").submit();
+    });
+
+</script>
+
+</body>
+</html>
