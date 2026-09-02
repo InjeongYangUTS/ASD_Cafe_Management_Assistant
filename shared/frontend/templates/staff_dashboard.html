@@ -1,17 +1,17 @@
 {#-
-    Feature service base URLs.
+Feature service base URLs.
 
-    Built from the host the BROWSER actually used, not from "localhost", so
-    these links work from any device: the marker's laptop, a phone on the same
-    Wi-Fi, or another machine on the network. Opening the dashboard at
-    http://192.168.1.20:5100 makes every card point at 192.168.1.20 too.
+Built from the host the BROWSER actually used, not from "localhost", so
+these links work from any device: the marker's laptop, a phone on the same
+Wi-Fi, or another machine on the network. Opening the dashboard at
+http://192.168.1.20:5100 makes every card point at 192.168.1.20 too.
 
-    Port convention (see docker-compose.yml): frontend 5N00.
-    5100 is this shared app, so Student 1 uses 5110.
+Port convention (see docker-compose.yml): frontend 5N00.
+5100 is this shared app, so Student 1 uses 5110.
 
-    Each student: point your own card at your own base below.
-      S1 -> Customer Feedback   S2 -> Menu & Recipe    S3 -> Inventory
-      S4 -> Order & Kitchen     S5 -> Payment & Billing
+Each student: point your own card at your own base below.
+S1 -> Customer Feedback S2 -> Menu & Recipe S3 -> Inventory
+S4 -> Order & Kitchen S5 -> Payment & Billing
 -#}
 {%- set HOST = request.scheme ~ '://' ~ request.host.split(':')[0] -%}
 {%- set S1 = HOST ~ ':5110' -%}
