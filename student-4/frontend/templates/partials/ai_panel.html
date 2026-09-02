@@ -1,0 +1,84 @@
+{% if error %}
+
+<div class="s4-alert error"><strong>AI analysis failed</strong>{{ error }}</div>
+
+{% else %}
+
+<p style="margin: 0 0 14px;">
+    <span class="s4-mode-tag {{ result.mode }}">
+        {{ "Ollama · " ~ result.model if result.mode == "ollama" else "Rule-based fallback" }}
+    </span>
+    {% if result.note %}
+    <span class="s4-muted" style="margin-left: 8px;">{{ result.note }}</span>
+    {% endif %}
+</p>
+
+<dl class="s4-ai-metrics">
+    <div class="s4-metric">
+        <dt>Congestion</dt>
+        <dd>{{ metrics.congestion_level|title }}</dd>
+    </div>
+    <div class="s4-metric">
+        <dt>Open orders</dt>
+        <dd>{{ metrics.open_order_count }}</dd>
+    </div>
+    <div class="s4-metric">
+        <dt>Workload</dt>
+        <dd>{{ metrics.total_workload_minutes }}m</dd>
+    </div>
+    <div class="s4-metric">
+        <dt>Longest wait</dt>
+        <dd>{{ metrics.longest_wait_minutes }}m</dd>
+    </div>
+    <div class="s4-metric">
+        <dt>Busiest</dt>
+        <dd style="font-size: 15px;">{{ metrics.busiest_station|title }}</dd>
+    </div>
+</dl>
+
+<div class="s4-ai-section">
+    <h5>Congestion</h5>
+    <p>{{ analysis.congestion }}</p>
+</div>
+
+<div class="s4-ai-section">
+    <h5>Recommended preparation sequence</h5>
+
+    {% if analysis.sequence_text %}
+    <p>{{ analysis.sequence_text }}</p>
+    {% endif %}
+
+    {% if analysis.sequence %}
+    <ol>
+        {% for step in analysis.sequence %}
+        <li><strong>{{ step.order_number }}</strong> — {{ step.reason }}</li>
+        {% endfor %}
+    </ol>
+    {% endif %}
+</div>
+
+<div class="s4-ai-section">
+    <h5>Delay risk</h5>
+    <p>{{ analysis.delay_risk }}</p>
+</div>
+
+<div class="s4-ai-section">
+    <h5>Action now</h5>
+    <p>{{ analysis.action }}</p>
+</div>
+
+<div class="s4-ai-section">
+    <details class="s4-details">
+        <summary>Show the exact prompt sent to the model (context management evidence)</summary>
+        <pre class="s4-prompt">{{ result.prompt }}</pre>
+    </details>
+
+    {% if result.raw_response %}
+    <details class="s4-details" style="margin-top: 10px;">
+        <summary>Show the raw model response</summary>
+        <pre class="s4-prompt">{{ result.raw_response }}</pre>
+    </details>
+    {% endif %}
+</div>
+
+{% endif %}

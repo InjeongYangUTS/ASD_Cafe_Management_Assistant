@@ -1,0 +1,55 @@
+{% if not lines %}
+
+<p class="s4-empty">No items yet. Tap a menu item to add it.</p>
+
+{% else %}
+
+{% for line in lines %}
+<div class="s4-cart-line">
+
+    <span class="s4-cart-name">{{ line.name }}</span>
+    <span class="s4-num"><strong>${{ "%.2f"|format(line.line_total) }}</strong></span>
+
+    <span class="s4-cart-sub">
+
+        <span class="s4-qty">
+            <button type="button"
+                    hx-post="/ui/cart/update"
+                    hx-vals='{"menu_id": {{ line.menu_id }}, "delta": -1}'
+                    hx-target="#s4-cart" hx-swap="innerHTML"
+                    aria-label="Remove one {{ line.name }}">−</button>
+
+            <span>{{ line.quantity }}</span>
+
+            <button type="button"
+                    hx-post="/ui/cart/update"
+                    hx-vals='{"menu_id": {{ line.menu_id }}, "delta": 1}'
+                    hx-target="#s4-cart" hx-swap="innerHTML"
+                    aria-label="Add one {{ line.name }}">+</button>
+        </span>
+
+        <span>${{ "%.2f"|format(line.price) }} each</span>
+
+        <span class="s4-badge station-{{ line.station }}">{{ line.station }}</span>
+    </span>
+
+</div>
+{% endfor %}
+
+<div class="s4-cart-total">
+    <span>Total ({{ item_count }} item{{ "" if item_count == 1 else "s" }})</span>
+    <span>${{ "%.2f"|format(total) }}</span>
+</div>
+
+<p class="s4-muted" style="margin-top: 8px;">
+    Estimated preparation time: {{ "%.1f"|format(prep_minutes) }} minutes
+</p>
+
+<button class="s4-btn ghost small" type="button"
+        hx-post="/ui/cart/clear"
+        hx-target="#s4-cart" hx-swap="innerHTML"
+        style="margin-top: 8px;">
+    Clear order
+</button>
+
+{% endif %}

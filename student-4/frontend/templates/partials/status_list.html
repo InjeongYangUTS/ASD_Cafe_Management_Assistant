@@ -1,0 +1,51 @@
+{% if error %}
+
+<div class="s4-alert error"><strong>Cannot load orders</strong>{{ error }}</div>
+
+{% elif not orders %}
+
+<p class="s4-empty">No orders match this filter.</p>
+
+{% else %}
+
+<div class="s4-table-wrap">
+<table class="s4-table">
+    <thead>
+        <tr>
+            <th>Order</th>
+            <th>Placed</th>
+            <th>Status</th>
+            <th style="text-align: right;">Total</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for order in orders %}
+        <tr>
+            <td><strong>{{ order.order_number }}</strong><br>
+                <span class="s4-muted">
+                    {{ order.customer_name or "Walk-in" }}
+                    {%- if order.table_number %} · {{ order.table_number }}{% endif %}
+                </span></td>
+
+            <td class="s4-muted">{{ order.placed_at[5:16] }}</td>
+
+            <td><span class="s4-badge {{ order.status }}">{{ order.status }}</span></td>
+
+            <td class="s4-num">${{ "%.2f"|format(order.total_amount) }}</td>
+
+            <td>
+                <button class="s4-btn ghost small"
+                        hx-get="/ui/status/{{ order.id }}"
+                        hx-target="#s4-detail"
+                        hx-swap="innerHTML">Open</button>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+
+<p class="s4-muted" style="margin-top: 12px;">{{ orders|length }} order(s)</p>
+
+{% endif %}
