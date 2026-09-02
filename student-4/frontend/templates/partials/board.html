@@ -1,0 +1,78 @@
+{% if error %}
+
+<div class="s4-alert error"><strong>Cannot load the board</strong>{{ error }}</div>
+
+{% else %}
+
+<div class="s4-board">
+
+    {% for column in columns %}
+    <section class="s4-column col-{{ column }}">
+
+        <header>
+            <h4>{{ column|title }}</h4>
+            <span class="s4-count">{{ board[column]|length }}</span>
+        </header>
+
+        {% if not board[column] %}
+        <p class="s4-empty">Empty</p>
+        {% endif %}
+
+        {% for order in board[column] %}
+        {# A READY ticket is waiting for collection, not running late - only
+           tickets still being worked on are flagged as at risk. #}
+        <article class="s4-ticket {{ 'at-risk' if order.age_minutes >= 12
+                                     and column != 'READY' }}">
+
+            <div class="s4-ticket-head">
+                <strong>{{ order.order_number }}</strong>
+                <span class="s4-age">{{ order.age_minutes|round|int }} min</span>
+            </div>
+
+            <div class="s4-ticket-meta">
+                {{ "Dine in" if order.channel == "DINE_IN" else "Takeaway" }}
+                {%- if order.table_number %} · {{ order.table_number }}{% endif %}
+                · {{ order.customer_name or "Walk-in" }}
+            </div>
+
+            <ul>
+                {% for item in order["items"] %}
+                <li>{{ item.quantity }}× {{ item.menu_name }}
+                    <span class="s4-badge station-{{ item.station }}">{{ item.station }}</span>
+                    {%- if item.note %}<br><span class="s4-muted">{{ item.note }}</span>{% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+
+            {% if order.note %}
+            <div class="s4-ticket-meta"><strong>Note:</strong> {{ order.note }}</div>
+            {% endif %}
+
+            <div class="s4-ticket-actions">
+                {% for target in order.next_statuses %}
+                <button class="s4-btn small {{ 'green' if target == 'READY'
+                                               else 'danger' if target == 'CANCELLED'
+                                               else 'blue' }}"
+                        hx-put="/ui/kitchen/advance/{{ order.id }}"
+                        hx-vals='{"status": "{{ target }}"}'
+                        hx-target="#s4-board"
+                        hx-swap="innerHTML">
+                    {{ target|title }}
+                </button>
+                {% endfor %}
+            </div>
+
+        </article>
+        {% endfor %}
+
+    </section>
+    {% endfor %}
+
+</div>
+
+<p class="s4-muted" style="margin-top: 14px;">
+    Refreshed {{ refreshed_at }} · board auto-refreshes every 15 seconds ·
+    tickets waiting 12 minutes or longer are highlighted
+</p>
+
+{% endif %}

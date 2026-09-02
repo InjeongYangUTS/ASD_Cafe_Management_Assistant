@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block title %}POS{% endblock %}
+
+{% block content %}
+
+<div class="s4-page-head">
+    <h2>Point of Sale</h2>
+    <p>
+        Take an order at the counter. Prices come from Student 2's Menu API;
+        stock is checked and deducted through Student 3's Inventory API when
+        the order is placed.
+    </p>
+</div>
+
+{% include "partials/service_strip.html" %}
+
+<div class="s4-split">
+
+    <!-- ============ MENU ============ -->
+    <section class="s4-panel yellow">
+
+        <h3>Menu</h3>
+        <p class="s4-panel-sub">
+            {{ menu_count }} items ·
+            price source:
+            <strong>{{ "Student 2 Menu API" if menu_source == "menu-service"
+                       else "local fallback cache" }}</strong>
+        </p>
+
+        <div id="s4-menu"
+             hx-get="/ui/menu"
+             hx-trigger="load, menuRefresh from:body"
+             hx-swap="innerHTML">
+            <p class="s4-empty">Loading menu…</p>
+        </div>
+
+    </section>
+
+
+    <!-- ============ CART ============ -->
+    <aside class="s4-panel pink">
+
+        <h3>Current Order</h3>
+        <p class="s4-panel-sub">Items are held in this browser session until you place the order.</p>
+
+        <div id="s4-cart"
+             hx-get="/ui/cart"
+             hx-trigger="load, cartChanged from:body"
+             hx-swap="innerHTML">
+            <p class="s4-empty">Loading…</p>
+        </div>
+
+        <form id="s4-order-form"
+              hx-post="/ui/orders"
+              hx-target="#s4-order-result"
+              hx-swap="innerHTML"
+              style="margin-top: 18px;">
+
+            <div class="s4-row">
+                <div class="s4-field">
+                    <label for="channel">Channel</label>
+                    <select id="channel" name="channel">
+                        <option value="DINE_IN">Dine in</option>
+                        <option value="TAKEAWAY">Takeaway</option>
+                    </select>
+                </div>
+
+                <div class="s4-field">
+                    <label for="table_number">Table</label>
+                    <input id="table_number" name="table_number" type="text"
+                           placeholder="T1" maxlength="6">
+                </div>
+            </div>
+
+            <div class="s4-field">
+                <label for="customer_name">Customer name</label>
+                <input id="customer_name" name="customer_name" type="text"
+                       value="{{ customer_name }}" placeholder="Walk-in customer">
+            </div>
+
+            <div class="s4-field">
+                <label for="note">Order note</label>
+                <input id="note" name="note" type="text"
+                       placeholder="e.g. no sugar, birthday candle">
+            </div>
+
+            <button class="s4-btn block" type="submit">Place order</button>
+        </form>
+
+        <div id="s4-order-result" style="margin-top: 16px;"></div>
+
+    </aside>
+
+</div>
+
+
+<!-- ============ RECENT ORDERS ============ -->
+<section class="s4-panel" style="margin-top: 24px;">
+
+    <h3>Orders placed today</h3>
+    <p class="s4-panel-sub">Read straight back from the order database service.</p>
+
+    <div id="s4-recent"
+         hx-get="/ui/orders/recent"
+         hx-trigger="load, orderPlaced from:body"
+         hx-swap="innerHTML">
+        <p class="s4-empty">Loading…</p>
+    </div>
+
+</section>
+
+{% endblock %}

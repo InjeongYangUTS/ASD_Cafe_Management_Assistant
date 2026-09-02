@@ -1,0 +1,168 @@
+{% if error %}
+
+<div class="s4-alert error"><strong>Could not load the order</strong>{{ error }}</div>
+
+{% elif deleted %}
+
+<div class="s4-alert ok">
+    <strong>Order {{ deleted }} deleted</strong>
+    The order, its items and its status history were removed.
+</div>
+<p class="s4-empty">No order selected.</p>
+
+{% else %}
+
+{% if message %}
+<div class="s4-alert {{ message_kind|default('ok') }}">{{ message }}</div>
+{% endif %}
+
+<div style="display: flex; justify-content: space-between; align-items: baseline; gap: 10px;">
+    <h4 style="margin: 0; font-size: 20px;">{{ order.order_number }}</h4>
+    <span class="s4-badge {{ order.status }}">{{ order.status }}</span>
+</div>
+
+<p class="s4-muted" style="margin: 6px 0 16px;">
+    {{ "Dine in" if order.channel == "DINE_IN" else "Takeaway" }}
+    {%- if order.table_number %} · table {{ order.table_number }}{% endif %}
+    · {{ order.customer_name or "Walk-in" }}
+    · placed {{ order.placed_at[5:16] }}
+</p>
+
+
+<!-- ---------- items (update / delete) ---------- -->
+<h5 style="margin: 0 0 8px; font-size: 13px; letter-spacing: .6px;
+           text-transform: uppercase; color: #777;">Items</h5>
+
+{% for item in order["items"] %}
+<div class="s4-cart-line">
+
+    <span class="s4-cart-name">{{ item.menu_name }}</span>
+    <span class="s4-num"><strong>${{ "%.2f"|format(item.line_total) }}</strong></span>
+
+    <span class="s4-cart-sub">
+        {% if editable %}
+        <span class="s4-qty">
+            <button type="button"
+                    hx-put="/ui/order-items/{{ item.id }}"
+                    hx-vals='{"order_id": {{ order.id }}, "quantity": {{ item.quantity - 1 }}}'
+                    hx-target="#s4-detail" hx-swap="innerHTML"
+                    {{ "disabled" if item.quantity <= 1 }}
+                    aria-label="Decrease quantity">−</button>
+
+            <span>{{ item.quantity }}</span>
+
+            <button type="button"
+                    hx-put="/ui/order-items/{{ item.id }}"
+                    hx-vals='{"order_id": {{ order.id }}, "quantity": {{ item.quantity + 1 }}}'
+                    hx-target="#s4-detail" hx-swap="innerHTML"
+                    aria-label="Increase quantity">+</button>
+        </span>
+        {% else %}
+        <span>{{ item.quantity }}×</span>
+        {% endif %}
+
+        <span>${{ "%.2f"|format(item.unit_price) }} each</span>
+        <span class="s4-badge station-{{ item.station }}">{{ item.station }}</span>
+
+        {% if editable and order["items"]|length > 1 %}
+        <button class="s4-btn danger small"
+                hx-delete="/ui/order-items/{{ item.id }}"
+                hx-vals='{"order_id": {{ order.id }}}'
+                hx-target="#s4-detail" hx-swap="innerHTML"
+                hx-confirm="Remove {{ item.menu_name }} from this order?">Remove</button>
+        {% endif %}
+    </span>
+
+</div>
+{% endfor %}
+
+<div class="s4-cart-total">
+    <span>Total</span>
+    <span>${{ "%.2f"|format(order.total_amount) }}</span>
+</div>
+
+
+<!-- ---------- edit order (update) ---------- -->
+{% if editable %}
+<form hx-put="/ui/status/{{ order.id }}/details"
+      hx-target="#s4-detail" hx-swap="innerHTML"
+      style="margin-top: 20px;">
+
+    <div class="s4-row">
+        <div class="s4-field">
+            <label for="d-table-{{ order.id }}">Table</label>
+            <input id="d-table-{{ order.id }}" name="table_number" type="text"
+                   value="{{ order.table_number or '' }}" maxlength="6">
+        </div>
+
+        <div class="s4-field">
+            <label for="d-customer-{{ order.id }}">Customer</label>
+            <input id="d-customer-{{ order.id }}" name="customer_name" type="text"
+                   value="{{ order.customer_name or '' }}">
+        </div>
+    </div>
+
+    <div class="s4-field">
+        <label for="d-note-{{ order.id }}">Note</label>
+        <input id="d-note-{{ order.id }}" name="note" type="text"
+               value="{{ order.note or '' }}">
+    </div>
+
+    <button class="s4-btn yellow small" type="submit">Save changes</button>
+</form>
+{% endif %}
+
+
+<!-- ---------- status transitions ---------- -->
+<h5 style="margin: 22px 0 8px; font-size: 13px; letter-spacing: .6px;
+           text-transform: uppercase; color: #777;">Move status</h5>
+
+{% if next_statuses %}
+<div class="s4-ticket-actions">
+    {% for target in next_statuses %}
+    <button class="s4-btn small {{ 'green' if target in ('READY', 'COMPLETED')
+                                   else 'danger' if target == 'CANCELLED'
+                                   else 'blue' }}"
+            hx-put="/ui/status/{{ order.id }}/set"
+            hx-vals='{"status": "{{ target }}"}'
+            hx-target="#s4-detail" hx-swap="innerHTML">
+        {{ target|title }}
+    </button>
+    {% endfor %}
+</div>
+{% else %}
+<p class="s4-muted">This order is {{ order.status|lower }} - no further transitions.</p>
+{% endif %}
+
+
+<!-- ---------- status history ---------- -->
+<h5 style="margin: 22px 0 10px; font-size: 13px; letter-spacing: .6px;
+           text-transform: uppercase; color: #777;">Status history</h5>
+
+<ul class="s4-timeline">
+    {% for row in history %}
+    <li>
+        <span class="s4-badge {{ row.status }}">{{ row.status }}</span>
+        {% if row.note %}<span class="s4-muted"> — {{ row.note }}</span>{% endif %}
+        <span class="s4-tl-time">{{ row.changed_at[5:16] }} · by {{ row.changed_by }}</span>
+    </li>
+    {% endfor %}
+</ul>
+
+
+<!-- ---------- delete ---------- -->
+{% if deletable %}
+<button class="s4-btn danger small"
+        style="margin-top: 20px;"
+        hx-delete="/ui/status/{{ order.id }}"
+        hx-target="#s4-detail" hx-swap="innerHTML"
+        hx-confirm="Delete order {{ order.order_number }} permanently? Its items and history go with it.">
+    Delete order
+</button>
+{% else %}
+<p class="s4-muted" style="margin-top: 20px;">
+    Orders that are already preparing or later cannot be deleted - cancel them instead.
+</p>
+{% endif %}
+
+{% endif %}

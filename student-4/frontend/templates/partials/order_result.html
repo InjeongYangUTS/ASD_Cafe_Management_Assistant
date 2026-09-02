@@ -1,0 +1,35 @@
+{% if error %}
+
+<div class="s4-alert error">
+    <strong>Order not placed</strong>
+    {{ error }}
+</div>
+
+{% else %}
+
+<div class="s4-alert ok">
+    <strong>Order {{ order.order_number }} placed</strong>
+    {{ order.item_count }} item{{ "" if order.item_count == 1 else "s" }} ·
+    ${{ "%.2f"|format(order.total_amount) }} ·
+    {{ "Dine in" if order.channel == "DINE_IN" else "Takeaway" }}
+    {%- if order.table_number %} · table {{ order.table_number }}{% endif %}
+</div>
+
+<p class="s4-muted">
+    Prices from
+    <strong>{{ "Student 2 Menu API" if integration.price_source == "menu-service"
+               else "local fallback cache" }}</strong> ·
+    stock {{ "deducted via Student 3 Inventory API" if integration.stock_deducted
+             else "not deducted (inventory service unreachable)" }}
+</p>
+
+{% if not integration.stock_deducted %}
+<div class="s4-alert warn" style="margin-top: 10px;">
+    <strong>Inventory service unreachable</strong>
+    The order was saved, but stock has not been deducted yet. It is flagged in
+    the database as <code>stock_deducted = 0</code> so it can be reconciled
+    once Student 3's service is back.
+</div>
+{% endif %}
+
+{% endif %}

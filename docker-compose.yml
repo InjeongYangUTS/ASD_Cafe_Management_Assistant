@@ -1,0 +1,245 @@
+# =====================================================================
+# ASD 2026 - Cafe Management Assistant
+# Release 0 : one shared Docker Compose configuration for the whole team.
+#
+# Student 4 (Stella Kwon) added the shared skeleton plus her own three
+# microservices. Students 1, 2, 3 and 5: uncomment your block, keep the
+# same port convention and the same network, and everything wires up.
+#
+#   PORT CONVENTION       frontend 5N00 | database 7N00 | backend 8N00
+#   shared index/auth     5100
+#   ollama (AI-Mode)      11434
+#
+# Run:      docker compose up --build
+# Verify:   docker compose ps
+# Stop:     docker compose down
+# =====================================================================
+
+name: asd-cafe-management-assistant
+
+services:
+
+  # -------------------------------------------------------------------
+  # AI-Mode : shared Ollama runtime + approved open-source LLM
+  # -------------------------------------------------------------------
+  ollama:
+    image: ollama/ollama:latest
+    container_name: cafe-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-models:/root/.ollama
+    networks:
+      - cafe-net
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
+    restart: unless-stopped
+
+  # Pulls the approved model once, then exits. Change OLLAMA_MODEL to
+  # qwen2.5 to demonstrate the second approved LLM.
+  ollama-init:
+    image: ollama/ollama:latest
+    container_name: cafe-ollama-init
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    entrypoint: ["/bin/sh", "-c"]
+    command: >
+      "ollama pull ${OLLAMA_MODEL:-llama3.2} && echo 'model ready'"
+    networks:
+      - cafe-net
+    restart: "no"
+
+  # -------------------------------------------------------------------
+  # Shared entry point : index.html, authentication, staff/customer
+  # dashboards (source owned by the group, in ./shared)
+  # -------------------------------------------------------------------
+  shared-frontend:
+    build:
+      context: .
+      dockerfile: docker/shared-frontend.Dockerfile
+    container_name: cafe-shared-frontend
+    ports:
+      - "5100:5100"
+    environment:
+      PORT: 5100
+    networks:
+      - cafe-net
+    restart: unless-stopped
+
+  # ===================================================================
+  # STUDENT 4 - Stella Kwon - Order & Kitchen Management
+  # ===================================================================
+
+  student-4-database:
+    build: ./student-4/database
+    container_name: student-4-database
+    ports:
+      - "7400:7400"
+    environment:
+      PORT: 7400
+      ORDER_DB_PATH: /app/data/orders.db
+    volumes:
+      - student4-order-data:/app/data
+    networks:
+      - cafe-net
+    restart: unless-stopped
+
+  student-4-backend:
+    build: ./student-4/backend
+    container_name: student-4-backend
+    ports:
+      - "8400:8400"
+    environment:
+      PORT: 8400
+      DB_SERVICE_URL: http://student-4-database:7400
+      MENU_SERVICE_URL: http://student-2-backend:8200        # Student 2 - Menu API
+      INVENTORY_SERVICE_URL: http://student-3-backend:8300   # Student 3 - Inventory API
+      OLLAMA_URL: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2}
+    depends_on:
+      student-4-database:
+        condition: service_healthy
+    networks:
+      - cafe-net
+    restart: unless-stopped
+
+  student-4-frontend:
+    build: ./student-4/frontend
+    container_name: student-4-frontend
+    ports:
+      - "5400:5400"
+    environment:
+      PORT: 5400
+      BACKEND_URL: http://student-4-backend:8400
+      SHARED_DIR: /app/shared
+      SHARED_HOME_URL: http://localhost:5100/staff-dashboard
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2}
+    volumes:
+      # Read-only reuse of the group stylesheet and icons - never modified.
+      - ./shared:/app/shared:ro
+    depends_on:
+      student-4-backend:
+        condition: service_healthy
+    networks:
+      - cafe-net
+    restart: unless-stopped
+
+  # ===================================================================
+  # STUDENT 1 - Hangyeol Yi - Customer Feedback & Reviews
+  # ===================================================================
+  # student-1-database:
+  #   build: ./student-1/database
+  #   container_name: student-1-database
+  #   ports: ["7100:7100"]
+  #   networks: [cafe-net]
+  #
+  # student-1-backend:
+  #   build: ./student-1/backend
+  #   container_name: student-1-backend
+  #   ports: ["8100:8100"]
+  #   environment:
+  #     DB_SERVICE_URL: http://student-1-database:7100
+  #     OLLAMA_URL: http://ollama:11434
+  #   networks: [cafe-net]
+  #
+  # student-1-frontend:
+  #   build: ./student-1/frontend
+  #   container_name: student-1-frontend
+  #   ports: ["5100:5100"]   # NOTE: 5100 is taken by shared-frontend, use 5110
+  #   networks: [cafe-net]
+
+  # ===================================================================
+  # STUDENT 2 - Ei Thandar - Menu & Recipe
+  #   student-4-backend calls http://student-2-backend:8200/api/menus
+  # ===================================================================
+  # student-2-database:
+  #   build: ./student-2/database
+  #   container_name: student-2-database
+  #   ports: ["7200:7200"]
+  #   networks: [cafe-net]
+  #
+  # student-2-backend:
+  #   build: ./student-2/backend
+  #   container_name: student-2-backend
+  #   ports: ["8200:8200"]
+  #   environment:
+  #     DB_SERVICE_URL: http://student-2-database:7200
+  #     OLLAMA_URL: http://ollama:11434
+  #   networks: [cafe-net]
+  #
+  # student-2-frontend:
+  #   build: ./student-2/frontend
+  #   container_name: student-2-frontend
+  #   ports: ["5200:5200"]
+  #   networks: [cafe-net]
+
+  # ===================================================================
+  # STUDENT 3 - Injeong Yang (Sam) - Inventory & Restocking
+  #   student-4-backend calls
+  #     POST http://student-3-backend:8300/api/inventory/check
+  #     POST http://student-3-backend:8300/api/inventory/deduct
+  # ===================================================================
+  # student-3-database:
+  #   build: ./student-3/database
+  #   container_name: student-3-database
+  #   ports: ["7300:7300"]
+  #   networks: [cafe-net]
+  #
+  # student-3-backend:
+  #   build: ./student-3/backend
+  #   container_name: student-3-backend
+  #   ports: ["8300:8300"]
+  #   environment:
+  #     DB_SERVICE_URL: http://student-3-database:7300
+  #     OLLAMA_URL: http://ollama:11434
+  #   networks: [cafe-net]
+  #
+  # student-3-frontend:
+  #   build: ./student-3/frontend
+  #   container_name: student-3-frontend
+  #   ports: ["5300:5300"]
+  #   networks: [cafe-net]
+
+  # ===================================================================
+  # STUDENT 5 - Ong Ath Vongnathi (Kota) - Payment & Billing
+  #   calls student-4-backend for order totals and status updates:
+  #     GET http://student-4-backend:8400/api/orders/<id>
+  #     PUT http://student-4-backend:8400/api/order-status/<id>
+  # ===================================================================
+  # student-5-database:
+  #   build: ./student-5/database
+  #   container_name: student-5-database
+  #   ports: ["7500:7500"]
+  #   networks: [cafe-net]
+  #
+  # student-5-backend:
+  #   build: ./student-5/backend
+  #   container_name: student-5-backend
+  #   ports: ["8500:8500"]
+  #   environment:
+  #     DB_SERVICE_URL: http://student-5-database:7500
+  #     ORDER_SERVICE_URL: http://student-4-backend:8400
+  #     OLLAMA_URL: http://ollama:11434
+  #   networks: [cafe-net]
+  #
+  # student-5-frontend:
+  #   build: ./student-5/frontend
+  #   container_name: student-5-frontend
+  #   ports: ["5500:5500"]
+  #   networks: [cafe-net]
+
+
+networks:
+  cafe-net:
+    driver: bridge
+
+volumes:
+  ollama-models:
+  student4-order-data:

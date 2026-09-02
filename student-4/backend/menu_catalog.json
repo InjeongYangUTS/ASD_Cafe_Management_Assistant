@@ -1,0 +1,29 @@
+{
+  "_comment": [
+    "FALLBACK CACHE ONLY - the live source of truth for menu names and",
+    "prices is Student 2's Menu API (GET /api/menus). This file is used",
+    "when that service is unreachable so the POS can still take orders,",
+    "and it also supplies the kitchen-side attributes that belong to the",
+    "Order domain (station routing, preparation time, recipe complexity).",
+    "Every price returned to a caller is tagged with price_source so it",
+    "is always visible whether the value came from the Menu API or here."
+  ],
+  "version": "2026-09-01",
+  "items": [
+    { "menu_id": 1,  "name": "Cappuccino",           "price": 4.50,  "station": "BAR",     "prep_seconds": 90,  "ingredient_count": 2 },
+    { "menu_id": 2,  "name": "Latte",                "price": 4.50,  "station": "BAR",     "prep_seconds": 90,  "ingredient_count": 2 },
+    { "menu_id": 3,  "name": "Flat White",           "price": 4.50,  "station": "BAR",     "prep_seconds": 90,  "ingredient_count": 2 },
+    { "menu_id": 4,  "name": "Long Black",           "price": 4.20,  "station": "BAR",     "prep_seconds": 60,  "ingredient_count": 1 },
+    { "menu_id": 5,  "name": "Iced Long Black",      "price": 5.00,  "station": "BAR",     "prep_seconds": 75,  "ingredient_count": 2 },
+    { "menu_id": 6,  "name": "Iced Latte",           "price": 5.50,  "station": "BAR",     "prep_seconds": 100, "ingredient_count": 3 },
+    { "menu_id": 7,  "name": "Vanilla Latte",        "price": 5.20,  "station": "BAR",     "prep_seconds": 105, "ingredient_count": 3 },
+    { "menu_id": 8,  "name": "Caramel Latte",        "price": 5.20,  "station": "BAR",     "prep_seconds": 105, "ingredient_count": 3 },
+    { "menu_id": 9,  "name": "Hot Chocolate",        "price": 5.00,  "station": "BAR",     "prep_seconds": 90,  "ingredient_count": 2 },
+    { "menu_id": 10, "name": "Chicken Sandwich",     "price": 12.50, "station": "KITCHEN", "prep_seconds": 300, "ingredient_count": 4 },
+    { "menu_id": 11, "name": "Ham & Cheese Toastie", "price": 9.50,  "station": "KITCHEN", "prep_seconds": 240, "ingredient_count": 4 },
+    { "menu_id": 12, "name": "Avocado Toast",        "price": 14.00, "station": "KITCHEN", "prep_seconds": 270, "ingredient_count": 3 },
+    { "menu_id": 13, "name": "Chocolate Cake",       "price": 7.50,  "station": "PASTRY",  "prep_seconds": 45,  "ingredient_count": 1 },
+    { "menu_id": 14, "name": "Blueberry Muffin",     "price": 5.50,  "station": "PASTRY",  "prep_seconds": 30,  "ingredient_count": 1 },
+    { "menu_id": 15, "name": "Croissant",            "price": 5.00,  "station": "PASTRY",  "prep_seconds": 40,  "ingredient_count": 1 }
+  ]
+}

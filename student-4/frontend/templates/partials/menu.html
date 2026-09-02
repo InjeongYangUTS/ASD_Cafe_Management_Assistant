@@ -1,0 +1,37 @@
+{% if error %}
+<div class="s4-alert error">
+    <strong>Menu unavailable</strong>
+    {{ error }}
+</div>
+{% else %}
+
+{% for station, items in grouped.items() %}
+<div class="s4-station-group">
+
+    <h4>{{ station_labels[station] }}</h4>
+
+    <div class="s4-menu-grid">
+        {% for item in items %}
+        <button type="button"
+                class="s4-menu-item"
+                hx-post="/ui/cart/add"
+                hx-vals='{"menu_id": {{ item.menu_id }}}'
+                hx-target="#s4-cart"
+                hx-swap="innerHTML"
+                {{ "disabled" if not item.available }}>
+
+            <span class="s4-item-name">{{ item.name }}</span>
+            <span class="s4-item-price">${{ "%.2f"|format(item.price) }}</span>
+            <span class="s4-item-meta">
+                {{ item.prep_seconds }}s prep ·
+                {{ item.ingredient_count }}
+                ingredient{{ "" if item.ingredient_count == 1 else "s" }}
+            </span>
+        </button>
+        {% endfor %}
+    </div>
+
+</div>
+{% endfor %}
+
+{% endif %}
