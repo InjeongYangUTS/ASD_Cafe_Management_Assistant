@@ -1,6 +1,7 @@
 from flask import Flask, render_template, url_for, request, redirect
 import sqlite3
-import os 
+import os
+import requests  
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -23,12 +24,78 @@ def get_db_connection():
     conn.row_factory = sqlite3.Row
     return conn
 
+def get_ai_restock_recommendation(question, low_stock_items):
+
+    inventory_context = ""
+
+    for item in low_stock_items:
+
+        inventory_context += (
+            f"ID: {item['id']}, "
+            f"Name: {item['name']}, "
+            f"Current Quantity: {item['quantity']}, "
+            f"Minimum Stock: {item['minimum_stock']}, "
+            f"Status: {item['status']}\n"
+        )
+
+
+    prompt = f"""
+You are an AI inventory assistant for a cafe.
+
+Use ONLY the inventory information provided below.
+
+CURRENT INVENTORY DATA:
+{inventory_context}
+
+USER QUESTION:
+{question}
+
+IMPORTANT STATUS RULES:
+- The Status field provided in the inventory data is authoritative.
+- If Status is "OUT OF STOCK", treat the item as out of stock.
+- If Status is "LOW", treat the item as low stock.
+- NEVER change, infer, or reinterpret an item's status.
+- An item with a quantity greater than 0 must NOT be described as OUT OF STOCK unless its provided Status explicitly says "OUT OF STOCK".
+- Do not place LOW items in the OUT OF STOCK category.
+- Do not place OUT OF STOCK items in the LOW category.
+
+Instructions:
+- Answer the user's inventory-related question.
+- Base your answer only on the inventory data provided.
+- Prioritise OUT OF STOCK items over LOW items.
+- Do not invent inventory items, quantities, minimum stock values, or statuses.
+- Keep the answer concise and practical for cafe staff.
+"""
+
+
+    try:
+
+        response = requests.post(
+            "http://localhost:11434/api/generate",
+            json={
+                "model": "qwen2.5:0.5b",
+                "prompt": prompt,
+                "stream": False
+            },
+            timeout=60
+        )
+
+        response.raise_for_status()
+
+        result = response.json()
+
+        return result["response"]
+
+
+    except requests.RequestException as error:
+
+        return f"AI service unavailable: {error}"
 
 # =========================================================
 # INVENTORY DASHBOARD
 # =========================================================
 
-@app.route("/")
+@app.route("/", methods=["GET", "POST"])
 def inventory_dashboard():
 
     connection = get_db_connection()
@@ -83,6 +150,7 @@ def inventory_dashboard():
             name,
             quantity,
             unit,
+            minimum_stock,
             status
         FROM inventory
         WHERE status IN ('LOW', 'OUT OF STOCK')
@@ -101,6 +169,7 @@ def inventory_dashboard():
             "id": row["id"],
             "name": row["name"],
             "quantity": f'{row["quantity"]:g} {row["unit"]}',
+            "minimum_stock": f'{row["minimum_stock"]:g} {row["unit"]}',
             "status": row["status"]
         })
 
@@ -131,6 +200,23 @@ def inventory_dashboard():
 
     connection.close()
 
+    # -----------------------------------------------------
+    # AI AGENT
+    # -----------------------------------------------------
+
+    ai_question = ""
+    ai_answer = ""
+
+    if request.method == "POST":
+
+        ai_question = request.form.get("question", "").strip()
+
+        if ai_question:
+
+            ai_answer = get_ai_restock_recommendation(
+                ai_question,
+                low_stock_items
+            )
 
     return render_template(
         "inventory_dashboard.html",
@@ -142,8 +228,45 @@ def inventory_dashboard():
 
         low_stock_items=low_stock_items,
         recent_restock_orders=recent_restock_orders,
-        ai_recommendation=""
+        
+        ai_question=ai_question,
+        ai_answer=ai_answer
     )
+
+@app.route("/ai-restock-recommendation", methods=["POST"])
+def ai_restock_recommendation():
+
+    connection = get_db_connection()
+    cursor = connection.cursor()
+
+    cursor.execute("""
+        SELECT
+            id,
+            name,
+            quantity,
+            unit,
+            minimum_stock,
+            status
+        FROM inventory
+        WHERE status IN ('LOW', 'OUT OF STOCK')
+        ORDER BY
+            CASE
+                WHEN status = 'OUT OF STOCK' THEN 1
+                WHEN status = 'LOW' THEN 2
+                ELSE 3
+            END,
+            quantity ASC
+    """)
+
+    inventory_items = cursor.fetchall()
+
+    connection.close()
+
+    recommendation = get_ai_restock_recommendation(
+        inventory_items
+    )
+
+    return recommendation
 
 # =========================================================
 # Inventory Management
