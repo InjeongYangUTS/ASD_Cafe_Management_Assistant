@@ -1,3 +1,24 @@
+{#-
+Feature service base URLs.
+
+Built from the host the BROWSER actually used, not from "localhost", so
+these links work from any device: the marker's laptop, a phone on the same
+Wi-Fi, or another machine on the network. Opening the dashboard at
+http://192.168.1.20:5100 makes every card point at 192.168.1.20 too.
+
+Port convention (see docker-compose.yml): frontend 5N00.
+5100 is this shared app, so Student 1 uses 5110.
+
+Each student: point your own card at your own base below.
+S1 -> Customer Feedback S2 -> Menu & Recipe S3 -> Inventory
+S4 -> Order & Kitchen S5 -> Payment & Billing
+-#}
+{%- set HOST = request.scheme ~ '://' ~ request.host.split(':')[0] -%}
+{%- set S1 = HOST ~ ':5110' -%}
+{%- set S2 = HOST ~ ':5200' -%}
+{%- set S3 = HOST ~ ':5300' -%}
+{%- set S4 = HOST ~ ':5400' -%}
+{%- set S5 = HOST ~ ':5500' -%}
 <!DOCTYPE html>
 <html lang="en">
 
@@ -28,7 +49,8 @@
     <main class="dashboard-container">
 
         <!-- Kitchen / Order Management -->
-        <a href="#" class="dashboard-card kitchen-card">
+        {#- Student 4 (Stella Kwon) - student-4-frontend -#}
+        <a href="{{ S4 }}/kitchen" class="dashboard-card kitchen-card">
 
             <svg class="dashboard-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M6 2v5M9 2v5M6 7c0 1.5 1.5 2.5 1.5 2.5S9 8.5 9 7M7.5 9.5V22" stroke="#333333"
@@ -51,6 +73,7 @@
 
 
         <!-- Menu & Recipe Management -->
+        {#- Student 2 (Ei Thandar): replace href with {{ '{{ S2 }}' }}/menu -#}
         <a href="#" class="dashboard-card menu-card">
 
             <svg class="dashboard-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -71,6 +94,7 @@
 
 
         <!-- Inventory & Restocking -->
+        {#- Student 3 (Injeong Yang): replace href with {{ '{{ S3 }}' }}/inventory -#}
         <a href="#" class="dashboard-card inventory-card">
 
             <svg class="dashboard-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -92,6 +116,7 @@
 
 
         <!-- Payment & Billing -->
+        {#- Student 5 (Kota): replace href with {{ '{{ S5 }}' }}/payments -#}
         <a href="#" class="dashboard-card payment-card">
 
             <svg class="dashboard-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
