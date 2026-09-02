@@ -62,6 +62,15 @@
     <p>{{ analysis.delay_risk }}</p>
 </div>
 
+{% if result.corrections %}
+<div class="s4-ai-section">
+    <h5>Checked against the measured queue</h5>
+    {% for correction in result.corrections %}
+    <p class="s4-muted">{{ correction }}</p>
+    {% endfor %}
+</div>
+{% endif %}
+
 <div class="s4-ai-section">
     <h5>Action now</h5>
     <p>{{ analysis.action }}</p>
