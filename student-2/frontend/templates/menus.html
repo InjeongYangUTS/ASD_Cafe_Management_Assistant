@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Menu Items | Cafe Management Assistant</title>
+
+    <link rel="stylesheet" href="/static/style.css">
+
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+</head>
+
+<body>
+
+    <main class="management-container">
+
+        <!-- PAGE HEADER -->
+        <header class="management-header">
+            <div>
+                <h1>Menu Items</h1>
+                <p>Manage cafe menu items and customer-facing prices.</p>
+            </div>
+
+            <a href="/staff" class="secondary-button">
+                ← Back
+            </a>
+        </header>
+
+
+        <!-- ADD MENU ITEM + AI PRICE RECOMMENDATION -->
+        <div class="menu-top-grid">
+
+            <!-- ADD MENU ITEM -->
+            <section class="management-section">
+
+                <div class="section-heading">
+                    <div>
+                        <h2>Add Menu Item</h2>
+                        <p>Create a new item for the cafe menu.</p>
+                    </div>
+                </div>
+
+                <form id="menu-form" class="management-form">
+
+                    <div class="form-row">
+
+                        <div class="form-group">
+                            <label for="menu-name">Name</label>
+
+                            <input
+                                type="text"
+                                id="menu-name"
+                                name="name"
+                                placeholder="e.g. Cappuccino"
+                                required
+                            >
+                        </div>
+
+                        <div class="form-group">
+                            <label for="menu-category">Category</label>
+
+                            <select
+                                id="menu-category"
+                                name="category"
+                                required
+                            >
+                                <option value="">Select category</option>
+                                <option value="Coffee">Coffee</option>
+                                <option value="Iced Coffee">Iced Coffee</option>
+                                <option value="Drink">Drink</option>
+                                <option value="Food">Food</option>
+                                <option value="Dessert">Dessert</option>
+                                <option value="Pastry">Pastry</option>
+                            </select>
+                        </div>
+
+                    </div>
+
+                    <div class="form-group">
+                        <label for="menu-description">Description</label>
+
+                        <textarea
+                            id="menu-description"
+                            name="description"
+                            rows="3"
+                            placeholder="Enter a short menu description"
+                        ></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="menu-price">Price ($)</label>
+
+                        <input
+                            type="number"
+                            id="menu-price"
+                            name="price"
+                            min="0"
+                            step="0.01"
+                            placeholder="0.00"
+                            required
+                        >
+                    </div>
+
+                    <div class="form-actions">
+
+                        <button
+                            type="submit"
+                            class="primary-button"
+                        >
+                            Add Menu Item
+                        </button>
+
+                        <button
+                            type="reset"
+                            class="secondary-button"
+                        >
+                            Clear
+                        </button>
+
+                    </div>
+
+                    <p
+                        id="menu-success-message"
+                        class="success-message"
+                    ></p>
+
+                </form>
+
+            </section>
+
+
+            <!-- AI PRICE RECOMMENDATION -->
+            <section class="management-section ai-section">
+
+                <div class="section-heading">
+                    <div>
+                        <h2>AI Price Recommendation</h2>
+
+                        <p>
+                            Select a menu item to review its pricing
+                            and profitability.
+                        </p>
+                    </div>
+                </div>
+
+
+                <div class="ai-controls">
+
+                    <select
+                        id="ai-menu-select"
+                        name="menu_id"
+                        class="ai-menu-select"
+                    >
+                        <option value="">
+                            Choose a menu item...
+                        </option>
+                    </select>
+
+
+                    <div class="ai-button-actions">
+
+                        <button
+                            type="button"
+                            id="generate-ai-recommendation"
+                            class="ai-generate-button"
+                            hx-get="/htmx/ai-price-recommendation"
+                            hx-include="#ai-menu-select"
+                            hx-target="#ai-recommendation-result"
+                            hx-swap="innerHTML"
+                            hx-indicator="#ai-loading"
+                        >
+                            Generate Recommendation
+                        </button>
+
+                        <button
+                            type="button"
+                            id="clear-ai-recommendation"
+                            class="ai-clear-button"
+                            style="display: none;"
+                        >
+                            Clear Recommendation
+                        </button>
+
+                    </div>
+
+
+                    <p
+                        id="ai-loading"
+                        class="htmx-indicator"
+                    >
+                        Generating recommendation...
+                    </p>
+
+                </div>
+
+
+                <!-- AI RESULT -->
+                <div
+                    id="ai-recommendation-result"
+                    class="ai-result"
+                ></div>
+
+            </section>
+
+        </div>
+
+
+        <!-- CURRENT MENU -->
+        <section class="management-section">
+
+            <div class="section-heading">
+
+                <div>
+                    <h2>Current Menu</h2>
+
+                    <p>
+                        Menu items available for customers to view and order.
+                    </p>
+                </div>
+
+                <input
+                    type="text"
+                    id="menu-search"
+                    class="search-input"
+                    placeholder="Search menu items..."
+                >
+
+            </div>
+
+
+            <div class="table-wrapper">
+
+                <table class="management-table">
+
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Menu Item</th>
+                            <th>Category</th>
+                            <th>Description</th>
+                            <th>Price</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="menu-table-body">
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </section>
+
+    </main>
+
+
+    <script>
+
+        // --------------------------------
+        // BACKEND API
+        // --------------------------------
+
+        const MENU_API =
+            "http://localhost:5201/api/menus";
+
+        let editingMenuId = null;
+
+
+        // --------------------------------
+        // SUCCESS MESSAGE
+        // --------------------------------
+
+        function showSuccessMessage(message) {
+
+            const successMessage =
+                document.getElementById(
+                    "menu-success-message"
+                );
+
+            successMessage.textContent = message;
+            successMessage.style.display = "block";
+
+            setTimeout(() => {
+                successMessage.style.display = "none";
+            }, 3000);
+        }
+
+
+        // --------------------------------
+        // LOAD MENU ITEMS
+        // --------------------------------
+
+        async function loadMenus() {
+
+            try {
+
+                const response =
+                    await fetch(MENU_API);
+
+                if (!response.ok) {
+                    throw new Error(
+                        "Failed to load menu items"
+                    );
+                }
+
+                const menus =
+                    await response.json();
+
+
+                // -------------------------
+                // FILL AI DROPDOWN
+                // -------------------------
+
+                const aiMenuSelect =
+                    document.getElementById(
+                        "ai-menu-select"
+                    );
+
+                aiMenuSelect.innerHTML =
+                    '<option value="">Choose a menu item...</option>';
+
+                menus.forEach(menu => {
+
+                    const option =
+                        document.createElement(
+                            "option"
+                        );
+
+                    option.value =
+                        menu.menu_id;
+
+                    option.textContent =
+                        `${menu.name} - $${Number(
+                            menu.price
+                        ).toFixed(2)}`;
+
+                    aiMenuSelect.appendChild(
+                        option
+                    );
+
+                });
+
+
+                // -------------------------
+                // FILL MENU TABLE
+                // -------------------------
+
+                const tableBody =
+                    document.getElementById(
+                        "menu-table-body"
+                    );
+
+                tableBody.innerHTML = "";
+
+                menus.forEach(menu => {
+
+                    const row =
+                        document.createElement(
+                            "tr"
+                        );
+
+                    row.innerHTML = `
+                        <td>${menu.menu_id}</td>
+
+                        <td>${menu.name}</td>
+
+                        <td>${menu.category}</td>
+
+                        <td>
+                            ${menu.description || ""}
+                        </td>
+
+                        <td>
+                            $${Number(
+                                menu.price
+                            ).toFixed(2)}
+                        </td>
+
+                        <td>
+                            <div class="action-buttons">
+
+                                <button
+                                    class="edit-button"
+                                    data-id="${menu.menu_id}"
+                                    onclick="editMenu(${menu.menu_id})"
+                                >
+                                    Edit
+                                </button>
+
+                                <button
+                                    class="delete-button"
+                                    data-id="${menu.menu_id}"
+                                    onclick="deleteMenu(
+                                        ${menu.menu_id},
+                                        '${menu.name.replace(
+                                            /'/g,
+                                            "\\'"
+                                        )}'
+                                    )"
+                                >
+                                    Delete
+                                </button>
+
+                            </div>
+                        </td>
+                    `;
+
+                    tableBody.appendChild(row);
+
+                });
+
+            }
+
+            catch (error) {
+
+                console.error(
+                    "Error loading menu items:",
+                    error
+                );
+
+            }
+
+        }
+
+
+        // --------------------------------
+        // EDIT MENU ITEM
+        // --------------------------------
+
+        async function editMenu(menuId) {
+
+            try {
+
+                const response =
+                    await fetch(
+                        `${MENU_API}/${menuId}`
+                    );
+
+                if (!response.ok) {
+                    throw new Error(
+                        "Failed to load menu item"
+                    );
+                }
+
+                const menu =
+                    await response.json();
+
+                document.getElementById(
+                    "menu-name"
+                ).value = menu.name;
+
+                document.getElementById(
+                    "menu-category"
+                ).value = menu.category;
+
+                document.getElementById(
+                    "menu-description"
+                ).value =
+                    menu.description || "";
+
+                document.getElementById(
+                    "menu-price"
+                ).value = menu.price;
+
+                editingMenuId = menuId;
+
+                document.querySelector(
+                    "#menu-form .primary-button"
+                ).textContent =
+                    "Update Menu Item";
+
+                window.scrollTo({
+                    top: 0,
+                    behavior: "smooth"
+                });
+
+            }
+
+            catch (error) {
+
+                console.error(
+                    "Error loading menu item:",
+                    error
+                );
+
+                alert(
+                    "Unable to load menu item."
+                );
+
+            }
+
+        }
+
+
+        // --------------------------------
+        // DELETE MENU ITEM
+        // --------------------------------
+
+        async function deleteMenu(
+            menuId,
+            menuName
+        ) {
+
+            const confirmed =
+                confirm(
+                    `Are you sure you want to delete "${menuName}"?`
+                );
+
+            if (!confirmed) {
+                return;
+            }
+
+
+            try {
+
+                const response =
+                    await fetch(
+                        `${MENU_API}/${menuId}`,
+                        {
+                            method: "DELETE"
+                        }
+                    );
+
+                const result =
+                    await response.json();
+
+                if (!response.ok) {
+
+                    alert(
+                        result.error ||
+                        "Failed to delete menu item"
+                    );
+
+                    return;
+                }
+
+
+                await loadMenus();
+
+                showSuccessMessage(
+                    "Menu item deleted successfully."
+                );
+
+                document
+                    .getElementById(
+                        "menu-success-message"
+                    )
+                    .scrollIntoView({
+                        behavior: "smooth",
+                        block: "center"
+                    });
+
+            }
+
+            catch (error) {
+
+                console.error(
+                    "Error deleting menu item:",
+                    error
+                );
+
+                alert(
+                    "Unable to delete menu item."
+                );
+
+            }
+
+        }
+
+
+        // --------------------------------
+        // ADD / UPDATE MENU ITEM
+        // --------------------------------
+
+        const menuForm =
+            document.getElementById(
+                "menu-form"
+            );
+
+        menuForm.addEventListener(
+            "submit",
+            async function(event) {
+
+                event.preventDefault();
+
+
+                const name =
+                    document.getElementById(
+                        "menu-name"
+                    ).value;
+
+                const category =
+                    document.getElementById(
+                        "menu-category"
+                    ).value;
+
+                const description =
+                    document.getElementById(
+                        "menu-description"
+                    ).value;
+
+                const price =
+                    document.getElementById(
+                        "menu-price"
+                    ).value;
+
+
+                const menuData = {
+                    name: name,
+                    category: category,
+                    description: description,
+                    price: Number(price)
+                };
+
+
+                try {
+
+                    const wasEditing =
+                        editingMenuId !== null;
+
+                    let url = MENU_API;
+                    let method = "POST";
+
+
+                    if (editingMenuId !== null) {
+
+                        url =
+                            `${MENU_API}/${editingMenuId}`;
+
+                        method = "PUT";
+
+                    }
+
+
+                    const response =
+                        await fetch(
+                            url,
+                            {
+                                method: method,
+
+                                headers: {
+                                    "Content-Type":
+                                        "application/json"
+                                },
+
+                                body:
+                                    JSON.stringify(
+                                        menuData
+                                    )
+                            }
+                        );
+
+
+                    const result =
+                        await response.json();
+
+
+                    if (!response.ok) {
+
+                        alert(
+                            result.error ||
+                            "Failed to save menu item"
+                        );
+
+                        return;
+                    }
+
+
+                    // Reset form
+                    menuForm.reset();
+
+                    editingMenuId = null;
+
+                    document.querySelector(
+                        "#menu-form .primary-button"
+                    ).textContent =
+                        "Add Menu Item";
+
+
+                    // Reload menu data
+                    await loadMenus();
+
+
+                    if (wasEditing) {
+
+                        showSuccessMessage(
+                            "Menu item updated successfully."
+                        );
+
+                    }
+
+                    else {
+
+                        showSuccessMessage(
+                            "Menu item added successfully."
+                        );
+
+                    }
+
+                }
+
+                catch (error) {
+
+                    console.error(
+                        "Error saving menu item:",
+                        error
+                    );
+
+                    alert(
+                        "Unable to save menu item."
+                    );
+
+                }
+
+            }
+        );
+
+
+        // --------------------------------
+        // CLEAR AI RECOMMENDATION
+        // --------------------------------
+
+        const clearAIButton =
+            document.getElementById(
+                "clear-ai-recommendation"
+            );
+
+        clearAIButton.addEventListener(
+            "click",
+            function() {
+
+                document.getElementById(
+                    "ai-recommendation-result"
+                ).innerHTML = "";
+
+                document.getElementById(
+                    "ai-menu-select"
+                ).value = "";
+
+                clearAIButton.style.display =
+                    "none";
+
+            }
+        );
+
+
+        // Show Clear button after successful
+        // HTMX content replacement
+        document.body.addEventListener(
+            "htmx:afterSwap",
+            function(event) {
+
+                if (
+                    event.detail.target.id ===
+                    "ai-recommendation-result"
+                ) {
+
+                    if (
+                        event.detail.target
+                            .innerHTML.trim() !== ""
+                    ) {
+                        clearAIButton.style.display =
+                            "inline-block";
+                    }
+
+                }
+
+            }
+        );
+
+
+        // --------------------------------
+        // MENU SEARCH
+        // --------------------------------
+
+        const menuSearch =
+            document.getElementById(
+                "menu-search"
+            );
+
+        menuSearch.addEventListener(
+            "input",
+            function() {
+
+                const searchValue =
+                    menuSearch.value
+                        .toLowerCase()
+                        .trim();
+
+                const rows =
+                    document.querySelectorAll(
+                        "#menu-table-body tr"
+                    );
+
+                rows.forEach(row => {
+
+                    const rowText =
+                        row.textContent
+                            .toLowerCase();
+
+                    if (
+                        rowText.includes(
+                            searchValue
+                        )
+                    ) {
+
+                        row.style.display = "";
+
+                    }
+
+                    else {
+
+                        row.style.display =
+                            "none";
+
+                    }
+
+                });
+
+            }
+        );
+
+
+        // --------------------------------
+        // INITIAL LOAD
+        // --------------------------------
+
+        loadMenus();
+
+    </script>
+
+</body>
+
+</html>
