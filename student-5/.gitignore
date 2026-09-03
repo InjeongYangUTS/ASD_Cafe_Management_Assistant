@@ -1,0 +1,3 @@
+database/payments.db
+**/__pycache__/
+*.pyc
