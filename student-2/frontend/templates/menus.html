@@ -24,9 +24,47 @@
                 <p>Manage cafe menu items and customer-facing prices.</p>
             </div>
 
-            <a href="/staff" class="secondary-button">
-                ← Back
-            </a>
+            <div class="header-actions">
+
+                <a href="/staff" class="secondary-button">
+                    ← Back
+                </a>
+
+                <div class="profile-menu">
+
+                    <button
+                        type="button"
+                        class="profile-button"
+                        onclick="toggleProfileMenu()"
+                        aria-label="Open profile menu"
+                    >
+                        <img
+                            src="http://localhost:5100/shared/assets/icons/profile.svg"
+                            alt="Profile"
+                            class="profile-icon"
+                        >
+                    </button>
+
+                    <div
+                        class="profile-dropdown"
+                        id="profileDropdown"
+                    >
+                        <div class="profile-details">
+                            <strong>Staff</strong>
+                            <span>Menu & Recipe Management</span>
+                        </div>
+
+                        <a
+                            href="http://localhost:5100/logout"
+                            class="logout-link"
+                        >
+                            Log out
+                        </a>
+                    </div>
+
+                </div>
+
+            </div>
         </header>
 
 
@@ -259,6 +297,32 @@
 
 
     <script>
+
+        // --------------------------------
+        // PROFILE DROPDOWN
+        // --------------------------------
+
+        function toggleProfileMenu() {
+            const dropdown =
+                document.getElementById("profileDropdown");
+
+            dropdown.classList.toggle("show");
+        }
+
+        document.addEventListener("click", function(event) {
+
+            const profileMenu =
+                document.querySelector(".profile-menu");
+
+            if (
+                profileMenu &&
+                !profileMenu.contains(event.target)
+            ) {
+                document
+                    .getElementById("profileDropdown")
+                    .classList.remove("show");
+            }
+        });
 
         // --------------------------------
         // BACKEND API
