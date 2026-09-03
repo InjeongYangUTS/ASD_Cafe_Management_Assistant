@@ -4,9 +4,11 @@ from uuid import uuid4
 
 import requests
 from flask import Flask, jsonify, request
+from flask_cors import CORS
 
 
 app = Flask(__name__)
+CORS(app)
 
 DATABASE_API_URL = os.getenv(
     "DATABASE_API_URL",

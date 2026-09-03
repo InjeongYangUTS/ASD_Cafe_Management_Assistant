@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment & Billing</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: Arial, sans-serif;
+            background: #f4f7fb;
+            color: #1f2937;
+        }
+
+        header {
+            padding: 24px 7%;
+            color: white;
+            background: linear-gradient(135deg, #172554, #2563eb);
+        }
+
+        header h1 {
+            margin: 0 0 6px;
+        }
+
+        header p {
+            margin: 0;
+            color: #dbeafe;
+        }
+
+        main {
+            width: min(1150px, 90%);
+            margin: 30px auto;
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+            padding: 15px 18px;
+            margin-bottom: 24px;
+            border-radius: 10px;
+            background: white;
+            box-shadow: 0 4px 15px rgba(15, 23, 42, 0.08);
+        }
+
+        .status {
+            font-weight: bold;
+        }
+
+        .connected {
+            color: #15803d;
+        }
+
+        .disconnected {
+            color: #b91c1c;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 24px;
+        }
+
+        .card {
+            padding: 24px;
+            border-radius: 14px;
+            background: white;
+            box-shadow: 0 4px 15px rgba(15, 23, 42, 0.08);
+        }
+
+        .card h2 {
+            margin-top: 0;
+            color: #172554;
+        }
+
+        label {
+            display: block;
+            margin: 14px 0 6px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        input,
+        select,
+        textarea {
+            width: 100%;
+            padding: 11px;
+            border: 1px solid #cbd5e1;
+            border-radius: 7px;
+            font: inherit;
+        }
+
+        textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        button {
+            padding: 11px 18px;
+            margin-top: 18px;
+            border: none;
+            border-radius: 7px;
+            color: white;
+            background: #2563eb;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+        }
+
+        .secondary {
+            margin-top: 0;
+            background: #475569;
+        }
+
+        .secondary:hover {
+            background: #334155;
+        }
+
+        .message {
+            display: none;
+            padding: 12px;
+            margin-top: 16px;
+            border-radius: 7px;
+            white-space: pre-wrap;
+        }
+
+        .success {
+            display: block;
+            color: #166534;
+            background: #dcfce7;
+        }
+
+        .error {
+            display: block;
+            color: #991b1b;
+            background: #fee2e2;
+        }
+
+        .records {
+            margin-top: 24px;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            padding: 11px;
+            border-bottom: 1px solid #e2e8f0;
+            text-align: left;
+            white-space: nowrap;
+        }
+
+        th {
+            color: white;
+            background: #1e3a8a;
+        }
+
+        tr:hover {
+            background: #f8fafc;
+        }
+
+        @media (max-width: 760px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            .status-bar {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>Payment & Billing Service</h1>
+        <p>Student 5 Microservice Dashboard</p>
+    </header>
+
+    <main>
+        <section class="status-bar">
+            <div>
+                Backend status:
+                <span id="backendStatus" class="status">
+                    Checking...
+                </span>
+            </div>
+
+            <button class="secondary" onclick="loadPayments()">
+                Refresh Payments
+            </button>
+        </section>
+
+        <section class="grid">
+            <div class="card">
+                <h2>Process Payment</h2>
+
+                <form id="paymentForm">
+                    <label for="orderId">Order ID</label>
+                    <input id="orderId" type="number" min="1" required>
+
+                    <label for="customerId">Customer ID</label>
+                    <input id="customerId" type="number" min="1" required>
+
+                    <label for="amount">Amount ($)</label>
+                    <input
+                        id="amount"
+                        type="number"
+                        min="0.01"
+                        step="0.01"
+                        required
+                    >
+
+                    <label for="paymentMethod">Payment method</label>
+                    <select id="paymentMethod" required>
+                        <option value="card">Card</option>
+                        <option value="cash">Cash</option>
+                        <option value="digital_wallet">
+                            Digital Wallet
+                        </option>
+                    </select>
+
+                    <button type="submit">Process Payment</button>
+                </form>
+
+                <div id="paymentMessage" class="message"></div>
+            </div>
+
+            <div class="card">
+                <h2>Process Refund</h2>
+
+                <form id="refundForm">
+                    <label for="paymentId">Payment ID</label>
+                    <input id="paymentId" type="number" min="1" required>
+
+                    <label for="refundAmount">Refund amount ($)</label>
+                    <input
+                        id="refundAmount"
+                        type="number"
+                        min="0.01"
+                        step="0.01"
+                        required
+                    >
+
+                    <label for="refundReason">Reason</label>
+                    <textarea id="refundReason" required></textarea>
+
+                    <label for="requestedBy">Requested by (customer ID)</label>
+                    <input id="requestedBy" type="number" min="1" required>
+
+                    <button type="submit">Process Refund</button>
+                </form>
+
+                <div id="refundMessage" class="message"></div>
+            </div>
+        </section>
+
+        <section class="card records">
+            <h2>Payment Records</h2>
+
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Order</th>
+                            <th>Customer</th>
+                            <th>Amount</th>
+                            <th>Method</th>
+                            <th>Status</th>
+                            <th>Paid At</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="paymentTable">
+                        <tr>
+                            <td colspan="7">Loading payments...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const API_URL = "http://127.0.0.1:5006";
+
+        function showMessage(elementId, message, successful) {
+            const element = document.getElementById(elementId);
+
+            element.textContent = message;
+            element.className = successful
+                ? "message success"
+                : "message error";
+        }
+
+        async function checkBackend() {
+            const status = document.getElementById("backendStatus");
+
+            try {
+                const response = await fetch(`${API_URL}/health`);
+
+                if (!response.ok) {
+                    throw new Error("Backend unavailable");
+                }
+
+                const data = await response.json();
+
+                status.textContent =
+                    data.status === "healthy"
+                        ? "Connected"
+                        : "Unhealthy";
+
+                status.className =
+                    data.status === "healthy"
+                        ? "status connected"
+                        : "status disconnected";
+            } catch (error) {
+                status.textContent = "Disconnected";
+                status.className = "status disconnected";
+            }
+        }
+
+        async function loadPayments() {
+            const table = document.getElementById("paymentTable");
+
+            try {
+                const response = await fetch(`${API_URL}/api/payments`);
+                const payments = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(
+                        payments.error || "Could not load payments"
+                    );
+                }
+
+                if (payments.length === 0) {
+                    table.innerHTML =
+                        '<tr><td colspan="7">No payments found.</td></tr>';
+                    return;
+                }
+
+                table.innerHTML = payments.map((payment) => `
+                    <tr>
+                        <td>${payment.id}</td>
+                        <td>${payment.order_id}</td>
+                        <td>${payment.customer_id}</td>
+                        <td>$${Number(payment.amount).toFixed(2)}</td>
+                        <td>${payment.payment_method}</td>
+                        <td>${payment.payment_status}</td>
+                        <td>${payment.paid_at || "-"}</td>
+                    </tr>
+                `).join("");
+            } catch (error) {
+                table.innerHTML = `
+                    <tr>
+                        <td colspan="7">${error.message}</td>
+                    </tr>
+                `;
+            }
+        }
+
+        document
+            .getElementById("paymentForm")
+            .addEventListener("submit", async (event) => {
+                event.preventDefault();
+
+                const payment = {
+                    order_id: Number(
+                        document.getElementById("orderId").value
+                    ),
+                    customer_id: Number(
+                        document.getElementById("customerId").value
+                    ),
+                    amount: Number(
+                        document.getElementById("amount").value
+                    ),
+                    payment_method:
+                        document.getElementById("paymentMethod").value,
+                };
+
+                try {
+                    const response = await fetch(
+                        `${API_URL}/api/payments/process`,
+                        {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                            },
+                            body: JSON.stringify(payment),
+                        }
+                    );
+
+                    const result = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(
+                            result.error || "Payment failed"
+                        );
+                    }
+
+                    showMessage(
+                        "paymentMessage",
+                        `Payment ${result.payment.id} processed successfully.`,
+                        true
+                    );
+
+                    event.target.reset();
+                    loadPayments();
+                } catch (error) {
+                    showMessage(
+                        "paymentMessage",
+                        error.message,
+                        false
+                    );
+                }
+            });
+
+        document
+            .getElementById("refundForm")
+            .addEventListener("submit", async (event) => {
+                event.preventDefault();
+
+                const refund = {
+                    payment_id: Number(
+                        document.getElementById("paymentId").value
+                    ),
+                    refund_amount: Number(
+                        document.getElementById("refundAmount").value
+                    ),
+                    refund_reason:
+                        document.getElementById("refundReason").value,
+                    requested_by: Number(
+                        document.getElementById("requestedBy").value
+                    ),
+                };
+
+                try {
+                    const response = await fetch(
+                        `${API_URL}/api/refunds`,
+                        {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                            },
+                            body: JSON.stringify(refund),
+                        }
+                    );
+
+                    const result = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(
+                            result.error || "Refund failed"
+                        );
+                    }
+
+                    showMessage(
+                        "refundMessage",
+                        `Refund processed. Remaining amount: $${Number(
+                            result.remaining_amount
+                        ).toFixed(2)}`,
+                        true
+                    );
+
+                    event.target.reset();
+                    loadPayments();
+                } catch (error) {
+                    showMessage(
+                        "refundMessage",
+                        error.message,
+                        false
+                    );
+                }
+            });
+
+        checkBackend();
+        loadPayments();
+    </script>
+</body>
+</html>
