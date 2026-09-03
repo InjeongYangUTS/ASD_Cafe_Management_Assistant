@@ -1,5 +1,7 @@
 #student-3/backend/app.py
 
+import os
+
 from flask import Flask
 from pathlib import Path
 
@@ -60,7 +62,12 @@ app = create_app()
 
 if __name__ == "__main__":
 
+    port = int(
+        os.getenv("PORT", "5003")
+    )
+
     app.run(
-        debug=True,
-        port=5003
+        host="0.0.0.0",
+        port=port,
+        debug=False
     )
