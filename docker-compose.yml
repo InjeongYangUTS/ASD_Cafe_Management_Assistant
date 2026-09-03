@@ -263,40 +263,74 @@ services:
   #     POST http://student-3-backend:8300/api/inventory/check
   #     POST http://student-3-backend:8300/api/inventory/deduct
   # ===================================================================
-  # student-3-database:
-  #   build: ./student-3/database
-  #   container_name: student-3-database
-  #   ports: ["7300:7300"]
-  #   networks: [cafe-net]
-  #
-  # student-3-backend:
-  #   build: ./student-3/backend
-  #   container_name: student-3-backend
-  #   ports: ["8300:8300"]
-  #   environment:
-  #     DB_SERVICE_URL: http://student-3-database:7300
-  #     OLLAMA_URL: http://ollama:11434
-  #   networks: [cafe-net]
-  #
-  # student-3-frontend:
-  #   build: ./student-3/frontend
-  #   container_name: student-3-frontend
-  #   ports: ["5300:5300"]
-  #   networks: [cafe-net]
+  student-3-database:
+    build: ./student-3/database
+    container_name: student-3-database
+    ports:
+      - "7300:7300"
+    environment:
+      PORT: 7300
+      INVENTORY_DB_PATH: /app/data/inventory.db
+    volumes:
+      - student3-inventory-data:/app/data
+    networks:
+      - cafe-net
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:7300/db/health', timeout=4)\""]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
 
-  student-3-inventory:
+  student-3-backend:
+    build: ./student-3/backend
+    container_name: student-3-backend
+    ports:
+      - "8300:8300"
+    environment:
+      PORT: 8300
+      DB_SERVICE_URL: http://student-3-database:7300
+      OLLAMA_URL: http://host.docker.internal:11434/api/generate
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:0.5b}
+      LOG_DIRECTORY: /app/logs
+    volumes:
+      - ./student-3/logs:/app/logs
+    depends_on:
+      student-3-database:
+        condition: service_healthy
+    networks:
+      - cafe-net
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8300/api/health', timeout=4)\""]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  student-3-frontend:
     build:
-      context: .
-      dockerfile: docker/student-3.Dockerfile
-    container_name: student-3-inventory
+      context: ./student-3
+      dockerfile: frontend/Dockerfile
+    container_name: student-3-frontend
     ports:
       - "5300:5300"
     environment:
       PORT: 5300
-      OLLAMA_URL: http://host.docker.internal:11434/api/generate
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:0.5b}
+      BACKEND_URL: http://student-3-backend:8300
+      SHARED_HOME_URL: http://localhost:5100/staff-dashboard
+    depends_on:
+      student-3-backend:
+        condition: service_healthy
     networks:
       - cafe-net
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:5300/health', timeout=4)\""]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
     restart: unless-stopped
 
   # ===================================================================
@@ -351,5 +385,6 @@ networks:
 
 volumes:
   ollama-models:
+  student3-inventory-data:
   student4-order-data:
   student1-feedback-data:
