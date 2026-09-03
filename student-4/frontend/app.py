@@ -417,6 +417,7 @@ def ui_place_order():
     payload = {
         "channel": request.form.get("channel", "DINE_IN"),
         "table_number": request.form.get("table_number") or None,
+        "customer_id": session.get("customer_id"),
         "customer_name": request.form.get("customer_name") or None,
         "staff_name": session.get("staff_name", "POS Terminal"),
         "note": request.form.get("note") or None,
@@ -449,7 +450,22 @@ def ui_recent_orders():
     except BackendError as exc:
         return render_template("partials/recent_orders.html", error=exc.message)
 
-    return render_template("partials/recent_orders.html", orders=data["orders"])
+    orders = data["orders"]
+    customer_view = is_customer()
+
+    if customer_view:
+        customer_id = session.get("customer_id")
+        orders = [
+             order
+             for order in orders
+             if order.get("customer_id") == customer_id
+    ]
+
+    return render_template(
+        "partials/recent_orders.html",
+         orders=orders,
+        customer_view=customer_view,
+)
 
 
 # =====================================================================

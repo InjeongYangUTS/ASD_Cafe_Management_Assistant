@@ -322,6 +322,7 @@
     <header>
 
         <a
+            id="backDashboardLink"
             href="http://localhost:5100/staff-dashboard"
             class="back-button"
         >
@@ -343,7 +344,7 @@
                 </span>
             </div>
 
-            <button class="secondary" onclick="loadPayments()">
+            <button id="refreshPaymentsButton" class="secondary" onclick="loadPayments()">
                 Refresh Payments
             </button>
         </section>
@@ -362,13 +363,7 @@
                     <input id="customerId" type="number" min="1" required>
 
                     <label for="amount">Amount ($)</label>
-                    <input
-                        id="amount"
-                        type="number"
-                        min="0.01"
-                        step="0.01"
-                        required
-                    >
+                    <input id="amount" type="number" min="0.01" step="0.01" required>
 
                     <label for="paymentMethod">Payment Method</label>
                     <select id="paymentMethod" required>
@@ -388,7 +383,7 @@
                 <div id="paymentMessage" class="message"></div>
             </div>
 
-            <div class="card">
+            <div id="refundCard" class="card">
                 <h2>Process Refund</h2>
 
                 <form id="refundForm">
@@ -397,13 +392,7 @@
                     <input id="paymentId" type="number" min="1" required>
 
                     <label for="refundAmount">Refund Amount ($)</label>
-                    <input
-                        id="refundAmount"
-                        type="number"
-                        min="0.01"
-                        step="0.01"
-                        required
-                    >
+                    <input id="refundAmount" type="number" min="0.01" step="0.01" required>
 
                     <label for="refundReason">Reason</label>
                     <textarea id="refundReason" required></textarea>
@@ -412,12 +401,7 @@
                         Requested By (Customer ID)
                     </label>
 
-                    <input
-                        id="requestedBy"
-                        type="number"
-                        min="1"
-                        required
-                    >
+                    <input id="requestedBy" type="number" min="1" required>
 
                     <button type="submit">
                         Process Refund
@@ -430,7 +414,7 @@
 
         </section>
 
-        <section class="card records">
+        <section id="paymentRecords" class="card records">
 
             <h2>Payment Records</h2>
 
@@ -467,6 +451,9 @@
     <script>
         const API_URL =
             `${window.location.protocol}//${window.location.hostname}:8500`;
+
+        const PAGE_PARAMS = new URLSearchParams(window.location.search);
+        const CUSTOMER_MODE = PAGE_PARAMS.get("mode") === "customer";
 
         function showMessage(elementId, message, successful) {
             const element = document.getElementById(elementId);
@@ -589,9 +576,16 @@
                         `Payment ${result.payment.id} processed successfully.`,
                         true
                     );
-
+                if (CUSTOMER_MODE) {
+                     const submitButton = event.target.querySelector(
+                         'button[type="submit"]'
+                    );
+                    submitButton.disabled = true;
+                    submitButton.textContent = "Payment Completed";
+                } else {
                     event.target.reset();
                     loadPayments();
+                }
 
                 } catch (error) {
                     showMessage(
@@ -661,8 +655,54 @@
                 }
             });
 
+        function configureCustomerPayment() {
+            if (!CUSTOMER_MODE) {
+                return;
+            }
+
+            const orderId = PAGE_PARAMS.get("order_id");
+            const customerId = PAGE_PARAMS.get("customer_id");
+            const amount = PAGE_PARAMS.get("amount");
+
+            const orderInput = document.getElementById("orderId");
+            const customerInput = document.getElementById("customerId");
+            const amountInput = document.getElementById("amount");
+
+            if (!orderId || !customerId || !amount) {
+                showMessage(
+                    "paymentMessage",
+                    "Missing order information. Please return to your order.",
+                    false
+                );
+                return;
+            }
+
+            orderInput.value = orderId;
+            customerInput.value = customerId;
+            amountInput.value = Number(amount).toFixed(2);
+
+            orderInput.readOnly = true;
+            customerInput.readOnly = true;
+            amountInput.readOnly = true;
+
+            document.getElementById("refundCard").hidden = true;
+            document.getElementById("paymentRecords").hidden = true;
+            document.getElementById("refreshPaymentsButton").hidden = true;
+
+            const backLink = document.getElementById("backDashboardLink");
+            backLink.href = "http://localhost:5100/customer-dashboard";
+            backLink.textContent = "← Back to Customer Dashboard";
+            document.querySelector("header h1").textContent = "Pay for Your Order";
+            document.querySelector("header p").textContent =
+                "Confirm the order total and choose a payment method.";
+        }
+
+        configureCustomerPayment();
         checkBackend();
-        loadPayments();
+
+        if (!CUSTOMER_MODE) {
+            loadPayments();
+        }
     </script>
 
 </body>
