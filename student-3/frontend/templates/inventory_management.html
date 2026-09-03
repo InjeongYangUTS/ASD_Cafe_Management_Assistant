@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Inventory Management</title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='css/inventory_management.css') }}"
+    >
+    
+</head>
+
+<body>
+
+<div class="page-container">
+
+    <!-- =====================
+         Header
+    ====================== -->
+
+    <div class="header">
+
+        <div class="title-box">
+            <h1>Inventory Management</h1>
+        </div>
+
+        <a href="{{ url_for('dashboard.inventory_dashboard') }}" class="back-link">
+            ← Back to Inventory Dashboard
+        </a>
+
+    </div>
+
+
+    <!-- =====================
+         Search / Filter / Add
+    ====================== -->
+
+    <div class="controls">
+
+        <!-- Search -->
+
+        <div class="search-container">
+
+            <input
+                type="text"
+                id="searchInput"
+                placeholder="Search inventory . . ."
+            >
+
+            <button class="search-button" type="button">
+
+                <img
+                    src="assets/icons/magnifier.svg"
+                    alt="Search"
+                >
+
+            </button>
+
+        </div>
+
+
+        <!-- Category -->
+
+        <form
+            method="GET"
+            action="{{ url_for('inventory.inventory_management') }}"
+            id="categoryForm"
+        >
+
+            <div class="category-container">
+
+                <div class="category-display">
+
+                    <span id="categoryText">
+                        {% if selected_category %}
+                            {{ selected_category }}
+                        {% else %}
+                            Category
+                        {% endif %}
+                    </span>
+
+                    <div class="category-icon">
+                        <img
+                            src="/assets/icons/inverted_triangle.svg"
+                            alt=""
+                        >
+                    </div>
+
+                </div>
+
+                <select
+                    id="categorySelect"
+                    class="category-select"
+                    name="category"
+                    aria-label="Category"
+                >
+                    <option
+                        value=""
+                        disabled
+                        hidden
+                        {% if not selected_category %}selected{% endif %}
+                    >
+                        Category
+                    </option>
+
+                    <option
+                        value="Coffee"
+                        {% if selected_category == "Coffee" %}selected{% endif %}
+                    >
+                        Coffee
+                    </option>
+
+                    <option
+                        value="Milk"
+                        {% if selected_category == "Milk" %}selected{% endif %}
+                    >
+                        Milk
+                    </option>
+
+                    <option
+                        value="Syrup"
+                        {% if selected_category == "Syrup" %}selected{% endif %}
+                    >
+                        Syrup
+                    </option>
+
+                    <option
+                        value="Food"
+                        {% if selected_category == "Food" %}selected{% endif %}
+                    >
+                        Food
+                    </option>
+
+                    <option
+                        value="Other"
+                        {% if selected_category == "Other" %}selected{% endif %}
+                    >
+                        Other
+                    </option>
+
+                </select>
+
+            </div>
+
+        </form>
+
+
+        <!-- Add Item -->
+
+        <button
+            class="add-button"
+            type="button"
+            id="openAddModal"
+        >
+            + Add item
+        </button>
+
+    </div>
+
+
+    <!-- =====================
+         Inventory Table
+    ====================== -->
+
+    <div class="table-container">
+
+        <table>
+
+            <thead>
+
+                <tr>
+
+                    <th>Item</th>
+
+                    <th>Category</th>
+
+                    <th>Stock</th>
+
+                    <th>Reorder Level</th>
+
+                    <th>Status</th>
+
+                </tr>
+
+            </thead>
+
+
+            <tbody id="inventoryTable">
+
+                {% for item in inventory_items %}
+
+                <tr
+                    data-id="{{ item['id'] }}"
+                    data-name="{{ item['name'] }}"
+                    data-category="{{ item['category'] }}"
+                    data-quantity="{{ item['quantity'] }}"
+                    data-unit="{{ item['unit'] }}"
+                    data-minimum-stock="{{ item['minimum_stock'] }}"
+                    data-supplier-id="{{ item['supplier_id'] if item['supplier_id'] else '' }}"
+                >
+
+                    <td>
+                        {{ item["name"] }}
+                    </td>
+
+                    <td>
+                        {{ item["category"] }}
+                    </td>
+
+                    <td>
+                        {{ item["quantity"] }} {{ item["unit"] }}
+                    </td>
+
+                    <td>
+                        {{ item["minimum_stock"] }} {{ item["unit"] }}
+                    </td>
+
+                    <td>
+                        {{ item["status"] }}
+                    </td>
+
+                </tr>
+
+                {% endfor %}
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+
+    <!-- =====================
+         Pagination / Actions
+    ====================== -->
+
+    <div class="bottom-area">
+
+        <div class="pagination">
+
+            {% if page > 1 %}
+                <a href="{{ url_for('inventory.inventory_management', page=page-1) }}">
+                    ← Previous
+                </a>
+            {% else %}
+                <span class="disabled">
+                    ← Previous
+                </span>
+            {% endif %}
+
+
+            <span>|</span>
+
+
+            {% if page < total_pages %}
+                <a href="{{ url_for('inventory.inventory_management', page=page+1) }}">
+                    Next →
+                </a>
+            {% else %}
+                <span class="disabled">
+                    Next →
+                </span>
+            {% endif %}
+
+        </div>
+
+
+        <div class="action-buttons">
+
+            <button
+                class="action-button"
+                type="button"
+                id="openEditModal"
+            >
+                Edit
+            </button>
+
+            <button
+                class="action-button"
+                type="button"
+                id="openDeleteModal"
+            >
+                Delete
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- =====================
+     Add Item Modal
+====================== -->
+
+<div
+    class="modal-overlay"
+    id="addItemModal"
+>
+
+    <div class="add-item-modal">
+
+        <!-- Close button -->
+
+        <button
+            type="button"
+            class="modal-close"
+            id="closeAddModal"
+        >
+            ×
+        </button>
+
+
+        <h2 class="modal-title">
+            Add item
+        </h2>
+
+
+        <form 
+            id="addItemForm"
+            method="POST"
+            action="{{ url_for('inventory.add_inventory_item') }}">
+
+            <!-- Item Name -->
+
+            <div class="modal-field">
+
+                <label for="newItemName">
+                    Item name
+                </label>
+
+                <input
+                    type="text"
+                    id="newItemName"
+                    name="name"
+                    required
+                >
+
+            </div>
+
+
+            <!-- Category -->
+
+            <div class="modal-field">
+
+                <label for="newItemCategory">
+                    Category
+                </label>
+
+                <select
+                    id="newItemCategory"
+                    name="category"
+                    required
+                >
+
+                    <option value="" selected disabled>
+                        Select category
+                    </option>
+
+                    <option value="Coffee">
+                        Coffee
+                    </option>
+
+                    <option value="Milk">
+                        Milk
+                    </option>
+
+                    <option value="Syrup">
+                        Syrup
+                    </option>
+
+                    <option value="Food">
+                        Food
+                    </option>
+
+                    <option value="Other">
+                        Other
+                    </option>
+
+                </select>
+
+            </div>
+
+
+            <!-- Unit -->
+
+            <div class="modal-field">
+
+                <label for="newItemUnit">
+                    Unit
+                </label>
+
+                <select
+                    id="newItemUnit"
+                    name="unit"
+                    required
+                >
+
+                    <option value="" selected disabled>
+                        Select unit
+                    </option>
+
+                    <option value="kg">
+                        kg
+                    </option>
+
+                    <option value="g">
+                        g
+                    </option>
+
+                    <option value="L">
+                        L
+                    </option>
+
+                    <option value="mL">
+                        mL
+                    </option>
+
+                    <option value="pcs">
+                        pcs
+                    </option>
+
+                </select>
+
+            </div>
+
+
+            <!-- Current Stock -->
+
+            <div class="modal-field">
+
+                <label for="newItemStock">
+                    Current stock
+                </label>
+
+                <input
+                    type="number"
+                    id="newItemStock"
+                    name="quantity"
+                    min="0"
+                    step="0.01"
+                    required
+                >
+
+            </div>
+
+
+            <!-- Reorder Level -->
+
+            <div class="modal-field">
+
+                <label for="newItemReorder">
+                    Reorder level
+                </label>
+
+                <input
+                    type="number"
+                    id="newItemReorder"
+                    name="minimum_stock"
+                    min="0"
+                    step="0.01"
+                    required
+                >
+
+            </div>
+
+
+            <!-- Supplier -->
+
+            <div class="modal-field">
+
+                <label for="newItemSupplier">
+                    Supplier
+                </label>
+
+                <select
+                    id="newItemSupplier"
+                    name="supplier_id"
+                    required
+                >
+
+                    <option value="" selected disabled>
+                        Select supplier
+                    </option>
+
+                    {% for supplier in suppliers %}
+
+                        <option value="{{ supplier['id'] }}">
+                            {{ supplier['name'] }}
+                        </option>
+
+                    {% endfor %}
+
+                </select>
+
+            </div>
+
+
+            <!-- Buttons -->
+
+            <div class="modal-buttons">
+
+                <button
+                    type="button"
+                    class="modal-cancel"
+                    id="cancelAddModal"
+                >
+                    Cancel
+                </button>
+
+                <button
+                    type="submit"
+                    class="modal-add"
+                >
+                    Add
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
+
+<!-- =====================
+     Edit Item Modal
+====================== -->
+
+<div class="modal-overlay" id="editItemModal">
+
+    <div class="add-item-modal">
+
+        <!-- Close button -->
+
+        <button
+            type="button"
+            class="modal-close"
+            id="closeEditModal"
+        >
+            ×
+        </button>
+
+
+        <h2 class="modal-title">
+            Edit item
+        </h2>
+
+
+        <form
+            id="editItemForm"
+            method="POST"
+            action="{{ url_for('inventory.edit_inventory_item') }}"
+        >
+
+            <!-- Item ID -->
+
+            <input
+                type="hidden"
+                id="editItemId"
+                name="item_id"
+            >
+
+
+            <!-- Item Name -->
+
+            <div class="modal-field">
+
+                <label for="editItemName">
+                    Item name
+                </label>
+
+                <input
+                    type="text"
+                    id="editItemName"
+                    name="name"
+                    required
+                >
+
+            </div>
+
+
+            <!-- Category -->
+
+            <div class="modal-field">
+
+                <label for="editItemCategory">
+                    Category
+                </label>
+
+                <select
+                    id="editItemCategory"
+                    name="category"
+                    required
+                >
+
+                    <option value="Coffee">
+                        Coffee
+                    </option>
+
+                    <option value="Milk">
+                        Milk
+                    </option>
+
+                    <option value="Syrup">
+                        Syrup
+                    </option>
+
+                    <option value="Food">
+                        Food
+                    </option>
+
+                    <option value="Other">
+                        Other
+                    </option>
+
+                </select>
+
+            </div>
+
+
+            <!-- Unit -->
+
+            <div class="modal-field">
+
+                <label for="editItemUnit">
+                    Unit
+                </label>
+
+                <select
+                    id="editItemUnit"
+                    name="unit"
+                    required
+                >
+
+                    <option value="kg">
+                        kg
+                    </option>
+
+                    <option value="g">
+                        g
+                    </option>
+
+                    <option value="L">
+                        L
+                    </option>
+
+                    <option value="mL">
+                        mL
+                    </option>
+
+                    <option value="ml">
+                        ml
+                    </option>
+
+                    <option value="pcs">
+                        pcs
+                    </option>
+
+                    <option value="each">
+                        each
+                    </option>
+
+                    <option value="slices">
+                        slices
+                    </option>
+
+                </select>
+
+            </div>
+
+
+            <!-- Current Stock -->
+
+            <div class="modal-field">
+
+                <label for="editItemStock">
+                    Current stock
+                </label>
+
+                <input
+                    type="number"
+                    id="editItemStock"
+                    name="quantity"
+                    min="0"
+                    step="0.01"
+                    required
+                >
+
+            </div>
+
+
+            <!-- Reorder Level -->
+
+            <div class="modal-field">
+
+                <label for="editItemReorder">
+                    Reorder level
+                </label>
+
+                <input
+                    type="number"
+                    id="editItemReorder"
+                    name="minimum_stock"
+                    min="0"
+                    step="0.01"
+                    required
+                >
+
+            </div>
+
+
+            <!-- Supplier -->
+
+            <div class="modal-field">
+
+                <label for="editItemSupplier">
+                    Supplier
+                </label>
+
+                <select
+                    id="editItemSupplier"
+                    name="supplier_id"
+                    required
+                >
+
+                    <option value="" disabled>
+                        Select supplier
+                    </option>
+
+                    {% for supplier in suppliers %}
+
+                        <option value="{{ supplier['id'] }}">
+                            {{ supplier['name'] }}
+                        </option>
+
+                    {% endfor %}
+
+                </select>
+
+            </div>
+
+
+            <!-- Buttons -->
+
+            <div class="modal-buttons">
+
+                <button
+                    type="button"
+                    class="modal-cancel"
+                    id="cancelEditModal"
+                >
+                    Cancel
+                </button>
+
+                <button
+                    type="submit"
+                    class="modal-add"
+                >
+                    Edit
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
+
+<!-- =====================
+     Delete Item Modal
+====================== -->
+
+<div class="modal-overlay" id="deleteItemModal">
+
+    <div class="delete-item-modal">
+
+        <!-- Close button -->
+
+        <button
+            type="button"
+            class="modal-close"
+            id="closeDeleteModal"
+        >
+            ×
+        </button>
+
+
+        <h2 class="modal-title">
+            Delete item
+        </h2>
+
+
+        <div class="delete-content">
+
+            <div class="delete-warning-row">
+
+                <img
+                    src="{{ url_for('static', filename='icons/warning.svg') }}"
+                    class="delete-warning-icon"
+                    alt="Warning"
+                >
+
+                <div class="delete-item-text">
+
+                    Delete
+
+                    <span
+                        class="delete-item-name"
+                        id="deleteItemName"
+                    >
+                    </span>
+
+                    ?
+
+                </div>
+
+            </div>
+
+
+            <p class="delete-question">
+                Are you sure you want to delete this item?
+            </p>
+
+
+            <form
+                method="POST"
+                action="{{ url_for('inventory.delete_inventory_item') }}"
+                id="deleteItemForm"
+            >
+
+                <input
+                    type="hidden"
+                    name="item_id"
+                    id="deleteItemId"
+                >
+
+
+                <div class="delete-buttons">
+
+                    <button
+                        type="button"
+                        class="delete-cancel-button"
+                        id="cancelDeleteModal"
+                    >
+                        Cancel
+                    </button>
+
+
+                    <button
+                        type="submit"
+                        class="delete-confirm-button"
+                    >
+                        Delete
+                    </button>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
+
+<script
+    src="{{ url_for('static', filename='js/inventory_management.js') }}"
+>
+
+</script>
+
+</body>
+</html>

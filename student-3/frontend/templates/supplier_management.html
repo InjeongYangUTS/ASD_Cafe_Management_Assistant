@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Supplier Management</title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='css/supplier_management.css') }}"
+    >
+
+</head>
+
+<body>
+
+<div class="page-container">
+
+
+    <!-- ========================================
+         HEADER
+    ======================================== -->
+
+    <div class="header">
+
+        <div class="title-box">
+            <h1>Supplier Management</h1>
+        </div>
+
+        <a href="{{ url_for('dashboard.inventory_dashboard') }}" class="back-link">
+            ← Back to Inventory Dashboard
+        </a>
+
+    </div>
+
+
+    <!-- ========================================
+         SEARCH + ADD SUPPLIER
+    ======================================== -->
+
+    <div class="supplier-controls">
+
+        <!-- Search -->
+        <form
+            class="search-container"
+            method="GET"
+            action="{{ url_for('supplier.supplier_management') }}"
+        >
+
+            <input
+                type="text"
+                name="search"
+                value="{{ search }}"
+                placeholder="Search suppliers . . ."
+            >
+
+            <button type="submit" class="search-button">
+                <span class="search-icon"></span>
+            </button>
+
+        </form>
+
+
+        <!-- Add supplier -->
+        <button 
+            type="button"
+            class="add-button"
+            id="open-add-supplier-modal"
+        >
+            + Add supplier
+        </button>
+
+    </div>
+
+
+
+    <!-- ========================================
+         SUPPLIER TABLE
+    ======================================== -->
+
+    <div class="supplier-table-container">
+
+        <table>
+
+            <thead>
+                <tr>
+                    <th>Supplier</th>
+                    <th>Contact</th>
+                    <th>Phone</th>
+                    <th>Email</th>
+                    <th>Supplies</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+
+
+            <tbody id="supplier-table-body">
+
+                {% for supplier in suppliers %}
+
+                    <tr
+                        data-id="{{ supplier['id'] }}"
+                        data-name="{{ supplier['name'] }}"
+                        data-contact-name="{{ supplier['contact_name'] }}"
+                        data-phone="{{ supplier['phone'] }}"
+                        data-email="{{ supplier['email'] }}"
+                        data-supplies="{{ supplier['supplies'] }}"
+                        data-status="{{ supplier['status'] }}"
+                    >
+                        <td>{{ supplier["name"] }}</td>
+                        <td>{{ supplier["contact_name"] }}</td>
+                        <td>{{ supplier["phone"] }}</td>
+                        <td>{{ supplier["email"] }}</td>
+                        <td>{{ supplier["supplies"] }}</td>
+                        <td>{{ supplier["status"] }}</td>
+                    </tr>
+
+                {% endfor %}
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+
+
+    <!-- ========================================
+         BOTTOM
+    ======================================== -->
+
+    <div class="bottom-section">
+
+        <!-- Pagination -->
+
+        <div class="pagination">
+
+            {% if page > 1 %}
+
+                <a href="{{ url_for(
+                    'supplier.supplier_management',
+                    page=page - 1,
+                    search=search
+                ) }}">
+                    ← Previous
+                </a>
+
+            {% else %}
+
+                <span>← Previous</span>
+
+            {% endif %}
+
+
+            <span class="separator">|</span>
+
+
+            {% if page < total_pages %}
+
+                <a href="{{ url_for(
+                    'supplier.supplier_management',
+                    page=page + 1,
+                    search=search
+                ) }}">
+                    Next →
+                </a>
+
+            {% else %}
+
+                <span>Next →</span>
+
+            {% endif %}
+
+        </div>
+
+
+
+        <!-- Action buttons -->
+
+        <div class="action-buttons">
+
+            <button
+                type="button"
+                class="action-button"
+                id="open-edit-supplier-modal"
+            >
+                Edit
+            </button>
+
+            <button
+                type="button"
+                class="action-button"
+                id="open-delete-supplier-modal"
+            >
+                Delete
+            </button>
+
+        </div>
+
+
+    </div>
+
+
+</div>
+
+<!-- ========================================
+     ADD SUPPLIER MODAL
+======================================== -->
+
+<div
+    class="supplier-modal-overlay"
+    id="add-supplier-modal"
+    aria-hidden="true"
+>
+    <div
+        class="supplier-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="add-supplier-title"
+    >
+
+        <div class="supplier-modal-header">
+
+            <h2 id="add-supplier-title">
+                Add supplier
+            </h2>
+
+            <button
+                type="button"
+                class="supplier-modal-close"
+                id="close-add-supplier-modal"
+                aria-label="Close"
+            >
+                &times;
+            </button>
+
+        </div>
+
+
+        <form
+            method="POST"
+            action="{{ url_for('supplier.add_supplier') }}"
+            class="supplier-modal-form"
+        >
+
+            <div class="supplier-form-group">
+                <label for="supplier-name">
+                    Supplier name
+                </label>
+
+                <input
+                    type="text"
+                    id="supplier-name"
+                    name="name"
+                    required
+                >
+            </div>
+
+
+            <div class="supplier-form-group">
+                <label for="contact-name">
+                    Contact name
+                </label>
+
+                <input
+                    type="text"
+                    id="contact-name"
+                    name="contact_name"
+                >
+            </div>
+
+
+            <div class="supplier-form-group">
+                <label for="supplier-email">
+                    Email
+                </label>
+
+                <input
+                    type="email"
+                    id="supplier-email"
+                    name="email"
+                >
+            </div>
+
+
+            <div class="supplier-form-group">
+                <label for="supplier-phone">
+                    Phone
+                </label>
+
+                <input
+                    type="tel"
+                    id="supplier-phone"
+                    name="phone"
+                >
+            </div>
+
+
+            <div class="supplier-form-group">
+                <label for="supplying-items">
+                    Supplying items
+                </label>
+
+                <input
+                    type="text"
+                    id="supplying-items"
+                    name="supplies"
+                    placeholder="Example: Coffee beans, milk"
+                >
+            </div>
+
+
+            <div class="supplier-form-group">
+                <label for="supplier-status">
+                    Status
+                </label>
+
+                <select
+                    id="supplier-status"
+                    name="status"
+                    required
+                >
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                </select>
+            </div>
+
+
+            <div class="supplier-modal-buttons">
+
+                <button
+                    type="button"
+                    class="supplier-cancel-button"
+                    id="cancel-add-supplier"
+                >
+                    Cancel
+                </button>
+
+                <button
+                    type="submit"
+                    class="supplier-add-submit-button"
+                >
+                    Add
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
+</div>
+
+<!-- ========================================
+    EDIT SUPPLIER MODAL
+======================================== -->
+
+<div
+    class="supplier-modal-overlay"
+    id="edit-supplier-modal"
+    aria-hidden="true"
+>
+    <div class="supplier-modal">
+
+        <div class="supplier-modal-header">
+
+            <h2>Edit supplier</h2>
+
+            <button
+                type="button"
+                class="supplier-modal-close"
+                id="close-edit-supplier-modal"
+            >
+                &times;
+            </button>
+
+        </div>
+
+
+        <form
+            method="POST"
+            action="{{ url_for('supplier.edit_supplier') }}"
+        >
+
+            <input
+                type="hidden"
+                id="edit-supplier-id"
+                name="supplier_id"
+            >
+
+            <input
+                type="hidden"
+                name="page"
+                value="{{ page }}"
+            >
+
+            <input
+                type="hidden"
+                name="search"
+                value="{{ search }}"
+            >
+
+
+            <div class="supplier-form-group">
+                <label for="edit-supplier-name">
+                    Supplier name
+                </label>
+
+                <input
+                    type="text"
+                    id="edit-supplier-name"
+                    name="name"
+                    required
+                >
+            </div>
+
+
+            <div class="supplier-form-group">
+                <label for="edit-contact-name">
+                    Contact name
+                </label>
+
+                <input
+                    type="text"
+                    id="edit-contact-name"
+                    name="contact_name"
+                >
+            </div>
+
+
+            <div class="supplier-form-group">
+                <label for="edit-supplier-email">
+                    Email
+                </label>
+
+                <input
+                    type="email"
+                    id="edit-supplier-email"
+                    name="email"
+                >
+            </div>
+
+
+            <div class="supplier-form-group">
+                <label for="edit-supplier-phone">
+                    Phone
+                </label>
+
+                <input
+                    type="tel"
+                    id="edit-supplier-phone"
+                    name="phone"
+                >
+            </div>
+
+
+            <div class="supplier-form-group">
+                <label for="edit-supplier-supplies">
+                    Supplying items
+                </label>
+
+                <input
+                    type="text"
+                    id="edit-supplier-supplies"
+                    name="supplies"
+                >
+            </div>
+
+
+            <div class="supplier-form-group">
+                <label for="edit-supplier-status">
+                    Status
+                </label>
+
+                <select
+                    id="edit-supplier-status"
+                    name="status"
+                    required
+                >
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                </select>
+            </div>
+
+
+            <div class="supplier-modal-buttons">
+
+                <button
+                    type="button"
+                    class="supplier-cancel-button"
+                    id="cancel-edit-supplier"
+                >
+                    Cancel
+                </button>
+
+                <button
+                    type="submit"
+                    class="supplier-add-submit-button"
+                >
+                    Edit
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
+</div>
+
+<!-- ========================================
+    DELETE SUPPLIER MODAL
+======================================== -->
+
+<div
+    class="supplier-modal-overlay"
+    id="delete-supplier-modal"
+    aria-hidden="true"
+>
+    <div class="supplier-modal delete-supplier-modal">
+
+        <div class="supplier-modal-header">
+
+            <h2>Delete supplier</h2>
+
+            <button
+                type="button"
+                class="supplier-modal-close"
+                id="close-delete-supplier-modal"
+            >
+                &times;
+            </button>
+
+        </div>
+
+
+        <div class="delete-supplier-content">
+
+            <img
+                src="{{ url_for('static', filename='icons/warning.svg') }}"
+                class="delete-supplier-warning"
+                alt="Warning"
+            >
+
+            <p>
+                Delete
+                <strong id="delete-supplier-name"></strong>?
+            </p>
+
+            <p>
+                Are you sure you want to delete this supplier?
+            </p>
+
+        </div>
+
+
+        <form
+            method="POST"
+            action="{{ url_for('supplier.delete_supplier') }}"
+        >
+
+            <input
+                type="hidden"
+                id="delete-supplier-id"
+                name="supplier_id"
+            >
+
+            <input
+                type="hidden"
+                name="page"
+                value="{{ page }}"
+            >
+
+            <input
+                type="hidden"
+                name="search"
+                value="{{ search }}"
+            >
+
+
+            <div class="supplier-modal-buttons">
+
+                <button
+                    type="button"
+                    class="supplier-cancel-button"
+                    id="cancel-delete-supplier"
+                >
+                    Cancel
+                </button>
+
+                <button
+                    type="submit"
+                    class="delete-supplier-confirm-button"
+                >
+                    Delete
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
+</div>
+
+<script
+    src="{{ url_for('static', filename='js/supplier_management.js') }}"
+>
+
+</script>
+
+</body>
+</html>

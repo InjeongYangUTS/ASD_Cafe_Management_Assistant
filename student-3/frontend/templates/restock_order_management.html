@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Restock Order Management</title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='css/restock_order_management.css') }}"
+    >
+</head>
+
+<body>
+    {% set current_page = page|default(1) %}
+    {% set page_count = total_pages|default(1) %}
+    {% set current_status = selected_status|default('All') %}
+
+    <main class="page-container">
+
+        <!-- =====================================================
+             PAGE HEADER
+        ====================================================== -->
+        <header class="page-header">
+            <div class="page-title">
+                <h1>Restock Order Management</h1>
+            </div>
+
+            <a
+                href="{{ url_for('dashboard.inventory_dashboard') }}"
+                class="back-link"
+            >
+                ← Back to Inventory Dashboard
+            </a>
+        </header>
+
+        <!-- =====================================================
+             FLASH MESSAGES
+        ====================================================== -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <section class="flash-message-container">
+                    {% for category, message in messages %}
+                        <div class="flash-message {{ category }}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </section>
+            {% endif %}
+        {% endwith %}
+
+        <!-- =====================================================
+             FILTER AND NEW ORDER BUTTON
+        ====================================================== -->
+        <section class="toolbar">
+
+            <form
+                method="GET"
+                action="{{ url_for('restock.restock_order_management') }}"
+                class="filter-form"
+            >
+                <label for="status-filter" class="visually-hidden">
+                    Filter by status
+                </label>
+
+                <select
+                    id="status-filter"
+                    name="status"
+                    class="status-filter"
+                >
+                    <option value="All"
+                        {% if current_status == 'All' %}selected{% endif %}>
+                        All
+                    </option>
+
+                    <option value="Pending"
+                        {% if current_status == 'Pending' %}selected{% endif %}>
+                        Pending
+                    </option>
+
+                    <option value="Ordered"
+                        {% if current_status == 'Ordered' %}selected{% endif %}>
+                        Ordered
+                    </option>
+
+                    <option value="Delivered"
+                        {% if current_status == 'Delivered' %}selected{% endif %}>
+                        Delivered
+                    </option>
+
+                    <option value="Cancelled"
+                        {% if current_status == 'Cancelled' %}selected{% endif %}>
+                        Cancelled
+                    </option>
+                </select>
+            </form>
+
+            <button
+                type="button"
+                id="open-add-modal-button"
+                class="button new-order-button"
+            >
+                + New Restock Order
+            </button>
+        </section>
+
+        <!-- =====================================================
+             RESTOCK ORDER TABLE
+        ====================================================== -->
+        <section class="table-section">
+            <div class="table-wrapper">
+                <table class="order-table">
+                    <thead>
+                        <tr>
+                            <th>Order ID</th>
+                            <th>Supplier</th>
+                            <th>Item</th>
+                            <th>Quantity</th>
+                            <th>Date</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="order-table-body">
+                        {% for order in orders|default([]) %}
+                            <tr
+                                class="order-row"
+                                tabindex="0"
+                                data-order-id="{{ order.id }}"
+                                data-supplier-id="{{ order.supplier_id }}"
+                                data-inventory-id="{{ order.inventory_id }}"
+                                data-supplier-name="{{ order.supplier_name }}"
+                                data-item-name="{{ order.item_name }}"
+                                data-quantity="{{ order.quantity }}"
+                                data-order-date="{{ order.order_date }}"
+                                data-status="{{ order.status }}"
+                            >
+                                <td>RO-{{ "%04d"|format(order.id) }}</td>
+                                <td>{{ order.supplier_name }}</td>
+                                <td>{{ order.item_name }}</td>
+                                <td>{{ order.quantity }}</td>
+                                <td>{{ order.order_date }}</td>
+
+                                <td>
+                                    {{ order.status }}
+                                </td>
+                            </tr>
+                        {% else %}
+                            <tr class="empty-table-row">
+                                <td colspan="6">
+                                    No restock orders found.
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- =================================================
+                 PAGINATION
+            ================================================== -->
+            <div class="table-footer">
+                <nav class="pagination" aria-label="Restock order pages">
+
+                    {% if current_page > 1 %}
+                        <a
+                            href="{{ url_for(
+                                'restock.restock_order_management',
+                                page=current_page - 1,
+                                status=current_status
+                            ) }}"
+                            class="pagination-link"
+                        >
+                            ← Previous
+                        </a>
+                    {% else %}
+                        <span class="pagination-link disabled">
+                            ← Previous
+                        </span>
+                    {% endif %}
+
+                    <span class="pagination-divider">|</span>
+
+                    {% if current_page < page_count %}
+                        <a
+                            href="{{ url_for(
+                                'restock.restock_order_management',
+                                page=current_page + 1,
+                                status=current_status
+                            ) }}"
+                            class="pagination-link"
+                        >
+                            Next →
+                        </a>
+                    {% else %}
+                        <span class="pagination-link disabled">
+                            Next →
+                        </span>
+                    {% endif %}
+                </nav>
+
+                <div class="action-buttons">
+                    <button
+                        type="button"
+                        id="open-edit-modal-button"
+                        class="button action-button"
+                        disabled
+                    >
+                        Edit
+                    </button>
+
+                    <button
+                        type="button"
+                        id="open-delete-modal-button"
+                        class="button action-button"
+                        disabled
+                    >
+                        Delete
+                    </button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- =========================================================
+         ADD RESTOCK ORDER MODAL
+    ========================================================== -->
+    <div
+        id="add-order-modal"
+        class="modal"
+        aria-hidden="true"
+    >
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>New Restock Order</h2>
+
+                <button
+                    type="button"
+                    class="modal-close-button"
+                    data-close-modal="add-order-modal"
+                    aria-label="Close"
+                >
+                    &times;
+                </button>
+            </div>
+
+            <form
+                method="POST"
+                action="{{ url_for('restock.add_restock_order') }}"
+                id="add-order-form"
+            >
+                <div class="form-group">
+                    <label for="add-supplier-id">Supplier</label>
+
+                    <select
+                        id="add-supplier-id"
+                        name="supplier_id"
+                        required
+                    >
+                        <option value="">Select a supplier</option>
+
+                        {% for supplier in suppliers|default([]) %}
+                            <option value="{{ supplier.id }}">
+                                {{ supplier.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="add-inventory-id">Item</label>
+
+                    <select
+                        id="add-inventory-id"
+                        name="inventory_id"
+                        required
+                    >
+                        <option value="">Select an item</option>
+
+                        {% for item in inventory_items|default([]) %}
+                            <option value="{{ item.id }}">
+                                {{ item.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="add-quantity">Quantity</label>
+
+                        <input
+                            type="number"
+                            id="add-quantity"
+                            name="quantity"
+                            min="0.01"
+                            step="0.01"
+                            required
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="add-order-date">Order Date</label>
+
+                        <input
+                            type="date"
+                            id="add-order-date"
+                            name="order_date"
+                            required
+                        >
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="add-status">Status</label>
+
+                    <select
+                        id="add-status"
+                        name="status"
+                        required
+                    >
+                        <option value="Pending" selected>Pending</option>
+                        <option value="Ordered">Ordered</option>
+                        <option value="Delivered">Delivered</option>
+                        <option value="Cancelled">Cancelled</option>
+                    </select>
+                </div>
+
+                <div class="modal-actions">
+                    <button
+                        type="button"
+                        class="button cancel-button"
+                        data-close-modal="add-order-modal"
+                    >
+                        Cancel
+                    </button>
+
+                    <button
+                        type="submit"
+                        class="button submit-button"
+                    >
+                        Create Order
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- =========================================================
+         EDIT RESTOCK ORDER MODAL
+    ========================================================== -->
+    <div
+        id="edit-order-modal"
+        class="modal"
+        aria-hidden="true"
+    >
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Edit Restock Order</h2>
+
+                <button
+                    type="button"
+                    class="modal-close-button"
+                    data-close-modal="edit-order-modal"
+                    aria-label="Close"
+                >
+                    &times;
+                </button>
+            </div>
+
+            <form
+                method="POST"
+                action="{{ url_for('restock.edit_restock_order') }}"
+                id="edit-order-form"
+            >
+                <input
+                    type="hidden"
+                    id="edit-order-id"
+                    name="order_id"
+                >
+
+                <div class="selected-order-display">
+                    Order:
+                    <strong id="edit-order-number"></strong>
+                </div>
+
+                <div class="form-group">
+                    <label for="edit-supplier-id">Supplier</label>
+
+                    <select
+                        id="edit-supplier-id"
+                        name="supplier_id"
+                        required
+                    >
+                        <option value="">Select a supplier</option>
+
+                        {% for supplier in suppliers|default([]) %}
+                            <option value="{{ supplier.id }}">
+                                {{ supplier.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="edit-inventory-id">Item</label>
+
+                    <select
+                        id="edit-inventory-id"
+                        name="inventory_id"
+                        required
+                    >
+                        <option value="">Select an item</option>
+
+                        {% for item in inventory_items|default([]) %}
+                            <option value="{{ item.id }}">
+                                {{ item.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="edit-quantity">Quantity</label>
+
+                        <input
+                            type="number"
+                            id="edit-quantity"
+                            name="quantity"
+                            min="0.01"
+                            step="0.01"
+                            required
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="edit-order-date">Order Date</label>
+
+                        <input
+                            type="date"
+                            id="edit-order-date"
+                            name="order_date"
+                            required
+                        >
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="edit-status">Status</label>
+
+                    <select
+                        id="edit-status"
+                        name="status"
+                        required
+                    >
+                        <option value="Pending">Pending</option>
+                        <option value="Ordered">Ordered</option>
+                        <option value="Delivered">Delivered</option>
+                        <option value="Cancelled">Cancelled</option>
+                    </select>
+                </div>
+
+                <div class="modal-actions">
+                    <button
+                        type="button"
+                        class="button cancel-button"
+                        data-close-modal="edit-order-modal"
+                    >
+                        Cancel
+                    </button>
+
+                    <button
+                        type="submit"
+                        class="button submit-button"
+                    >
+                        Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- =========================================================
+         DELETE CONFIRMATION MODAL
+    ========================================================== -->
+    <div
+        id="delete-order-modal"
+        class="modal"
+        aria-hidden="true"
+    >
+        <div class="modal-content delete-modal-content">
+            <div class="modal-header">
+                <h2>Delete Restock Order</h2>
+
+                <button
+                    type="button"
+                    class="modal-close-button"
+                    data-close-modal="delete-order-modal"
+                    aria-label="Close"
+                >
+                    &times;
+                </button>
+            </div>
+
+            <form
+                method="POST"
+                action="{{ url_for('restock.delete_restock_order') }}"
+                id="delete-order-form"
+            >
+                <input
+                    type="hidden"
+                    id="delete-order-id"
+                    name="order_id"
+                >
+
+                <div class="warning-section">
+                    <img
+                        src="{{ url_for('static', filename='icons/warning.svg') }}"
+                        alt=""
+                        class="warning-icon"
+                    >
+
+                    <p>
+                        Are you sure you want to delete
+                        <strong id="delete-order-number"></strong>?
+                    </p>
+
+                    <p class="warning-description">
+                        This action cannot be undone.
+                    </p>
+                </div>
+
+                <div class="modal-actions">
+                    <button
+                        type="button"
+                        class="button cancel-button"
+                        data-close-modal="delete-order-modal"
+                    >
+                        Cancel
+                    </button>
+
+                    <button
+                        type="submit"
+                        class="button delete-confirm-button"
+                    >
+                        Delete Order
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script
+        src="{{ url_for('static', filename='js/restock_order_management.js') }}"
+    ></script>
+</body>
+</html>
