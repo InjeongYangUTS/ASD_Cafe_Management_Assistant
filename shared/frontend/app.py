@@ -165,6 +165,11 @@ def customer_login():
         stored_password_hash = customer[4]
 
         if check_password_hash(stored_password_hash, password):
+            # One identity per session. Without this a staff login left
+            # earlier in the browser would still be present, and the feature
+            # services would keep treating this person as staff.
+            session.clear()
+
             session["customer_id"] = customer[0]
             session["customer_name"] = customer[1]
             session["customer_email"] = customer[3]
@@ -205,6 +210,9 @@ def staff_login():
         stored_password_hash = staff[4]
 
         if check_password_hash(stored_password_hash, password):
+            # One identity per session - see the note in customer_login().
+            session.clear()
+
             session["staff_id"] = staff[0]
             session["staff_name"] = staff[1]
             session["staff_email"] = staff[3]
@@ -219,6 +227,16 @@ def staff_login():
 # -------------------------
 # Customer Dashboard
 # -------------------------
+
+# -------------------------
+# Sign out
+# -------------------------
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect("/")
+
 
 @app.route("/customer-dashboard")
 def customer_dashboard():
