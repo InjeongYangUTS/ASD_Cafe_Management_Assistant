@@ -1,14 +1,13 @@
 <!DOCTYPE html>
-
 <html lang="en">
 
 <head>
-    
+
     <meta charset="UTF-8">
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Inventory Dashboard</title>
+    <title>Inventory Dashboard | Cafe Management Assistant</title>
 
     <link
         rel="stylesheet"
@@ -19,36 +18,49 @@
 
 <body>
 
-<div class="dashboard-container">
+<main class="inventory-container">
+
 
     <!-- =========================================================
-         HEADER
+         PAGE HEADER
     ========================================================== -->
 
-    <header class="header">
+    <header class="inventory-header">
 
-        <div class="title-container">
+        <div class="header-center">
 
-            <img
-                src="{{ url_for('static', filename='icons/box.svg') }}"
-                alt="Inventory Box Icon"
-                class="box-icon"
-            >
+            <div class="title-row">
 
-            <h1 class="dashboard-title">
-                Inventory Dashboard
-            </h1>
+                <img
+                    src="{{ url_for('static', filename='icons/box.svg') }}"
+                    alt="Inventory"
+                    class="box-icon"
+                >
+
+                <h1>Inventory Dashboard</h1>
+
+            </div>
+
+            <p>
+                Manage inventory, suppliers, restocking and stock levels.
+            </p>
 
         </div>
 
-        <a href="{{ shared_home }}" class="back-link">
-            ← Back to Main Dashboard
+
+        <a
+            href="{{ shared_home }}"
+            class="secondary-button back-button"
+        >
+            ← Back
         </a>
 
     </header>
 
+
+
     <!-- =========================================================
-         MANAGEMENT BUTTONS
+         MANAGEMENT LINKS
     ========================================================== -->
 
     <nav class="management-buttons">
@@ -76,65 +88,109 @@
 
     </nav>
 
+
+
     <!-- =========================================================
          SUMMARY
     ========================================================== -->
 
-    <div class="summary-container">
+    <section class="management-section summary-section">
 
-        <table class="summary-table">
+        <div class="section-heading">
 
-            <thead>
+            <h2>Inventory Summary</h2>
 
-                <tr>
-                    <th>Total Items</th>
-                    <th>Low Stock</th>
-                    <th>Out of Stock</th>
-                    <th>Pending Orders</th>
-                </tr>
+            <p>
+                Current stock and restocking overview.
+            </p>
 
-            </thead>
+        </div>
 
-            <tbody>
 
-                <tr>
-                    <td>{{ total_items | default('') }}</td>
-                    <td>{{ low_stock_count | default('') }}</td>
-                    <td>{{ out_of_stock_count | default('') }}</td>
-                    <td>{{ pending_orders_count | default('') }}</td>
-                </tr>
+        <div class="summary-grid">
 
-            </tbody>
+            <div class="summary-card">
 
-        </table>
+                <span class="summary-label">
+                    Total Items
+                </span>
 
-    </div>
+                <strong class="summary-value">
+                    {{ total_items | default('0') }}
+                </strong>
+
+            </div>
+
+
+            <div class="summary-card pink-summary">
+
+                <span class="summary-label">
+                    Low Stock
+                </span>
+
+                <strong class="summary-value">
+                    {{ low_stock_count | default('0') }}
+                </strong>
+
+            </div>
+
+
+            <div class="summary-card">
+
+                <span class="summary-label">
+                    Out of Stock
+                </span>
+
+                <strong class="summary-value">
+                    {{ out_of_stock_count | default('0') }}
+                </strong>
+
+            </div>
+
+
+            <div class="summary-card pink-summary">
+
+                <span class="summary-label">
+                    Pending Orders
+                </span>
+
+                <strong class="summary-value">
+                    {{ pending_orders_count | default('0') }}
+                </strong>
+
+            </div>
+
+        </div>
+
+    </section>
+
 
 
     <!-- =========================================================
-         MAIN CONTENT
+         LOW STOCK + AI
     ========================================================== -->
 
-    <main class="main-content">
+    <div class="top-content-grid">
 
 
-        <!-- =====================================================
-             LEFT COLUMN
-        ====================================================== -->
+        <!-- LOW STOCK ITEMS -->
 
-        <div class="left-column">
+        <section class="management-section low-stock-section">
+
+            <div class="section-heading">
+
+                <h2>Low Stock Items</h2>
+
+                <p>
+                    Items that may require restocking soon.
+                </p>
+
+            </div>
 
 
-            <!-- LOW STOCK -->
+            <div class="table-wrapper">
 
-            <section>
-
-                <h2 class="section-title">
-                    Low Stock Items
-                </h2>
-
-
-                <table class="data-table low-stock-table">
+                <table class="management-table">
 
                     <thead>
 
@@ -155,17 +211,46 @@
                             {% for item in low_stock_items %}
 
                                 <tr>
+
                                     <td>{{ item.id }}</td>
+
                                     <td>{{ item.name }}</td>
+
                                     <td>{{ item.quantity }}</td>
-                                    <td>{{ item.status }}</td>
+
+                                    <td>
+
+                                        <span
+                                            class="status-badge
+                                            {% if item.status == 'OUT OF STOCK' %}
+                                                status-out
+                                            {% elif item.status == 'LOW' %}
+                                                status-low
+                                            {% else %}
+                                                status-normal
+                                            {% endif %}"
+                                        >
+                                            {{ item.status }}
+                                        </span>
+
+                                    </td>
+
                                 </tr>
 
                             {% endfor %}
 
                         {% else %}
 
-                            
+                            <tr>
+
+                                <td
+                                    colspan="4"
+                                    class="empty-message"
+                                >
+                                    No low stock items.
+                                </td>
+
+                            </tr>
 
                         {% endif %}
 
@@ -173,86 +258,48 @@
 
                 </table>
 
-            </section>
+            </div>
+
+        </section>
 
 
-            <!-- RECENT RESTOCK -->
 
-            <section>
+        <!-- AI AGENT -->
 
-                <h2 class="section-title">
-                    Recent Restock Orders
-                </h2>
+        <section class="management-section ai-section">
 
+            <div class="section-heading">
 
-                <table class="data-table restock-table">
+                <h2>Ask AI Agent</h2>
 
-                    <thead>
+                <p>
+                    Ask questions about inventory and restocking.
+                </p>
 
-                        <tr>
-                            <th>ID</th>
-                            <th>Name</th>
-                            <th>Supplier Name</th>
-                            <th>Status</th>
-                        </tr>
-
-                    </thead>
+            </div>
 
 
-                    <tbody>
+            <form
+                method="POST"
+                action="{{ url_for('dashboard.inventory_dashboard') }}"
+                class="ai-form"
+            >
 
-                        {% if recent_restock_orders %}
+                <div class="form-group">
 
-                            {% for order in recent_restock_orders %}
+                    <label for="ai-question">
+                        Question
+                    </label>
 
-                                <tr>
-                                    <td>{{ order.id }}</td>
-                                    <td>{{ order.name }}</td>
-                                    <td>{{ order.supplier_name }}</td>
-                                    <td>{{ order.status }}</td>
-                                </tr>
+                    <textarea
+                        id="ai-question"
+                        name="question"
+                        class="question-box"
+                        rows="5"
+                        placeholder="Ask a question about inventory..."
+                    >{{ ai_question | default('') }}</textarea>
 
-                            {% endfor %}
-
-                        {% else %}
-
-                        {% endif %}
-
-                    </tbody>
-
-                </table>
-
-            </section>
-
-        </div>
-
-
-        <!-- =====================================================
-             RIGHT COLUMN
-        ====================================================== -->
-
-        <section class="ai-section">
-
-            <h2 class="section-title">
-                Ask AI Agent
-            </h2>
-
-
-            <form method="POST" action="{{ url_for('dashboard.inventory_dashboard') }}">
-
-                <label
-                    for="ai-question"
-                    class="ai-label"
-                >
-                    Question
-                </label>
-
-
-                <textarea
-                    id="ai-question"
-                    name="question"
-                    class="question-box"
-                >{{ ai_question | default('') }}</textarea>
+                </div>
 
 
                 <div class="ask-button-row">
@@ -267,20 +314,109 @@
                 </div>
 
 
-                <span class="ai-label">
-                    Answer
-                </span>
+                <div class="form-group answer-group">
 
+                    <label>
+                        Answer
+                    </label>
 
-                <div class="answer-box">{% if ai_answer %}{{ ai_answer }}{% else %}The answer from the AI agent will be displayed here...{% endif %}</div>
+                    <div class="answer-box">{% if ai_answer %}{{ ai_answer }}{% else %}The answer from the AI agent will be displayed here...{% endif %}</div>
+
+                </div>
 
             </form>
 
         </section>
 
-    </main>
+    </div>
 
-</div>
+
+
+    <!-- =========================================================
+         RECENT RESTOCK ORDERS
+    ========================================================== -->
+
+    <section class="management-section recent-restock-section">
+
+        <div class="section-heading">
+
+            <h2>Recent Restock Orders</h2>
+
+            <p>
+                Latest inventory restocking activity.
+            </p>
+
+        </div>
+
+
+        <div class="table-wrapper">
+
+            <table class="management-table">
+
+                <thead>
+
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Supplier Name</th>
+                        <th>Status</th>
+                    </tr>
+
+                </thead>
+
+
+                <tbody>
+
+                    {% if recent_restock_orders %}
+
+                        {% for order in recent_restock_orders %}
+
+                            <tr>
+
+                                <td>{{ order.id }}</td>
+
+                                <td>{{ order.name }}</td>
+
+                                <td>{{ order.supplier_name }}</td>
+
+                                <td>
+
+                                    <span class="status-badge">
+                                        {{ order.status }}
+                                    </span>
+
+                                </td>
+
+                            </tr>
+
+                        {% endfor %}
+
+                    {% else %}
+
+                        <tr>
+
+                            <td
+                                colspan="4"
+                                class="empty-message"
+                            >
+                                No recent restock orders.
+                            </td>
+
+                        </tr>
+
+                    {% endif %}
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </section>
+
+
+</main>
 
 </body>
+
 </html>

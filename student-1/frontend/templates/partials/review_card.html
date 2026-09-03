@@ -1,0 +1,58 @@
+{#
+   One review as the customer sees it. Edit swaps this card for the inline
+   form; Cancel swaps it back. The whole card is the HTMX target, so an
+   edit never disturbs the rest of the list.
+#}
+<article class="s1-review" id="review-{{ review.id }}">
+
+    <div class="s1-review-head">
+        <h3>{{ review.title or 'Review' }}</h3>
+        <span class="s1-star-display"
+              title="{{ review.rating }} out of 5">{{ '*' * review.rating }}{{ '.' * (5 - review.rating) }}</span>
+    </div>
+
+    <p>{{ review.comment }}</p>
+
+    {# No order number: nothing links a review to a real order yet. #}
+    <p class="s1-meta">
+        Review #{{ review.id }} &middot; {{ review.submitted_at|cafe_time }}
+        &middot; {{ status_labels.get(review.status, review.status) }}
+        {%- if review.updated_at and review.updated_at != review.submitted_at %} &middot; edited{% endif %}
+    </p>
+
+    {% if review.staff_response %}
+        <div class="s1-response">
+            <strong>Reply from the cafe:</strong> {{ review.staff_response }}
+        </div>
+    {% endif %}
+
+    {% if review.sentiment %}
+        <div>
+            <span class="s1-tag {{ review.sentiment|lower }}">{{ review.sentiment|title }}</span>
+            {% for issue in review.ai_issues %}
+                <span class="s1-tag">{{ issue.replace('_', ' ') }}</span>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    {% if review.status == 'ARCHIVED' %}
+        <p class="s1-meta">This review has been archived and can no longer be edited.</p>
+    {% else %}
+        <div class="s1-actions" style="margin-top:12px;">
+
+            <button class="s1-button ghost small"
+                    hx-get="/review/{{ review.id }}/edit"
+                    hx-target="#review-{{ review.id }}"
+                    hx-swap="outerHTML">Edit</button>
+
+            {# Confirmation happens in the page, not in a browser dialog -
+               see partials/review_delete_confirm.html for why. #}
+            <button class="s1-button danger small"
+                    hx-get="/review/{{ review.id }}/confirm-delete"
+                    hx-target="#review-{{ review.id }}"
+                    hx-swap="outerHTML">Delete</button>
+
+        </div>
+    {% endif %}
+
+</article>

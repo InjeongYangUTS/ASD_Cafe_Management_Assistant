@@ -268,8 +268,6 @@ def process_payment():
                 "transaction": transaction_response.json(),
                 "order_update": order_update,
                 "order_update_warning": order_update_warning,
-                "order_update": order_update,
-                "order_update_warning": order_update_warning,
             }
         ), 201
 

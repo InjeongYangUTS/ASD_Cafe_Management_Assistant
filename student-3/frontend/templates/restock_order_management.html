@@ -143,7 +143,20 @@
                                 <td>{{ order.order_date }}</td>
 
                                 <td>
-                                    {{ order.status }}
+                                    <span
+                                        class="status-badge
+                                        {% if order.status == 'Pending' %}
+                                            status-pending
+                                        {% elif order.status == 'Ordered' %}
+                                            status-ordered
+                                        {% elif order.status == 'Delivered' %}
+                                            status-delivered
+                                        {% elif order.status == 'Cancelled' %}
+                                            status-cancelled
+                                        {% endif %}"
+                                    >
+                                        {{ order.status }}
+                                    </span>
                                 </td>
                             </tr>
                         {% else %}

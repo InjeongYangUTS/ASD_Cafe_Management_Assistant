@@ -1,0 +1,32 @@
+{#
+   The customer's own reviews. Swapped wholesale by HTMX after a create,
+   update or delete, so the list on screen always matches the database
+   without the customer having to reload the page.
+#}
+<div class="s1-card" id="my-reviews">
+
+    <div class="s1-section-title">
+        <h2>Your previous reviews</h2>
+        <span class="s1-meta">{{ reviews|length }} review{{ '' if reviews|length == 1 else 's' }}</span>
+    </div>
+
+    {% if notice %}
+        <div class="s1-message success">{{ notice }}</div>
+    {% endif %}
+
+    {% if error %}
+        <div class="s1-message error">{{ error }}</div>
+    {% endif %}
+
+    {% if reviews %}
+        {% for review in reviews %}
+            {% include "partials/review_card.html" %}
+        {% endfor %}
+    {% else %}
+        <p class="s1-hint" style="margin:0;">
+            You have not written a review yet. Use the form above and it will
+            appear here.
+        </p>
+    {% endif %}
+
+</div>

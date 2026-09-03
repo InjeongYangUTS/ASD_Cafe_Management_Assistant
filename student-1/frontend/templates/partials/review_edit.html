@@ -1,0 +1,52 @@
+{#
+   Inline edit form. Star ids are suffixed with the review id so several
+   cards can be open at once without the radio groups colliding.
+#}
+<article class="s1-review" id="review-{{ review.id }}">
+
+    <form hx-post="/review/{{ review.id }}/update"
+          hx-target="#my-reviews"
+          hx-swap="outerHTML"
+          hx-disabled-elt="find button">
+
+        <div class="s1-field">
+            <label for="edit-star-5-{{ review.id }}">Your rating</label>
+
+            <div class="s1-stars">
+                {% for value in [5, 4, 3, 2, 1] %}
+                    <input type="radio"
+                           id="edit-star-{{ value }}-{{ review.id }}"
+                           name="rating"
+                           value="{{ value }}"
+                           {{ 'checked' if review.rating == value }}>
+                    <label for="edit-star-{{ value }}-{{ review.id }}">&#9733;</label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="s1-field">
+            <label for="edit-title-{{ review.id }}">Headline</label>
+            <input type="text" id="edit-title-{{ review.id }}" name="title"
+                   maxlength="120" value="{{ review.title or '' }}">
+        </div>
+
+        <div class="s1-field">
+            <label for="edit-comment-{{ review.id }}">Your review</label>
+            <textarea id="edit-comment-{{ review.id }}" name="comment"
+                      maxlength="2000" required>{{ review.comment }}</textarea>
+        </div>
+
+        <div class="s1-actions">
+            <button type="submit" class="s1-button">Save changes</button>
+
+            <button type="button" class="s1-button ghost"
+                    hx-get="/review/{{ review.id }}/card"
+                    hx-target="#review-{{ review.id }}"
+                    hx-swap="outerHTML">Cancel</button>
+
+            <span class="s1-indicator">Saving&hellip;</span>
+        </div>
+
+    </form>
+
+</article>

@@ -38,8 +38,9 @@ services:
       start_period: 20s
     restart: unless-stopped
 
-  # Pulls the approved model once, then exits. Change OLLAMA_MODEL to
-  # qwen2.5 to demonstrate the second approved LLM.
+  # Pulls both approved models once, then exits. llama3.2 runs AI-Mode;
+  # qwen2.5:0.5b is the agentic loop's review agent and is also the
+  # default model for student-3-inventory.
   ollama-init:
     image: ollama/ollama:latest
     container_name: cafe-ollama-init
@@ -50,7 +51,9 @@ services:
       OLLAMA_HOST: http://ollama:11434
     entrypoint: ["/bin/sh", "-c"]
     command: >
-      "ollama pull ${OLLAMA_MODEL:-llama3.2} && echo 'model ready'"
+      "ollama pull ${OLLAMA_MODEL:-llama3.2} &&
+       ollama pull ${OLLAMA_REVIEW_MODEL:-qwen2.5:0.5b} &&
+       echo 'both models ready'"
     networks:
       - cafe-net
     restart: "no"
@@ -132,27 +135,86 @@ services:
 
   # ===================================================================
   # STUDENT 1 - Hangyeol Yi - Customer Feedback & Reviews
+  #
+  # Ports follow the convention at the top of this file, with the
+  # documented exception that the frontend uses 5110 because 5100 is the
+  # shared entry point.
   # ===================================================================
-  # student-1-database:
-  #   build: ./student-1/database
-  #   container_name: student-1-database
-  #   ports: ["7100:7100"]
-  #   networks: [cafe-net]
-  #
-  # student-1-backend:
-  #   build: ./student-1/backend
-  #   container_name: student-1-backend
-  #   ports: ["8100:8100"]
-  #   environment:
-  #     DB_SERVICE_URL: http://student-1-database:7100
-  #     OLLAMA_URL: http://ollama:11434
-  #   networks: [cafe-net]
-  #
-  # student-1-frontend:
-  #   build: ./student-1/frontend
-  #   container_name: student-1-frontend
-  #   ports: ["5100:5100"]   # NOTE: 5100 is taken by shared-frontend, use 5110
-  #   networks: [cafe-net]
+
+  student-1-database:
+    build: ./student-1/database
+    container_name: student-1-database
+    ports:
+      - "7100:7100"
+    environment:
+      PORT: 7100
+      FEEDBACK_DB_PATH: /app/data/feedback.db
+    volumes:
+      - student1-feedback-data:/app/data
+    networks:
+      - cafe-net
+    restart: unless-stopped
+
+  student-1-backend:
+    # Context is student-1/ rather than student-1/backend/ so the image
+    # can copy in student-1/prompts, which this service and the agentic
+    # loop share. A Dockerfile cannot COPY from outside its context.
+    build:
+      context: ./student-1
+      dockerfile: backend/Dockerfile
+    container_name: student-1-backend
+    ports:
+      - "8100:8100"
+    environment:
+      PORT: 8100
+      DB_SERVICE_URL: http://student-1-database:7100
+      # Order & Kitchen Management. Supplies the order history a review
+      # can attach to and the menu names used to work out which item a
+      # review is about. Optional: reviews work without it.
+      ORDER_SERVICE_URL: http://student-4-backend:8400
+      # AI-Mode. The OpenAI-compatible /v1 endpoint, as in the course
+      # configuration guide. Set OLLAMA_BASE_URL in a root .env to reuse
+      # an Ollama already running on the host instead of the container.
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434/v1}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2}
+      OLLAMA_REVIEW_MODEL: ${OLLAMA_REVIEW_MODEL:-qwen2.5:0.5b}
+      AI_TIMEOUT: 240
+      # Same key as shared-frontend. The backend does not issue a session;
+      # it verifies the one the browser already carries, so a customer's
+      # identity cannot be claimed in a request body.
+      SECRET_KEY: ${SHARED_SECRET_KEY:-temporary-secret-key}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      student-1-database:
+        condition: service_healthy
+    networks:
+      - cafe-net
+    restart: unless-stopped
+
+  student-1-frontend:
+    build: ./student-1/frontend
+    container_name: student-1-frontend
+    ports:
+      - "5110:5110"
+    environment:
+      PORT: 5110
+      BACKEND_URL: http://student-1-backend:8100
+      SHARED_DIR: /app/shared
+      SHARED_PORT: 5100
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2}
+      # Must match shared-frontend so the login session cookie set on
+      # port 5100 is readable here. Cookies are scoped by host, not port.
+      SECRET_KEY: ${SHARED_SECRET_KEY:-temporary-secret-key}
+    volumes:
+      # Read-only reuse of the group stylesheet and icons - never modified.
+      - ./shared:/app/shared:ro
+    depends_on:
+      student-1-backend:
+        condition: service_healthy
+    networks:
+      - cafe-net
+    restart: unless-stopped
 
   # ===================================================================
   # STUDENT 2 - Ei Thandar - Menu & Recipe Management
@@ -326,3 +388,4 @@ volumes:
   ollama-models:
   student3-inventory-data:
   student4-order-data:
+  student1-feedback-data:
