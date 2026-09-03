@@ -7,7 +7,8 @@ import os
 # CONFIGURATION
 # =========================================================
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = os.path.dirname(BACKEND_DIR)
 
 DATABASE = os.path.join(
     BASE_DIR,

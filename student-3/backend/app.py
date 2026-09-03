@@ -3,7 +3,8 @@ import sqlite3
 import os
 import requests  
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = os.path.dirname(BACKEND_DIR)
 
 DATABASE = os.path.join(
     BASE_DIR,
@@ -11,12 +12,10 @@ DATABASE = os.path.join(
     "inventory.db"
 )
 
-
-
 app = Flask(
     __name__,
-    template_folder="frontend/templates",
-    static_folder="assets"
+    template_folder=os.path.join(BASE_DIR, "frontend", "templates"),
+    static_folder=os.path.join(BASE_DIR, "assets")
 )
 
 def get_db_connection():
@@ -569,6 +568,7 @@ def supplier_management():
                 name,
                 contact_name,
                 phone,
+                email,
                 supplies,
                 status
             FROM suppliers
@@ -595,6 +595,7 @@ def supplier_management():
                 name,
                 contact_name,
                 phone,
+                email,
                 supplies,
                 status
             FROM suppliers
@@ -617,6 +618,188 @@ def supplier_management():
         search=search
     )
 
+@app.route("/supplier/add", methods=["POST"])
+def add_supplier():
+
+    name = request.form.get("name", "").strip()
+    contact_name = request.form.get("contact_name", "").strip()
+    email = request.form.get("email", "").strip()
+    phone = request.form.get("phone", "").strip()
+    supplies = request.form.get("supplies", "").strip()
+    status = request.form.get("status", "Active").strip()
+
+
+    # Supplier name은 필수
+
+    if not name:
+        return redirect(url_for("supplier_management"))
+
+
+    # 허용된 Status만 저장
+
+    if status not in ("Active", "Inactive"):
+        status = "Active"
+
+
+    connection = get_db_connection()
+    cursor = connection.cursor()
+
+
+    cursor.execute("""
+        INSERT INTO suppliers (
+            name,
+            contact_name,
+            email,
+            phone,
+            supplies,
+            status
+        )
+        VALUES (?, ?, ?, ?, ?, ?)
+    """, (
+        name,
+        contact_name,
+        email,
+        phone,
+        supplies,
+        status
+    ))
+
+
+    connection.commit()
+
+
+    # 새 supplier가 마지막 페이지에 표시되도록 계산
+
+    cursor.execute("""
+        SELECT COUNT(*)
+        FROM suppliers
+    """)
+
+    total_suppliers = cursor.fetchone()[0]
+    per_page = 6
+
+    last_page = max(
+        1,
+        (total_suppliers + per_page - 1) // per_page
+    )
+
+
+    connection.close()
+
+
+    return redirect(
+        url_for(
+            "supplier_management",
+            page=last_page
+        )
+    )
+
+@app.route("/supplier/edit", methods=["POST"])
+def edit_supplier():
+
+    supplier_id = request.form["supplier_id"]
+
+    name = request.form.get("name", "").strip()
+    contact_name = request.form.get("contact_name", "").strip()
+    email = request.form.get("email", "").strip()
+    phone = request.form.get("phone", "").strip()
+    supplies = request.form.get("supplies", "").strip()
+    status = request.form.get("status", "Active").strip()
+
+    page = request.form.get("page", 1, type=int)
+    search = request.form.get("search", "").strip()
+
+
+    if not name:
+        return redirect(
+            url_for(
+                "supplier_management",
+                page=page,
+                search=search
+            )
+        )
+
+
+    if status not in ("Active", "Inactive"):
+        status = "Active"
+
+
+    connection = get_db_connection()
+    cursor = connection.cursor()
+
+
+    cursor.execute("""
+        UPDATE suppliers
+        SET
+            name = ?,
+            contact_name = ?,
+            email = ?,
+            phone = ?,
+            supplies = ?,
+            status = ?
+        WHERE id = ?
+    """, (
+        name,
+        contact_name,
+        email,
+        phone,
+        supplies,
+        status,
+        supplier_id
+    ))
+
+
+    connection.commit()
+    connection.close()
+
+
+    return redirect(
+        url_for(
+            "supplier_management",
+            page=page,
+            search=search
+        )
+    )
+
+@app.route("/supplier/delete", methods=["POST"])
+def delete_supplier():
+
+    supplier_id = request.form["supplier_id"]
+
+    page = request.form.get("page", 1, type=int)
+    search = request.form.get("search", "").strip()
+
+    connection = get_db_connection()
+    cursor = connection.cursor()
+
+    cursor.execute("""
+        DELETE FROM restock_orders
+        WHERE supplier_id = ?
+    """, (supplier_id,))
+
+    cursor.execute("""
+        UPDATE inventory
+        SET supplier_id = NULL
+        WHERE supplier_id = ?
+    """, (supplier_id,))
+
+    cursor.execute("""
+        DELETE FROM suppliers
+        WHERE id = ?
+    """, (supplier_id,))
+
+
+    connection.commit()
+    connection.close()
+
+
+    return redirect(
+        url_for(
+            "supplier_management",
+            page=page,
+            search=search
+        )
+    )
 
 # =========================================================
 # Restock Order Management
