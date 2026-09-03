@@ -12,7 +12,7 @@ dashboard_bp = Blueprint(
 # INVENTORY DASHBOARD
 # =========================================================
 
-@dashboard_bp.route("/", methods=["GET", "POST"])
+@dashboard_bp.route("/inventory/", methods=["GET", "POST"])
 def inventory_dashboard():
 
     connection = get_db_connection()
