@@ -26,6 +26,7 @@ jobs:
       - name: Install backend dependencies
         run: |
           pip install -r student-2/backend/requirements.txt
+          pip install pytest
 
       - name: Run backend tests
         run: |
