@@ -10,6 +10,6 @@ COPY student-3 /app/student-3
 
 WORKDIR /app/student-3/backend
 
-EXPOSE 5003
+EXPOSE 5300
 
 CMD ["python", "app.py"]

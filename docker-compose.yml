@@ -213,9 +213,9 @@ services:
       dockerfile: docker/student-3.Dockerfile
     container_name: student-3-inventory
     ports:
-      - "5003:5003"
+      - "5300:5300"
     environment:
-      PORT: 5003
+      PORT: 5300
       OLLAMA_URL: http://host.docker.internal:11434/api/generate
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:0.5b}
     networks:

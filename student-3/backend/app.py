@@ -63,7 +63,7 @@ app = create_app()
 if __name__ == "__main__":
 
     port = int(
-        os.getenv("PORT", "5003")
+        os.getenv("PORT", "5300")
     )
 
     app.run(
