@@ -2,6 +2,73 @@ import sqlite3
 import requests
 import os
 
+def get_ai_restock_recommendation(question, low_stock_items):
+
+    inventory_context = ""
+
+    for item in low_stock_items:
+
+        inventory_context += (
+            f"ID: {item['id']}, "
+            f"Name: {item['name']}, "
+            f"Current Quantity: {item['quantity']}, "
+            f"Minimum Stock: {item['minimum_stock']}, "
+            f"Status: {item['status']}\n"
+        )
+
+
+    prompt = f"""
+You are an AI inventory assistant for a cafe.
+
+Use ONLY the inventory information provided below.
+
+CURRENT INVENTORY DATA:
+{inventory_context}
+
+USER QUESTION:
+{question}
+
+IMPORTANT STATUS RULES:
+- The Status field provided in the inventory data is authoritative.
+- If Status is "OUT OF STOCK", treat the item as out of stock.
+- If Status is "LOW", treat the item as low stock.
+- NEVER change, infer, or reinterpret an item's status.
+- An item with a quantity greater than 0 must NOT be described as OUT OF STOCK unless its provided Status explicitly says "OUT OF STOCK".
+- Do not place LOW items in the OUT OF STOCK category.
+- Do not place OUT OF STOCK items in the LOW category.
+
+Instructions:
+- Answer the user's inventory-related question.
+- Base your answer only on the inventory data provided.
+- Prioritise OUT OF STOCK items over LOW items.
+- Do not invent inventory items, quantities, minimum stock values, or statuses.
+- Keep the answer concise and practical for cafe staff.
+"""
+
+
+    try:
+
+        response = requests.post(
+            "http://localhost:11434/api/generate",
+            json={
+                "model": "qwen2.5:0.5b",
+                "prompt": prompt,
+                "stream": False
+            },
+            timeout=60
+        )
+
+        response.raise_for_status()
+
+        result = response.json()
+
+        return result["response"]
+
+
+    except requests.RequestException as error:
+
+        return f"AI service unavailable: {error}"
+
 
 # =========================================================
 # CONFIGURATION

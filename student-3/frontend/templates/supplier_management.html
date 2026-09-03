@@ -29,7 +29,7 @@
             <h1>Supplier Management</h1>
         </div>
 
-        <a href="{{ url_for('inventory_dashboard') }}" class="back-link">
+        <a href="{{ url_for('dashboard.inventory_dashboard') }}" class="back-link">
             ← Back to Inventory Dashboard
         </a>
 
@@ -46,7 +46,7 @@
         <form
             class="search-container"
             method="GET"
-            action="{{ url_for('supplier_management') }}"
+            action="{{ url_for('supplier.supplier_management') }}"
         >
 
             <input
@@ -140,7 +140,7 @@
             {% if page > 1 %}
 
                 <a href="{{ url_for(
-                    'supplier_management',
+                    'supplier.supplier_management',
                     page=page - 1,
                     search=search
                 ) }}">
@@ -160,7 +160,7 @@
             {% if page < total_pages %}
 
                 <a href="{{ url_for(
-                    'supplier_management',
+                    'supplier.supplier_management',
                     page=page + 1,
                     search=search
                 ) }}">
@@ -241,7 +241,7 @@
 
         <form
             method="POST"
-            action="{{ url_for('add_supplier') }}"
+            action="{{ url_for('supplier.add_supplier') }}"
             class="supplier-modal-form"
         >
 
@@ -380,7 +380,7 @@
 
         <form
             method="POST"
-            action="{{ url_for('edit_supplier') }}"
+            action="{{ url_for('supplier.edit_supplier') }}"
         >
 
             <input
@@ -556,7 +556,7 @@
 
         <form
             method="POST"
-            action="{{ url_for('delete_supplier') }}"
+            action="{{ url_for('supplier.delete_supplier') }}"
         >
 
             <input

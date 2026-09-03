@@ -54,21 +54,21 @@
     <nav class="management-buttons">
 
         <a
-            href="{{ url_for('inventory_management') }}"
+            href="{{ url_for('inventory.inventory_management') }}"
             class="management-button inventory-button"
         >
             Inventory Management
         </a>
 
         <a
-            href="{{ url_for('supplier_management') }}"
+            href="{{ url_for('supplier.supplier_management') }}"
             class="management-button supplier-button"
         >
             Supplier Management
         </a>
 
         <a
-            href="{{ url_for('restock_order_management') }}"
+            href="{{ url_for('restock.restock_order_management') }}"
             class="management-button restock-button"
         >
             Restock Order Management
@@ -238,7 +238,7 @@
             </h2>
 
 
-            <form method="POST" action="{{ url_for('inventory_dashboard') }}">
+            <form method="POST" action="{{ url_for('dashboard.inventory_dashboard') }}">
 
                 <label
                     for="ai-question"
