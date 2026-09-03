@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -14,28 +15,69 @@
             margin: 0;
             min-height: 100vh;
             font-family: Arial, sans-serif;
-            background: #f4f7fb;
-            color: #1f2937;
+            background-color: #fffdf9;
+            color: #333333;
         }
 
         header {
-            padding: 24px 7%;
-            color: white;
-            background: linear-gradient(135deg, #172554, #2563eb);
+            position: relative;
+            padding: 50px 7% 30px;
+            text-align: center;
+            background-color: #fffdf9;
         }
 
         header h1 {
-            margin: 0 0 6px;
+            margin: 0 0 10px;
+            font-size: 38px;
+            font-weight: 700;
+            color: #333333;
         }
 
         header p {
             margin: 0;
-            color: #dbeafe;
+            font-size: 16px;
+            color: #777777;
+        }
+
+        .back-button {
+            position: absolute;
+            top: 48px;
+            right: 7%;
+
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+
+            padding: 10px 16px;
+
+            background-color: #fff9e6;
+            color: #555555;
+
+            border: 1px solid #f6df9f;
+            border-radius: 8px;
+
+            font-size: 14px;
+            font-weight: 600;
+
+            text-decoration: none;
+
+            transition:
+                background-color 0.2s ease,
+                border-color 0.2s ease,
+                transform 0.2s ease;
+        }
+
+        .back-button:hover {
+            background-color: #fff3d6;
+            border-color: #efd277;
+            transform: translateY(-1px);
         }
 
         main {
-            width: min(1150px, 90%);
-            margin: 30px auto;
+            width: 92%;
+            max-width: 1150px;
+            margin: 0 auto;
+            padding-bottom: 60px;
         }
 
         .status-bar {
@@ -43,140 +85,218 @@
             justify-content: space-between;
             align-items: center;
             gap: 15px;
-            padding: 15px 18px;
-            margin-bottom: 24px;
-            border-radius: 10px;
-            background: white;
-            box-shadow: 0 4px 15px rgba(15, 23, 42, 0.08);
+
+            padding: 16px 20px;
+            margin-bottom: 25px;
+
+            background-color: #ffffff;
+            border: 2px solid #f6df9f;
+            border-radius: 14px;
+
+            box-shadow: 0 5px 18px rgba(0, 0, 0, 0.05);
         }
 
         .status {
-            font-weight: bold;
+            font-weight: 700;
         }
 
         .connected {
-            color: #15803d;
+            color: #08782f;
         }
 
         .disconnected {
-            color: #b91c1c;
+            color: #c62828;
         }
 
         .grid {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 24px;
+            gap: 25px;
         }
 
         .card {
-            padding: 24px;
-            border-radius: 14px;
-            background: white;
-            box-shadow: 0 4px 15px rgba(15, 23, 42, 0.08);
+            padding: 28px;
+
+            background-color: #ffffff;
+            border: 2px solid #f6df9f;
+            border-radius: 18px;
+
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.05);
+        }
+
+        .grid .card:nth-child(2) {
+            border-color: #f4c6d7;
         }
 
         .card h2 {
-            margin-top: 0;
-            color: #172554;
+            margin: 0 0 22px;
+            font-size: 24px;
+            font-weight: 700;
+            color: #333333;
         }
 
         label {
             display: block;
-            margin: 14px 0 6px;
+            margin: 16px 0 7px;
             font-size: 14px;
-            font-weight: bold;
+            font-weight: 600;
+            color: #444444;
         }
 
         input,
         select,
         textarea {
             width: 100%;
-            padding: 11px;
-            border: 1px solid #cbd5e1;
-            border-radius: 7px;
+            padding: 12px 14px;
+
+            border: 1px solid #dddddd;
+            border-radius: 8px;
+
+            background-color: #ffffff;
+            color: #333333;
+
             font: inherit;
+            outline: none;
+
+            transition:
+                border-color 0.2s ease,
+                box-shadow 0.2s ease;
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            border-color: #ebaec5;
+            box-shadow: 0 0 0 3px rgba(244, 198, 215, 0.25);
         }
 
         textarea {
-            min-height: 80px;
+            min-height: 90px;
             resize: vertical;
         }
 
         button {
-            padding: 11px 18px;
-            margin-top: 18px;
+            padding: 12px 20px;
+            margin-top: 20px;
+
             border: none;
-            border-radius: 7px;
-            color: white;
-            background: #2563eb;
-            font-weight: bold;
+            border-radius: 8px;
+
+            background-color: #F4C6D7;
+            color: #333333;
+
+            font-size: 14px;
+            font-weight: 600;
+
             cursor: pointer;
+
+            transition:
+                transform 0.2s ease,
+                background-color 0.2s ease,
+                box-shadow 0.2s ease;
         }
 
         button:hover {
-            background: #1d4ed8;
+            background-color: #EBAEC5;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 12px rgba(0, 0, 0, 0.08);
         }
 
         .secondary {
             margin-top: 0;
-            background: #475569;
+            background-color: #fff3d6;
+            color: #6f5818;
+            border: 1px solid #f6df9f;
         }
 
         .secondary:hover {
-            background: #334155;
+            background-color: #f6df9f;
         }
 
         .message {
             display: none;
-            padding: 12px;
-            margin-top: 16px;
-            border-radius: 7px;
+            padding: 12px 14px;
+            margin-top: 18px;
+            border-radius: 8px;
+            font-size: 14px;
             white-space: pre-wrap;
         }
 
         .success {
             display: block;
-            color: #166534;
-            background: #dcfce7;
+            color: #08782f;
+            background-color: #eaf5ed;
+            border: 1px solid #c8e5d0;
         }
 
         .error {
             display: block;
-            color: #991b1b;
-            background: #fee2e2;
+            color: #c62828;
+            background-color: #fde8e8;
+            border: 1px solid #f5bcbc;
         }
 
         .records {
-            margin-top: 24px;
+            margin-top: 25px;
+        }
+
+        .records h2 {
+            margin-bottom: 20px;
         }
 
         .table-container {
             overflow-x: auto;
+            border-radius: 10px;
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
+            background-color: #ffffff;
         }
 
         th,
         td {
-            padding: 11px;
-            border-bottom: 1px solid #e2e8f0;
+            padding: 13px 14px;
+            border-bottom: 1px solid #eeeeee;
             text-align: left;
             white-space: nowrap;
+            font-size: 14px;
         }
 
         th {
-            color: white;
-            background: #1e3a8a;
+            background-color: #fff9e6;
+            color: #333333;
+            font-size: 13px;
+            font-weight: 700;
         }
 
-        tr:hover {
-            background: #f8fafc;
+        tbody tr {
+            transition: background-color 0.2s ease;
+        }
+
+        tbody tr:hover {
+            background-color: #fffafc;
+        }
+
+        tbody tr:last-child td {
+            border-bottom: none;
         }
 
         @media (max-width: 760px) {
+            header {
+                padding: 85px 20px 30px;
+            }
+
+            header h1 {
+                font-size: 30px;
+            }
+
+            .back-button {
+                top: 25px;
+                right: 20px;
+            }
+
             .grid {
                 grid-template-columns: 1fr;
             }
@@ -185,17 +305,36 @@
                 align-items: flex-start;
                 flex-direction: column;
             }
+
+            .secondary {
+                width: 100%;
+            }
+
+            .card {
+                padding: 22px;
+            }
         }
     </style>
 </head>
 
 <body>
+
     <header>
-        <h1>Payment & Billing Service</h1>
-        <p>Student 5 Microservice Dashboard</p>
+
+        <a
+            href="http://localhost:5100/staff-dashboard"
+            class="back-button"
+        >
+            ← Back to Staff Dashboard
+        </a>
+
+        <h1>Payment &amp; Billing</h1>
+        <p>Manage payments, refunds and transaction records.</p>
+
     </header>
 
     <main>
+
         <section class="status-bar">
             <div>
                 Backend status:
@@ -210,10 +349,12 @@
         </section>
 
         <section class="grid">
+
             <div class="card">
                 <h2>Process Payment</h2>
 
                 <form id="paymentForm">
+
                     <label for="orderId">Order ID</label>
                     <input id="orderId" type="number" min="1" required>
 
@@ -229,7 +370,7 @@
                         required
                     >
 
-                    <label for="paymentMethod">Payment method</label>
+                    <label for="paymentMethod">Payment Method</label>
                     <select id="paymentMethod" required>
                         <option value="card">Card</option>
                         <option value="cash">Cash</option>
@@ -238,7 +379,10 @@
                         </option>
                     </select>
 
-                    <button type="submit">Process Payment</button>
+                    <button type="submit">
+                        Process Payment
+                    </button>
+
                 </form>
 
                 <div id="paymentMessage" class="message"></div>
@@ -248,10 +392,11 @@
                 <h2>Process Refund</h2>
 
                 <form id="refundForm">
+
                     <label for="paymentId">Payment ID</label>
                     <input id="paymentId" type="number" min="1" required>
 
-                    <label for="refundAmount">Refund amount ($)</label>
+                    <label for="refundAmount">Refund Amount ($)</label>
                     <input
                         id="refundAmount"
                         type="number"
@@ -263,21 +408,35 @@
                     <label for="refundReason">Reason</label>
                     <textarea id="refundReason" required></textarea>
 
-                    <label for="requestedBy">Requested by (customer ID)</label>
-                    <input id="requestedBy" type="number" min="1" required>
+                    <label for="requestedBy">
+                        Requested By (Customer ID)
+                    </label>
 
-                    <button type="submit">Process Refund</button>
+                    <input
+                        id="requestedBy"
+                        type="number"
+                        min="1"
+                        required
+                    >
+
+                    <button type="submit">
+                        Process Refund
+                    </button>
+
                 </form>
 
                 <div id="refundMessage" class="message"></div>
             </div>
+
         </section>
 
         <section class="card records">
+
             <h2>Payment Records</h2>
 
             <div class="table-container">
                 <table>
+
                     <thead>
                         <tr>
                             <th>ID</th>
@@ -292,17 +451,22 @@
 
                     <tbody id="paymentTable">
                         <tr>
-                            <td colspan="7">Loading payments...</td>
+                            <td colspan="7">
+                                Loading payments...
+                            </td>
                         </tr>
                     </tbody>
+
                 </table>
             </div>
+
         </section>
+
     </main>
 
     <script>
         const API_URL =
-    `${window.location.protocol}//${window.location.hostname}:8500`;
+            `${window.location.protocol}//${window.location.hostname}:8500`;
 
         function showMessage(elementId, message, successful) {
             const element = document.getElementById(elementId);
@@ -334,6 +498,7 @@
                     data.status === "healthy"
                         ? "status connected"
                         : "status disconnected";
+
             } catch (error) {
                 status.textContent = "Disconnected";
                 status.className = "status disconnected";
@@ -370,6 +535,7 @@
                         <td>${payment.paid_at || "-"}</td>
                     </tr>
                 `).join("");
+
             } catch (error) {
                 table.innerHTML = `
                     <tr>
@@ -395,7 +561,7 @@
                         document.getElementById("amount").value
                     ),
                     payment_method:
-                        document.getElementById("paymentMethod").value,
+                        document.getElementById("paymentMethod").value
                 };
 
                 try {
@@ -404,9 +570,9 @@
                         {
                             method: "POST",
                             headers: {
-                                "Content-Type": "application/json",
+                                "Content-Type": "application/json"
                             },
-                            body: JSON.stringify(payment),
+                            body: JSON.stringify(payment)
                         }
                     );
 
@@ -426,6 +592,7 @@
 
                     event.target.reset();
                     loadPayments();
+
                 } catch (error) {
                     showMessage(
                         "paymentMessage",
@@ -451,7 +618,7 @@
                         document.getElementById("refundReason").value,
                     requested_by: Number(
                         document.getElementById("requestedBy").value
-                    ),
+                    )
                 };
 
                 try {
@@ -460,9 +627,9 @@
                         {
                             method: "POST",
                             headers: {
-                                "Content-Type": "application/json",
+                                "Content-Type": "application/json"
                             },
-                            body: JSON.stringify(refund),
+                            body: JSON.stringify(refund)
                         }
                     );
 
@@ -484,6 +651,7 @@
 
                     event.target.reset();
                     loadPayments();
+
                 } catch (error) {
                     showMessage(
                         "refundMessage",
@@ -496,5 +664,7 @@
         checkBackend();
         loadPayments();
     </script>
+
 </body>
+
 </html>
