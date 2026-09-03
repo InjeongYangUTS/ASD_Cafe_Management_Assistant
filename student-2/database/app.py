@@ -169,14 +169,19 @@ def database_recipes():
 
 @app.route("/api/database/ingredients")
 def database_ingredients():
-
     conn = get_db_connection()
 
     rows = conn.execute(
         """
-        SELECT *
-        FROM ingredients
-        ORDER BY ingredient_id
+        SELECT
+            i.ingredient_id,
+            i.name,
+            i.unit,
+            ic.unit_cost
+        FROM ingredients i
+        LEFT JOIN ingredient_costs ic
+            ON i.ingredient_id = ic.ingredient_id
+        ORDER BY i.ingredient_id
         """
     ).fetchall()
 
@@ -186,6 +191,176 @@ def database_ingredients():
         dict(row)
         for row in rows
     ])
+
+
+@app.route("/api/database/ingredients/<int:ingredient_id>", methods=["GET"])
+def database_ingredient(ingredient_id):
+    conn = get_db_connection()
+
+    ingredient = conn.execute(
+        """
+        SELECT
+            i.ingredient_id,
+            i.name,
+            i.unit,
+            ic.unit_cost
+        FROM ingredients i
+        LEFT JOIN ingredient_costs ic
+            ON i.ingredient_id = ic.ingredient_id
+        WHERE i.ingredient_id = ?
+        """,
+        (ingredient_id,)
+    ).fetchone()
+
+    conn.close()
+
+    if ingredient is None:
+        return jsonify({
+            "error": "Ingredient not found"
+        }), 404
+
+    return jsonify(dict(ingredient))
+
+
+@app.route("/api/database/ingredients", methods=["POST"])
+def create_database_ingredient():
+    data = request.get_json()
+
+    conn = get_db_connection()
+
+    cursor = conn.execute(
+        """
+        INSERT INTO ingredients (name, unit)
+        VALUES (?, ?)
+        """,
+        (
+            data["name"],
+            data["unit"]
+        )
+    )
+
+    ingredient_id = cursor.lastrowid
+
+    conn.execute(
+        """
+        INSERT INTO ingredient_costs
+        (ingredient_id, unit_cost)
+        VALUES (?, ?)
+        """,
+        (
+            ingredient_id,
+            data["unit_cost"]
+        )
+    )
+
+    conn.commit()
+    conn.close()
+
+    return jsonify({
+        "message": "Ingredient created",
+        "ingredient_id": ingredient_id
+    }), 201
+
+
+@app.route("/api/database/ingredients/<int:ingredient_id>", methods=["PUT"])
+def update_database_ingredient(ingredient_id):
+    data = request.get_json()
+
+    conn = get_db_connection()
+
+    ingredient = conn.execute(
+        """
+        SELECT ingredient_id
+        FROM ingredients
+        WHERE ingredient_id = ?
+        """,
+        (ingredient_id,)
+    ).fetchone()
+
+    if ingredient is None:
+        conn.close()
+
+        return jsonify({
+            "error": "Ingredient not found"
+        }), 404
+
+    conn.execute(
+        """
+        UPDATE ingredients
+        SET
+            name = ?,
+            unit = ?
+        WHERE ingredient_id = ?
+        """,
+        (
+            data["name"],
+            data["unit"],
+            ingredient_id
+        )
+    )
+
+    conn.execute(
+        """
+        UPDATE ingredient_costs
+        SET unit_cost = ?
+        WHERE ingredient_id = ?
+        """,
+        (
+            data["unit_cost"],
+            ingredient_id
+        )
+    )
+
+    conn.commit()
+    conn.close()
+
+    return jsonify({
+        "message": "Ingredient updated"
+    })
+
+
+@app.route("/api/database/ingredients/<int:ingredient_id>", methods=["DELETE"])
+def delete_database_ingredient(ingredient_id):
+    conn = get_db_connection()
+
+    ingredient = conn.execute(
+        """
+        SELECT ingredient_id
+        FROM ingredients
+        WHERE ingredient_id = ?
+        """,
+        (ingredient_id,)
+    ).fetchone()
+
+    if ingredient is None:
+        conn.close()
+
+        return jsonify({
+            "error": "Ingredient not found"
+        }), 404
+
+    conn.execute(
+        """
+        DELETE FROM ingredient_costs
+        WHERE ingredient_id = ?
+        """,
+        (ingredient_id,)
+    )
+
+    conn.execute(
+        """
+        DELETE FROM ingredients
+        WHERE ingredient_id = ?
+        """,
+        (ingredient_id,)
+    )
+
+    conn.commit()
+    conn.close()
+
+    return jsonify({
+        "message": "Ingredient deleted"
+    })
 
 
 if __name__ == "__main__":

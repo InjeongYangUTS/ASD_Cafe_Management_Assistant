@@ -334,23 +334,24 @@ def update_menu_price(menu_id):
 
 @app.route("/api/ingredients", methods=["GET"])
 def get_ingredients():
-    conn = get_db_connection()
+    try:
+        response = requests.get(
+            "http://student2-database:5202/api/database/ingredients",
+            timeout=10
+        )
 
-    ingredients = conn.execute("""
-        SELECT
-            i.ingredient_id,
-            i.name,
-            i.unit,
-            ic.unit_cost
-        FROM ingredients i
-        LEFT JOIN ingredient_costs ic
-            ON i.ingredient_id = ic.ingredient_id
-        ORDER BY i.ingredient_id
-    """).fetchall()
+        if not response.ok:
+            return jsonify({
+                "error": "Unable to retrieve ingredients"
+            }), response.status_code
 
-    conn.close()
+        return jsonify(response.json())
 
-    return jsonify([dict(ingredient) for ingredient in ingredients])
+    except requests.RequestException:
+        return jsonify({
+            "error": "Unable to connect to database service"
+        }), 500
+
 
 # -----------------------------
 # GET ONE INGREDIENT
@@ -358,28 +359,29 @@ def get_ingredients():
 
 @app.route("/api/ingredients/<int:ingredient_id>", methods=["GET"])
 def get_ingredient(ingredient_id):
-    conn = get_db_connection()
+    try:
+        response = requests.get(
+            f"http://student2-database:5202/api/database/ingredients/{ingredient_id}",
+            timeout=10
+        )
 
-    ingredient = conn.execute("""
-        SELECT
-            i.ingredient_id,
-            i.name,
-            i.unit,
-            ic.unit_cost
-        FROM ingredients i
-        LEFT JOIN ingredient_costs ic
-            ON i.ingredient_id = ic.ingredient_id
-        WHERE i.ingredient_id = ?
-    """, (ingredient_id,)).fetchone()
+        if response.status_code == 404:
+            return jsonify({
+                "error": "Ingredient not found"
+            }), 404
 
-    conn.close()
+        if not response.ok:
+            return jsonify({
+                "error": "Unable to retrieve ingredient"
+            }), response.status_code
 
-    if ingredient is None:
+        return jsonify(response.json())
+
+    except requests.RequestException:
         return jsonify({
-            "error": "Ingredient not found"
-        }), 404
+            "error": "Unable to connect to database service"
+        }), 500
 
-    return jsonify(dict(ingredient))
 
 # -----------------------------
 # CREATE INGREDIENT
@@ -414,35 +416,24 @@ def create_ingredient():
             "error": "Unit cost must be a valid positive number"
         }), 400
 
-    conn = get_db_connection()
+    try:
+        response = requests.post(
+            "http://student2-database:5202/api/database/ingredients",
+            json={
+                "name": name,
+                "unit": unit,
+                "unit_cost": unit_cost
+            },
+            timeout=10
+        )
 
-    cursor = conn.execute("""
-        INSERT INTO ingredients
-        (name, unit)
-        VALUES (?, ?)
-    """, (
-        name,
-        unit
-    ))
+        return jsonify(response.json()), response.status_code
 
-    ingredient_id = cursor.lastrowid
+    except requests.RequestException:
+        return jsonify({
+            "error": "Unable to connect to database service"
+        }), 500
 
-    conn.execute("""
-        INSERT INTO ingredient_costs
-        (ingredient_id, unit_cost)
-        VALUES (?, ?)
-    """, (
-        ingredient_id,
-        unit_cost
-    ))
-
-    conn.commit()
-    conn.close()
-
-    return jsonify({
-        "message": "Ingredient created successfully",
-        "ingredient_id": ingredient_id
-    }), 201
 
 # -----------------------------
 # UPDATE INGREDIENT
@@ -457,71 +448,59 @@ def update_ingredient(ingredient_id):
             "error": "Request body is required"
         }), 400
 
-    conn = get_db_connection()
-
-    ingredient = conn.execute("""
-        SELECT
-            i.ingredient_id,
-            i.name,
-            i.unit,
-            ic.unit_cost
-        FROM ingredients i
-        LEFT JOIN ingredient_costs ic
-            ON i.ingredient_id = ic.ingredient_id
-        WHERE i.ingredient_id = ?
-    """, (ingredient_id,)).fetchone()
-
-    if ingredient is None:
-        conn.close()
-
-        return jsonify({
-            "error": "Ingredient not found"
-        }), 404
-
-    name = data.get("name", ingredient["name"])
-    unit = data.get("unit", ingredient["unit"])
-    unit_cost = data.get("unit_cost", ingredient["unit_cost"])
-
     try:
-        unit_cost = float(unit_cost)
+        existing_response = requests.get(
+            f"http://student2-database:5202/api/database/ingredients/{ingredient_id}",
+            timeout=10
+        )
 
-        if unit_cost < 0:
-            raise ValueError
+        if existing_response.status_code == 404:
+            return jsonify({
+                "error": "Ingredient not found"
+            }), 404
 
-    except (TypeError, ValueError):
-        conn.close()
+        if not existing_response.ok:
+            return jsonify({
+                "error": "Unable to retrieve ingredient"
+            }), existing_response.status_code
 
+        existing = existing_response.json()
+
+        name = data.get("name", existing["name"])
+        unit = data.get("unit", existing["unit"])
+        unit_cost = data.get(
+            "unit_cost",
+            existing["unit_cost"]
+        )
+
+        try:
+            unit_cost = float(unit_cost)
+
+            if unit_cost < 0:
+                raise ValueError
+
+        except (TypeError, ValueError):
+            return jsonify({
+                "error": "Unit cost must be a valid positive number"
+            }), 400
+
+        response = requests.put(
+            f"http://student2-database:5202/api/database/ingredients/{ingredient_id}",
+            json={
+                "name": name,
+                "unit": unit,
+                "unit_cost": unit_cost
+            },
+            timeout=10
+        )
+
+        return jsonify(response.json()), response.status_code
+
+    except requests.RequestException:
         return jsonify({
-            "error": "Unit cost must be a valid positive number"
-        }), 400
+            "error": "Unable to connect to database service"
+        }), 500
 
-    conn.execute("""
-        UPDATE ingredients
-        SET
-            name = ?,
-            unit = ?
-        WHERE ingredient_id = ?
-    """, (
-        name,
-        unit,
-        ingredient_id
-    ))
-
-    conn.execute("""
-        UPDATE ingredient_costs
-        SET unit_cost = ?
-        WHERE ingredient_id = ?
-    """, (
-        unit_cost,
-        ingredient_id
-    ))
-
-    conn.commit()
-    conn.close()
-
-    return jsonify({
-        "message": "Ingredient updated successfully"
-    })
 
 # -----------------------------
 # DELETE INGREDIENT
@@ -529,37 +508,30 @@ def update_ingredient(ingredient_id):
 
 @app.route("/api/ingredients/<int:ingredient_id>", methods=["DELETE"])
 def delete_ingredient(ingredient_id):
-    conn = get_db_connection()
+    try:
+        response = requests.delete(
+            f"http://student2-database:5202/api/database/ingredients/{ingredient_id}",
+            timeout=10
+        )
 
-    ingredient = conn.execute("""
-        SELECT *
-        FROM ingredients
-        WHERE ingredient_id = ?
-    """, (ingredient_id,)).fetchone()
+        if response.status_code == 404:
+            return jsonify({
+                "error": "Ingredient not found"
+            }), 404
 
-    if ingredient is None:
-        conn.close()
+        if not response.ok:
+            return jsonify({
+                "error": "Unable to delete ingredient"
+            }), response.status_code
 
         return jsonify({
-            "error": "Ingredient not found"
-        }), 404
+            "message": "Ingredient deleted successfully"
+        })
 
-    conn.execute("""
-        DELETE FROM ingredient_costs
-        WHERE ingredient_id = ?
-    """, (ingredient_id,))
-
-    conn.execute("""
-        DELETE FROM ingredients
-        WHERE ingredient_id = ?
-    """, (ingredient_id,))
-
-    conn.commit()
-    conn.close()
-
-    return jsonify({
-        "message": "Ingredient deleted successfully"
-    })
+    except requests.RequestException:
+        return jsonify({
+            "error": "Unable to connect to database service"
+        }), 500
 
 # -----------------------------
 # GET ALL RECIPES
