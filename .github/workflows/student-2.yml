@@ -1,0 +1,60 @@
+name: Student 2 CI
+
+on:
+  push:
+    branches:
+      - student-2-menu-recipe
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  student2-build-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # ---------- Backend ----------
+      - name: Install backend dependencies
+        run: |
+          pip install -r student-2/backend/requirements.txt
+          pip install pytest
+
+      - name: Install database dependencies
+        run: |
+          pip install -r student-2/database/requirements.txt
+
+      - name: Start database service
+        run: |
+          python student-2/database/app.py &
+          sleep 3
+        
+      - name: Run backend tests
+        run: |
+          pytest student-2/tests/test_backend.py -v
+
+      # ---------- Frontend ----------
+      - name: Install frontend dependencies
+        run: |
+          pip install -r student-2/frontend/requirements.txt
+
+      # ---------- Database ----------
+      - name: Verify database service
+        run: |
+          python -m py_compile student-2/database/app.py
+
+      # ---------- Docker ----------
+      - name: Build Student 2 containers
+        run: |
+          docker compose build \
+            student2-database \
+            student2-backend \
+            student2-frontend

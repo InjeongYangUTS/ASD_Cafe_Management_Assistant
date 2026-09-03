@@ -99,7 +99,7 @@ services:
     environment:
       PORT: 8400
       DB_SERVICE_URL: http://student-4-database:7400
-      MENU_SERVICE_URL: http://student-2-backend:8200        # Student 2 - Menu API
+      MENU_SERVICE_URL: http://student2-backend:5201       # Student 2 - Menu API
       INVENTORY_SERVICE_URL: http://student-3-backend:8300   # Student 3 - Inventory API
       OLLAMA_URL: http://ollama:11434
       OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2}
@@ -156,29 +156,44 @@ services:
   #   networks: [cafe-net]
 
   # ===================================================================
-  # STUDENT 2 - Ei Thandar - Menu & Recipe
-  #   student-4-backend calls http://student-2-backend:8200/api/menus
+  # STUDENT 2 - Ei Thandar - Menu & Recipe Management
   # ===================================================================
-  # student-2-database:
-  #   build: ./student-2/database
-  #   container_name: student-2-database
-  #   ports: ["7200:7200"]
-  #   networks: [cafe-net]
-  #
-  # student-2-backend:
-  #   build: ./student-2/backend
-  #   container_name: student-2-backend
-  #   ports: ["8200:8200"]
-  #   environment:
-  #     DB_SERVICE_URL: http://student-2-database:7200
-  #     OLLAMA_URL: http://ollama:11434
-  #   networks: [cafe-net]
-  #
-  # student-2-frontend:
-  #   build: ./student-2/frontend
-  #   container_name: student-2-frontend
-  #   ports: ["5200:5200"]
-  #   networks: [cafe-net]
+
+  student2-database:
+    build:
+      context: ./student-2/database
+      dockerfile: Dockerfile
+    container_name: student2-database
+    ports:
+      - "5202:5202"
+    networks:
+      - cafe-net
+
+  student2-backend:
+    build:
+      context: ./student-2
+      dockerfile: backend/Dockerfile
+    container_name: student2-backend
+    ports:
+      - "5201:5201"
+    environment:
+      DATABASE_SERVICE_URL: http://student2-database:5202
+    depends_on:
+      - student2-database
+    networks:
+      - cafe-net
+
+  student2-frontend:
+    build:
+      context: ./student-2/frontend
+      dockerfile: Dockerfile
+    container_name: student2-frontend
+    ports:
+      - "5200:5200"
+    depends_on:
+      - student2-backend
+    networks:
+      - cafe-net
 
   # ===================================================================
   # STUDENT 3 - Injeong Yang (Sam) - Inventory & Restocking
