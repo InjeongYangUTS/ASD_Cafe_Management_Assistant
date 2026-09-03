@@ -7,7 +7,7 @@ app = Flask(__name__)
 CORS(app)
 
 
-DATABASE_SERVICE = os.getenv("DATABASE_SERVICE_URL", "http://student2-database:5202")
+DATABASE_SERVICE = os.getenv("DATABASE_SERVICE_URL", "http://localhost:5202")
 
 
 # =========================================================
