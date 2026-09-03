@@ -17,6 +17,8 @@ services:
     container_name: student2-backend
     ports:
       - "5201:5201"
+    environment:
+    - DATABASE_SERVICE_URL=http://student2-database:5202
     depends_on:
       - student2-database
     networks:

@@ -28,9 +28,18 @@ jobs:
           pip install -r student-2/backend/requirements.txt
           pip install pytest
 
+      - name: Install database dependencies
+        run: |
+          pip install -r student-2/database/requirements.txt
+
+      - name: Start database service
+        run: |
+          python student-2/database/app.py &
+          sleep 3
+        
       - name: Run backend tests
         run: |
-          pytest student-2/tests/test_backend.py
+          pytest student-2/tests/test_backend.py -v
 
       # ---------- Frontend ----------
       - name: Install frontend dependencies
@@ -38,10 +47,6 @@ jobs:
           pip install -r student-2/frontend/requirements.txt
 
       # ---------- Database ----------
-      - name: Install database dependencies
-        run: |
-          pip install -r student-2/database/requirements.txt
-
       - name: Verify database service
         run: |
           python -m py_compile student-2/database/app.py

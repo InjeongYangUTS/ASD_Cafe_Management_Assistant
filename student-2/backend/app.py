@@ -1,12 +1,13 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 import requests
+import os
 
 app = Flask(__name__)
 CORS(app)
 
 
-DATABASE_SERVICE = "http://student2-database:5202"
+DATABASE_SERVICE = os.getenv("DATABASE_SERVICE_URL", "http://student2-database:5202")
 
 
 # =========================================================
