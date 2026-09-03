@@ -25,8 +25,7 @@ services:
   ollama:
     image: ollama/ollama:latest
     container_name: cafe-ollama
-    ports:
-      - "11434:11434"
+   
     volumes:
       - ollama-models:/root/.ollama
     networks:
@@ -229,14 +228,16 @@ services:
     environment:
       PORT: 8300
       DB_SERVICE_URL: http://student-3-database:7300
-      OLLAMA_URL: http://host.docker.internal:11434/api/generate
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:0.5b}
+      OLLAMA_URL: http://ollama:11434/api/generate
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2}
       LOG_DIRECTORY: /app/logs
     volumes:
       - ./student-3/logs:/app/logs
     depends_on:
       student-3-database:
         condition: service_healthy
+      ollama-init:
+        condition: service_completed_successfully
     networks:
       - cafe-net
     healthcheck:
