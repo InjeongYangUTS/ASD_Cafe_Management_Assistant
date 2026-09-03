@@ -40,6 +40,7 @@ The generated `payments.db` file and Python cache files are excluded from Git.
 flowchart TD
     Browser["Staff browser :5500"] --> Frontend["Student 5 frontend"]
     Frontend --> Backend["Student 5 backend :8500"]
+    Backend <--> OrderAPI["Student 4 order API :8400"]
     Backend --> DatabaseAPI["Student 5 database API :7500"]
     DatabaseAPI --> SQLite[("payments.db")]
 ```
@@ -319,7 +320,7 @@ The implemented team integration is:
 - Student 5 verifies that the submitted payment amount matches the order total.
 - Student 5 rejects completed or cancelled orders.
 - After successful payment, Student 5 requests that Student 4 mark the order as completed.
-- If the status update fails, the payment remains recorded and the response includes an integration warning..
+- If the status update fails, the payment remains recorded and the response includes an integration warning.
 
 The Student 5 database stores external order and customer identifiers as integers because foreign-key constraints cannot cross independent microservice databases.
 
@@ -332,6 +333,5 @@ The Student 5 database stores external order and customer identifiers as integer
 - Customer-specific payment history is not currently filtered by an authenticated session.
 - Payment processing is simulated; it does not contact a real payment provider.
 - The backend currently accepts order and customer identifiers supplied in the request.
-- Automatic updating of Student 4 order status is a future integration point.
 - SQLite is appropriate for this university prototype but would require a more scalable database and secure deployment design for production use.
 - The current Docker database is recreated from seed data when its image is rebuilt.

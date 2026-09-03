@@ -244,7 +244,8 @@ def staff_dashboard():
     return render_template(
         "staff_dashboard.html",
         staff_name=session.get("staff_name"),
-        staff_role=session.get("staff_role")
+        staff_role=session.get("staff_role"),
+        S5="http://localhost:5500"
     )
 
 if __name__ == "__main__":
