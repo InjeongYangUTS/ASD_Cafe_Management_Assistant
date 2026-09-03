@@ -18,6 +18,9 @@
             <th>Items</th>
             <th>Status</th>
             <th style="text-align: right;">Total</th>
+            {% if customer_view %}
+            <th>Payment</th>
+            {% endif %}
         </tr>
     </thead>
     <tbody>
@@ -36,6 +39,20 @@
             <td><span class="s4-badge {{ order.status }}">{{ order.status }}</span></td>
 
             <td class="s4-num">${{ "%.2f"|format(order.total_amount) }}</td>
+            <td>
+                {% if order.status == "READY" %}
+                <a
+                     class="s4-btn green small"
+                     href="http://localhost:5500/?mode=customer&amp;order_id={{ order.id }}&amp;customer_id={{ order.customer_id }}&amp;amount={{ '%.2f'|format(order.total_amount) }}"
+                >
+                     Pay Now
+                </a>
+                {% elif order.status == "COMPLETED" %}
+                <span class="s4-badge COMPLETED">Paid</span>
+                {% else %}
+                <span class="s4-muted">Not ready</span>
+                {% endif %}
+            </td>
         </tr>
         {% endfor %}
     </tbody>
