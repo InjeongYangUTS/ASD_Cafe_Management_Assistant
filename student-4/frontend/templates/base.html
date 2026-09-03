@@ -24,10 +24,14 @@
         </div>
 
         <nav class="s4-nav">
-            <a href="/pos" class="{{ 'active' if active == 'pos' }}">POS</a>
+            <a href="/pos" class="{{ 'active' if active == 'pos' }}">
+                {{ "Order" if is_customer else "POS" }}
+            </a>
+            {% if not is_customer %}
             <a href="/kitchen" class="{{ 'active' if active == 'kitchen' }}">Kitchen Display</a>
             <a href="/status" class="{{ 'active' if active == 'status' }}">Order Status</a>
-            <a href="{{ shared_home }}">← Staff Dashboard</a>
+            {% endif %}
+            <a href="{{ shared_home }}">← {{ shared_home_label }}</a>
         </nav>
 
     </header>

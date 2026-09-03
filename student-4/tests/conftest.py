@@ -89,3 +89,23 @@ def sample_order_payload(**overrides):
     }
     payload.update(overrides)
     return payload
+
+
+@pytest.fixture()
+def frontend_app():
+    """The frontend microservice, with no backend behind it."""
+    FRONTEND_DIR = os.path.join(STUDENT_DIR, "frontend")
+    os.environ.setdefault("SHARED_DIR", FRONTEND_DIR)
+
+    sys.path.insert(0, FRONTEND_DIR)
+
+    if "app" in sys.modules:
+        del sys.modules["app"]
+
+    module = importlib.import_module("app")
+    module.app.config.update(TESTING=True)
+
+    yield module.app
+
+    sys.path.remove(FRONTEND_DIR)
+    del sys.modules["app"]
