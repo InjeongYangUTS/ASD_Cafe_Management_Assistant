@@ -1,0 +1,332 @@
+# =====================================================================
+# ASD 2026 Release 0 - Student 1 (Hangyeol Yi)
+# Customer Feedback & Reviews - build and validate my microservices.
+#
+# Stages follow the Lab 05 pipeline shape:
+#
+#   lint-and-unit   fast feedback: syntax, prompts, pytest. No containers.
+#   build-images    the three student-1 images build from the shared
+#                   docker-compose.yml.
+#   smoke-check     bring the stack up and prove every endpoint answers,
+#                   the seeded data is there, and CRUD works end to end.
+#   agentic-loop    run the PLAN -> ACT -> OBSERVE -> ADAPT loop against
+#                   the running stack, deterministic checks only.
+#   evidence-pack   collect the reports and upload them as an artifact.
+#
+# AI-Mode is NOT exercised here. A GitHub runner has no GPU and pulling a
+# model would take longer than the job allows, so the loop runs with
+# --no-ai. The LLM path is demonstrated locally and in the showcase video;
+# claiming it ran in CI when it did not would be false evidence.
+# =====================================================================
+
+name: student-1
+
+on:
+  push:
+    paths:
+      - "student-1/**"
+      - "docker-compose.yml"
+      - ".github/workflows/student-1.yml"
+  pull_request:
+    paths:
+      - "student-1/**"
+      - "docker-compose.yml"
+      - ".github/workflows/student-1.yml"
+  workflow_dispatch:
+
+jobs:
+
+  # -------------------------------------------------------------------
+  lint-and-unit:
+    name: Lint and unit tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r student-1/backend/requirements.txt
+          pip install -r student-1/frontend/requirements.txt
+          pip install pytest
+
+      - name: Compile every Python file
+        run: python -m compileall -q student-1
+
+      - name: Check the prompt files exist and carry their placeholders
+        run: |
+          set -e
+          for file in \
+            student-1/prompts/service/ask_system_prompt.txt \
+            student-1/prompts/service/ask_task_prompt.txt \
+            student-1/prompts/service/sentiment_system_prompt.txt \
+            student-1/prompts/service/sentiment_task_prompt.txt \
+            student-1/prompts/agentic/implementation_system_prompt.txt \
+            student-1/prompts/agentic/implementation_task_prompt.txt \
+            student-1/prompts/agentic/review_system_prompt.txt \
+            student-1/prompts/agentic/review_task_prompt.txt
+          do
+            test -s "$file" || { echo "MISSING OR EMPTY: $file"; exit 1; }
+            echo "OK $file"
+          done
+          grep -q "{{REVIEW_SUMMARY}}"  student-1/prompts/service/ask_task_prompt.txt
+          grep -q "{{STAFF_QUESTION}}"  student-1/prompts/service/ask_task_prompt.txt
+          grep -q "{{VALIDATION_EVIDENCE}}" student-1/prompts/agentic/implementation_task_prompt.txt
+          grep -q "{{IMPLEMENTATION_RECOMMENDATION}}" student-1/prompts/agentic/review_task_prompt.txt
+          echo "All prompt placeholders present"
+
+      - name: Seed the database and run pytest
+        run: |
+          cd student-1
+          python database/seed.py
+          python -m pytest tests -v --tb=short
+        env:
+          FEEDBACK_DB_PATH: ${{ github.workspace }}/student-1/database/feedback.db
+
+  # -------------------------------------------------------------------
+  build-images:
+    name: Build student-1 images
+    runs-on: ubuntu-latest
+    needs: [lint-and-unit]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show docker compose version
+        run: docker compose version
+
+      - name: Validate the shared compose configuration
+        run: docker compose config --quiet
+
+      - name: Build the three student-1 services
+        run: |
+          docker compose build \
+            student-1-database \
+            student-1-backend \
+            student-1-frontend
+
+      - name: List the images that were produced
+        run: docker images --filter "reference=*student-1*" --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}"
+
+  # -------------------------------------------------------------------
+  smoke-check:
+    name: Smoke check the running stack
+    runs-on: ubuntu-latest
+    needs: [build-images]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install test dependencies
+        run: pip install requests
+
+      # Only my three services plus the shared entry point. Starting the
+      # whole team stack would make this job fail whenever a teammate's
+      # container is broken, which tells me nothing about my own code.
+      - name: Start student-1 services
+        run: |
+          docker compose up -d \
+            student-1-database \
+            student-1-backend \
+            student-1-frontend
+
+      - name: Wait for the services to report healthy
+        run: |
+          check_url() {
+            local url="$1"
+            local attempts=30
+
+            for i in $(seq 1 "$attempts"); do
+              code=$(curl -sS -o /dev/null -w "%{http_code}" \
+                     --connect-timeout 5 --max-time 20 "$url" || true)
+              if [ "$code" = "200" ]; then
+                echo "PASS $url -> $code"
+                return 0
+              fi
+              echo "Retry $i/$attempts for $url (got: ${code:-none})"
+              sleep 2
+            done
+
+            echo "FAIL $url after $attempts attempts"
+            return 1
+          }
+
+          check_url "http://localhost:7100/db/health"
+          check_url "http://localhost:8100/api/health"
+          check_url "http://localhost:5110/health"
+          check_url "http://localhost:5110/review"
+          check_url "http://localhost:5110/reviews"
+
+      - name: Verify the seeded data meets the Release 0 minimum
+        run: |
+          python - <<'PY'
+          import json, sys, urllib.request
+
+          stats = json.load(urllib.request.urlopen(
+              "http://localhost:7100/db/stats", timeout=10))
+          counts = stats["row_counts"]
+
+          print(json.dumps(counts, indent=2))
+
+          failures = [
+              "%s holds %d rows, Release 0 requires 10" % (table, rows)
+              for table, rows in counts.items() if rows < 10
+          ]
+
+          if failures:
+              print("\n".join(failures))
+              sys.exit(1)
+
+          print("Both tables meet the 10-record minimum")
+          PY
+
+      - name: Run the CRUD smoke test
+        run: python student-1/tests/smoke_database.py
+        env:
+          DB_URL: http://localhost:7100
+
+      - name: Show container logs on failure
+        if: failure()
+        run: docker compose logs --no-color --tail 200
+
+      - name: Stop services
+        if: always()
+        run: docker compose down -v
+
+  # -------------------------------------------------------------------
+  agentic-loop:
+    name: Agentic loop (deterministic checks)
+    runs-on: ubuntu-latest
+    needs: [smoke-check]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r student-1/backend/requirements.txt
+
+      - name: Start student-1 services
+        run: |
+          docker compose up -d \
+            student-1-database \
+            student-1-backend \
+            student-1-frontend
+
+      - name: Wait for the backend
+        run: |
+          for i in $(seq 1 30); do
+            code=$(curl -sS -o /dev/null -w "%{http_code}" \
+                   --max-time 10 http://localhost:8100/api/health || true)
+            [ "$code" = "200" ] && break
+            sleep 2
+          done
+          curl -sS http://localhost:8100/api/health
+
+      # --no-ai because the runner has no model. The loop still runs its
+      # data-quality, endpoint and NFR checks and fails the job on any of
+      # them, which is the part CI can honestly verify.
+      - name: Run PLAN -> ACT -> OBSERVE -> ADAPT
+        run: python student-1/agentic_loop.py --no-ai --no-input
+        env:
+          DB_SERVICE_URL: http://localhost:7100
+          BACKEND_URL: http://localhost:8100
+          FRONTEND_URL: http://localhost:5110
+
+      - name: Upload the agentic loop evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: student-1-agentic-loop
+          path: student-1/agentic/logs/
+          if-no-files-found: warn
+
+      - name: Stop services
+        if: always()
+        run: docker compose down -v
+
+  # -------------------------------------------------------------------
+  evidence-pack:
+    name: Evidence pack
+    runs-on: ubuntu-latest
+    needs: [agentic-loop]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create the reports directory
+        run: mkdir -p student-1/reports
+
+      - name: Generate report.json
+        run: |
+          cat > student-1/reports/report.json << EOF
+          {
+            "workflow_name": "student-1",
+            "student": "Student 1 - Hangyeol Yi",
+            "feature": "Customer Feedback & Reviews",
+            "services": [
+              "student-1-database",
+              "student-1-backend",
+              "student-1-frontend"
+            ],
+            "run_id": "${{ github.run_id }}",
+            "run_number": "${{ github.run_number }}",
+            "commit_sha": "${{ github.sha }}",
+            "branch": "${{ github.ref_name }}",
+            "generated_timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          }
+          EOF
+          cat student-1/reports/report.json
+
+      - name: Generate report.md
+        run: |
+          cat > student-1/reports/report.md << EOF
+          ## Student 1 Workflow Report - Customer Feedback & Reviews
+
+          - Workflow: student-1
+          - Run ID: ${{ github.run_id }} (run #${{ github.run_number }})
+          - Commit SHA: ${{ github.sha }}
+          - Branch: ${{ github.ref_name }}
+          - Generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+          ### Stages
+
+          | Stage | Purpose |
+          |---|---|
+          | lint-and-unit | compileall, prompt placeholder check, pytest |
+          | build-images | build the three student-1 images from the shared compose file |
+          | smoke-check | endpoints answer, 10-record minimum, CRUD smoke test |
+          | agentic-loop | PLAN to ADAPT, deterministic checks, evidence uploaded |
+          | evidence-pack | this report |
+
+          ### Note on AI-Mode
+
+          The GitHub runner has no model available, so the agentic loop runs
+          with --no-ai. AI-Mode through Ollama and the approved open-source
+          LLM is demonstrated locally and in the showcase video.
+          EOF
+          cat student-1/reports/report.md
+
+      - name: Generate run-view.md
+        run: |
+          cat > student-1/reports/run-view.md << EOF
+          Run URL:
+          https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          EOF
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: student-1-report
+          path: student-1/reports/

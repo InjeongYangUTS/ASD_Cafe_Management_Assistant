@@ -1,0 +1,8 @@
+Flask==3.0.3
+requests==2.32.3
+gunicorn==22.0.0
+
+# zoneinfo needs the IANA database, which python:*-slim does not ship.
+# Without it ZoneInfo("Australia/Sydney") raises at import and the whole
+# frontend fails to start.
+tzdata==2024.1

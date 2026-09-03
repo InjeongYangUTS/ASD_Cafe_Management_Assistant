@@ -1,0 +1,32 @@
+Feature Name:
+Customer Feedback & Reviews (Student 1)
+
+Database Tables:
+- customer_feedback (customer_id, order_id, rating, title, comment,
+  category, status, staff_response, sentiment, sentiment_score,
+  ai_summary, ai_issues, submitted_at)
+- store_logs (feedback_id, action, actor, actor_role, detail, created_at)
+
+Important domain rules:
+- A customer supplies ONLY a star rating and a comment. The category is
+  derived by the service, never chosen by the customer.
+- A review may exist without an order_id. Not every review is linked to
+  an order.
+- Menu items and orders are owned by other microservices. Never suggest
+  reading their tables directly.
+
+Review Summary:
+{{REVIEW_SUMMARY}}
+
+Staff Question:
+{{STAFF_QUESTION}}
+
+Task:
+Answer the staff question using only the Review Summary above.
+
+Output rules:
+- Two or three short sentences.
+- Include the relevant numbers.
+- Name only menu items that appear in the Review Summary.
+- If the summary does not answer the question, write:
+  Information unavailable in supplied context.

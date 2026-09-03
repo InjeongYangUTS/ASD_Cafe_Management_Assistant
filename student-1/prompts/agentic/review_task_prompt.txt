@@ -1,0 +1,42 @@
+Application Scope:
+- tables: customer_feedback, store_logs
+- services: student-1-database (7100), student-1-backend (8100),
+  student-1-frontend (5110)
+- endpoints: /api/feedback, /api/feedback/<id>, /api/summary, /api/logs,
+  /api/ai/ask, /api/ai/analyse-pending, /api/ai/insights, /api/health
+
+Important domain rules:
+- store_logs has NO foreign key cascade on purpose, so that a DELETED log
+  entry survives the review it describes. Any recommendation to add
+  ON DELETE CASCADE is invalid.
+- The customer gives only a rating and a comment. Any recommendation to
+  add a customer-facing category selector is invalid.
+- Cross-service data is reached over HTTP only. Any recommendation to read
+  another service's SQLite file directly is invalid.
+
+Implementation Recommendation:
+{{IMPLEMENTATION_RECOMMENDATION}}
+
+Validation Evidence:
+{{VALIDATION_EVIDENCE}}
+
+Task:
+Before reviewing the recommendation, use the validation evidence provided.
+Review only the implementation-agent recommendation and identify
+evidence-backed risks or corrections. If no evidence-backed risk exists,
+say so.
+
+Format:
+Risk: <one short sentence>
+Correction: <one short sentence>
+Retest: <one short sentence>
+
+If no risk is supported by the evidence, use:
+Risk: No evidence-backed risk identified.
+Correction: No correction required.
+Retest: Repeat validation after future changes.
+
+Output rules:
+- Return exactly three lines.
+- Maximum 35 words total.
+- Do not explain reasoning.
