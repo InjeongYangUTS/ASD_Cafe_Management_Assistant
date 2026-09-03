@@ -1,14 +1,10 @@
 {#-
-Feature service base URLs - see staff_dashboard.html for the full note.
-Built from the host the BROWSER used, so the cards work from any device
-on the network, not only from localhost.
+Feature base URLs - same rule as staff_dashboard.html: built from the host
+the BROWSER used, so the cards work from any machine on the network.
 -#}
 {%- set HOST = request.scheme ~ '://' ~ request.host.split(':')[0] -%}
 {%- set S1 = HOST ~ ':5110' -%}
-{%- set S2 = HOST ~ ':5200' -%}
-{%- set S3 = HOST ~ ':5300' -%}
 {%- set S4 = HOST ~ ':5400' -%}
-{%- set S5 = HOST ~ ':5500' -%}
 <!DOCTYPE html>
 <html lang="en">
 
@@ -51,6 +47,7 @@ on the network, not only from localhost.
 
 
         <!-- Feedback & Reviews -->
+        {#- Student 1 (Hangyeol Yi) - student-1-frontend -#}
         <a href="{{ S1 }}/review" class="dashboard-card feedback-card">
 
             <img

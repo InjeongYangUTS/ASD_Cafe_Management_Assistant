@@ -28,8 +28,6 @@
     · placed {{ order.placed_at[5:16] }}
 </p>
 
-
-<!-- ---------- items (update / delete) ---------- -->
 <h5 style="margin: 0 0 8px; font-size: 13px; letter-spacing: .6px;
            text-transform: uppercase; color: #777;">Items</h5>
 
@@ -81,8 +79,6 @@
     <span>${{ "%.2f"|format(order.total_amount) }}</span>
 </div>
 
-
-<!-- ---------- edit order (update) ---------- -->
 {% if editable %}
 <form hx-put="/ui/status/{{ order.id }}/details"
       hx-target="#s4-detail" hx-swap="innerHTML"
@@ -112,8 +108,6 @@
 </form>
 {% endif %}
 
-
-<!-- ---------- status transitions ---------- -->
 <h5 style="margin: 22px 0 8px; font-size: 13px; letter-spacing: .6px;
            text-transform: uppercase; color: #777;">Move status</h5>
 
@@ -134,8 +128,6 @@
 <p class="s4-muted">This order is {{ order.status|lower }} - no further transitions.</p>
 {% endif %}
 
-
-<!-- ---------- status history ---------- -->
 <h5 style="margin: 22px 0 10px; font-size: 13px; letter-spacing: .6px;
            text-transform: uppercase; color: #777;">Status history</h5>
 
@@ -149,8 +141,6 @@
     {% endfor %}
 </ul>
 
-
-<!-- ---------- delete ---------- -->
 {% if deletable %}
 <button class="s4-btn danger small"
         style="margin-top: 20px;"

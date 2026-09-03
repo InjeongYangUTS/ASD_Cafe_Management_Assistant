@@ -19,8 +19,6 @@
         {% endif %}
 
         {% for order in board[column] %}
-        {# A READY ticket is waiting for collection, not running late - only
-           tickets still being worked on are flagged as at risk. #}
         <article class="s4-ticket {{ 'at-risk' if order.age_minutes >= 12
                                      and column != 'READY' }}">
 
