@@ -539,24 +539,24 @@ def delete_ingredient(ingredient_id):
 
 @app.route("/api/recipes", methods=["GET"])
 def get_recipes():
-    conn = get_db_connection()
+    try:
+        response = requests.get(
+            "http://student2-database:5202/api/database/recipes",
+            timeout=10
+        )
 
-    recipes = conn.execute("""
-        SELECT
-            r.recipe_id,
-            r.menu_id,
-            r.name,
-            r.instructions,
-            m.name AS menu_name
-        FROM recipes r
-        JOIN menus m
-            ON r.menu_id = m.menu_id
-        ORDER BY r.recipe_id
-    """).fetchall()
+        if not response.ok:
+            return jsonify({
+                "error": "Unable to retrieve recipes"
+            }), response.status_code
 
-    conn.close()
+        return jsonify(response.json())
 
-    return jsonify([dict(recipe) for recipe in recipes])
+    except requests.RequestException:
+        return jsonify({
+            "error": "Unable to connect to database service"
+        }), 500
+
 
 # -----------------------------
 # GET ONE RECIPE
@@ -564,29 +564,29 @@ def get_recipes():
 
 @app.route("/api/recipes/<int:recipe_id>", methods=["GET"])
 def get_recipe(recipe_id):
-    conn = get_db_connection()
+    try:
+        response = requests.get(
+            f"http://student2-database:5202/api/database/recipes/{recipe_id}",
+            timeout=10
+        )
 
-    recipe = conn.execute("""
-        SELECT
-            r.recipe_id,
-            r.menu_id,
-            r.name,
-            r.instructions,
-            m.name AS menu_name
-        FROM recipes r
-        JOIN menus m
-            ON r.menu_id = m.menu_id
-        WHERE r.recipe_id = ?
-    """, (recipe_id,)).fetchone()
+        if response.status_code == 404:
+            return jsonify({
+                "error": "Recipe not found"
+            }), 404
 
-    conn.close()
+        if not response.ok:
+            return jsonify({
+                "error": "Unable to retrieve recipe"
+            }), response.status_code
 
-    if recipe is None:
+        return jsonify(response.json())
+
+    except requests.RequestException:
         return jsonify({
-            "error": "Recipe not found"
-        }), 404
+            "error": "Unable to connect to database service"
+        }), 500
 
-    return jsonify(dict(recipe))
 
 # -----------------------------
 # CREATE RECIPE
@@ -610,41 +610,39 @@ def create_recipe():
             "error": "Menu ID, name and instructions are required"
         }), 400
 
-    conn = get_db_connection()
+    try:
+        menu_response = requests.get(
+            f"http://student2-database:5202/api/database/menus/{menu_id}",
+            timeout=10
+        )
 
-    # Check that the menu item exists
-    menu = conn.execute("""
-        SELECT menu_id
-        FROM menus
-        WHERE menu_id = ?
-    """, (menu_id,)).fetchone()
+        if menu_response.status_code == 404:
+            return jsonify({
+                "error": "Menu item not found"
+            }), 404
 
-    if menu is None:
-        conn.close()
+        if not menu_response.ok:
+            return jsonify({
+                "error": "Unable to verify menu item"
+            }), menu_response.status_code
 
+        response = requests.post(
+            "http://student2-database:5202/api/database/recipes",
+            json={
+                "menu_id": menu_id,
+                "name": name,
+                "instructions": instructions
+            },
+            timeout=10
+        )
+
+        return jsonify(response.json()), response.status_code
+
+    except requests.RequestException:
         return jsonify({
-            "error": "Menu item not found"
-        }), 404
+            "error": "Unable to connect to database service"
+        }), 500
 
-    cursor = conn.execute("""
-        INSERT INTO recipes
-        (menu_id, name, instructions)
-        VALUES (?, ?, ?)
-    """, (
-        menu_id,
-        name,
-        instructions
-    ))
-
-    conn.commit()
-
-    recipe_id = cursor.lastrowid
-    conn.close()
-
-    return jsonify({
-        "message": "Recipe created successfully",
-        "recipe_id": recipe_id
-    }), 201
 
 # -----------------------------
 # UPDATE RECIPE
@@ -659,62 +657,71 @@ def update_recipe(recipe_id):
             "error": "Request body is required"
         }), 400
 
-    conn = get_db_connection()
+    try:
+        existing_response = requests.get(
+            f"http://student2-database:5202/api/database/recipes/{recipe_id}",
+            timeout=10
+        )
 
-    existing_recipe = conn.execute("""
-        SELECT *
-        FROM recipes
-        WHERE recipe_id = ?
-    """, (recipe_id,)).fetchone()
+        if existing_response.status_code == 404:
+            return jsonify({
+                "error": "Recipe not found"
+            }), 404
 
-    if existing_recipe is None:
-        conn.close()
+        if not existing_response.ok:
+            return jsonify({
+                "error": "Unable to retrieve recipe"
+            }), existing_response.status_code
 
+        existing = existing_response.json()
+
+        menu_id = data.get(
+            "menu_id",
+            existing["menu_id"]
+        )
+
+        name = data.get(
+            "name",
+            existing["name"]
+        )
+
+        instructions = data.get(
+            "instructions",
+            existing["instructions"]
+        )
+
+        menu_response = requests.get(
+            f"http://student2-database:5202/api/database/menus/{menu_id}",
+            timeout=10
+        )
+
+        if menu_response.status_code == 404:
+            return jsonify({
+                "error": "Menu item not found"
+            }), 404
+
+        if not menu_response.ok:
+            return jsonify({
+                "error": "Unable to verify menu item"
+            }), menu_response.status_code
+
+        response = requests.put(
+            f"http://student2-database:5202/api/database/recipes/{recipe_id}",
+            json={
+                "menu_id": menu_id,
+                "name": name,
+                "instructions": instructions
+            },
+            timeout=10
+        )
+
+        return jsonify(response.json()), response.status_code
+
+    except requests.RequestException:
         return jsonify({
-            "error": "Recipe not found"
-        }), 404
+            "error": "Unable to connect to database service"
+        }), 500
 
-    menu_id = data.get("menu_id", existing_recipe["menu_id"])
-    name = data.get("name", existing_recipe["name"])
-    instructions = data.get(
-        "instructions",
-        existing_recipe["instructions"]
-    )
-
-    # Check that the menu item exists
-    menu = conn.execute("""
-        SELECT menu_id
-        FROM menus
-        WHERE menu_id = ?
-    """, (menu_id,)).fetchone()
-
-    if menu is None:
-        conn.close()
-
-        return jsonify({
-            "error": "Menu item not found"
-        }), 404
-
-    conn.execute("""
-        UPDATE recipes
-        SET
-            menu_id = ?,
-            name = ?,
-            instructions = ?
-        WHERE recipe_id = ?
-    """, (
-        menu_id,
-        name,
-        instructions,
-        recipe_id
-    ))
-
-    conn.commit()
-    conn.close()
-
-    return jsonify({
-        "message": "Recipe updated successfully"
-    })
 
 # -----------------------------
 # DELETE RECIPE
@@ -722,37 +729,30 @@ def update_recipe(recipe_id):
 
 @app.route("/api/recipes/<int:recipe_id>", methods=["DELETE"])
 def delete_recipe(recipe_id):
-    conn = get_db_connection()
+    try:
+        response = requests.delete(
+            f"http://student2-database:5202/api/database/recipes/{recipe_id}",
+            timeout=10
+        )
 
-    recipe = conn.execute("""
-        SELECT *
-        FROM recipes
-        WHERE recipe_id = ?
-    """, (recipe_id,)).fetchone()
+        if response.status_code == 404:
+            return jsonify({
+                "error": "Recipe not found"
+            }), 404
 
-    if recipe is None:
-        conn.close()
+        if not response.ok:
+            return jsonify({
+                "error": "Unable to delete recipe"
+            }), response.status_code
 
         return jsonify({
-            "error": "Recipe not found"
-        }), 404
+            "message": "Recipe deleted successfully"
+        })
 
-    conn.execute("""
-        DELETE FROM recipe_ingredients
-        WHERE recipe_id = ?
-    """, (recipe_id,))
-
-    conn.execute("""
-        DELETE FROM recipes
-        WHERE recipe_id = ?
-    """, (recipe_id,))
-
-    conn.commit()
-    conn.close()
-
-    return jsonify({
-        "message": "Recipe deleted successfully"
-    })
+    except requests.RequestException:
+        return jsonify({
+            "error": "Unable to connect to database service"
+        }), 500
 
 # -----------------------------
 # GET RECIPE INGREDIENTS
@@ -760,39 +760,29 @@ def delete_recipe(recipe_id):
 
 @app.route("/api/recipes/<int:recipe_id>/ingredients", methods=["GET"])
 def get_recipe_ingredients(recipe_id):
-    conn = get_db_connection()
+    try:
+        response = requests.get(
+            f"http://student2-database:5202/api/database/recipes/{recipe_id}/ingredients",
+            timeout=10
+        )
 
-    recipe = conn.execute("""
-        SELECT recipe_id
-        FROM recipes
-        WHERE recipe_id = ?
-    """, (recipe_id,)).fetchone()
+        if response.status_code == 404:
+            return jsonify({
+                "error": "Recipe not found"
+            }), 404
 
-    if recipe is None:
-        conn.close()
+        if not response.ok:
+            return jsonify({
+                "error": "Unable to retrieve recipe ingredients"
+            }), response.status_code
 
+        return jsonify(response.json())
+
+    except requests.RequestException:
         return jsonify({
-            "error": "Recipe not found"
-        }), 404
+            "error": "Unable to connect to database service"
+        }), 500
 
-    ingredients = conn.execute("""
-        SELECT
-            ri.id,
-            ri.recipe_id,
-            ri.ingredient_id,
-            i.name AS ingredient_name,
-            ri.quantity,
-            ri.unit
-        FROM recipe_ingredients ri
-        JOIN ingredients i
-            ON ri.ingredient_id = i.ingredient_id
-        WHERE ri.recipe_id = ?
-        ORDER BY ri.id
-    """, (recipe_id,)).fetchall()
-
-    conn.close()
-
-    return jsonify([dict(ingredient) for ingredient in ingredients])
 
 # -----------------------------
 # ADD INGREDIENT TO RECIPE
@@ -827,60 +817,53 @@ def add_recipe_ingredient(recipe_id):
             "error": "Quantity must be a valid positive number"
         }), 400
 
-    conn = get_db_connection()
+    try:
+        recipe_response = requests.get(
+            f"http://student2-database:5202/api/database/recipes/{recipe_id}",
+            timeout=10
+        )
 
-    recipe = conn.execute("""
-        SELECT recipe_id
-        FROM recipes
-        WHERE recipe_id = ?
-    """, (recipe_id,)).fetchone()
+        if recipe_response.status_code == 404:
+            return jsonify({
+                "error": "Recipe not found"
+            }), 404
 
-    if recipe is None:
-        conn.close()
+        ingredient_response = requests.get(
+            f"http://student2-database:5202/api/database/ingredients/{ingredient_id}",
+            timeout=10
+        )
 
+        if ingredient_response.status_code == 404:
+            return jsonify({
+                "error": "Ingredient not found"
+            }), 404
+
+        response = requests.post(
+            f"http://student2-database:5202/api/database/recipes/{recipe_id}/ingredients",
+            json={
+                "ingredient_id": ingredient_id,
+                "quantity": quantity,
+                "unit": unit
+            },
+            timeout=10
+        )
+
+        return jsonify(response.json()), response.status_code
+
+    except requests.RequestException:
         return jsonify({
-            "error": "Recipe not found"
-        }), 404
+            "error": "Unable to connect to database service"
+        }), 500
 
-    ingredient = conn.execute("""
-        SELECT ingredient_id
-        FROM ingredients
-        WHERE ingredient_id = ?
-    """, (ingredient_id,)).fetchone()
-
-    if ingredient is None:
-        conn.close()
-
-        return jsonify({
-            "error": "Ingredient not found"
-        }), 404
-
-    cursor = conn.execute("""
-        INSERT INTO recipe_ingredients
-        (recipe_id, ingredient_id, quantity, unit)
-        VALUES (?, ?, ?, ?)
-    """, (
-        recipe_id,
-        ingredient_id,
-        quantity,
-        unit
-    ))
-
-    conn.commit()
-
-    recipe_ingredient_id = cursor.lastrowid
-    conn.close()
-
-    return jsonify({
-        "message": "Ingredient added to recipe successfully",
-        "recipe_ingredient_id": recipe_ingredient_id
-    }), 201
 
 # -----------------------------
 # UPDATE RECIPE INGREDIENT
 # -----------------------------
 
-@app.route("/api/recipe-ingredients/<int:recipe_ingredient_id>", methods=["PUT"])
+@app.route(
+    "/api/recipe-ingredients/<int:recipe_ingredient_id>",
+    methods=["PUT"]
+)
 def update_recipe_ingredient(recipe_ingredient_id):
     data = request.get_json()
 
@@ -889,115 +872,107 @@ def update_recipe_ingredient(recipe_ingredient_id):
             "error": "Request body is required"
         }), 400
 
-    conn = get_db_connection()
-
-    existing = conn.execute("""
-        SELECT *
-        FROM recipe_ingredients
-        WHERE id = ?
-    """, (recipe_ingredient_id,)).fetchone()
-
-    if existing is None:
-        conn.close()
-
-        return jsonify({
-            "error": "Recipe ingredient not found"
-        }), 404
-
-    ingredient_id = data.get(
-        "ingredient_id",
-        existing["ingredient_id"]
-    )
-
-    quantity = data.get(
-        "quantity",
-        existing["quantity"]
-    )
-
-    unit = data.get(
-        "unit",
-        existing["unit"]
-    )
-
     try:
-        quantity = float(quantity)
+        existing_response = requests.get(
+            f"http://student2-database:5202/api/database/recipe-ingredients/{recipe_ingredient_id}",
+            timeout=10
+        )
 
-        if quantity <= 0:
-            raise ValueError
+        if existing_response.status_code == 404:
+            return jsonify({
+                "error": "Recipe ingredient not found"
+            }), 404
 
-    except (TypeError, ValueError):
-        conn.close()
+        existing = existing_response.json()
 
+        ingredient_id = data.get(
+            "ingredient_id",
+            existing["ingredient_id"]
+        )
+
+        quantity = data.get(
+            "quantity",
+            existing["quantity"]
+        )
+
+        unit = data.get(
+            "unit",
+            existing["unit"]
+        )
+
+        try:
+            quantity = float(quantity)
+
+            if quantity <= 0:
+                raise ValueError
+
+        except (TypeError, ValueError):
+            return jsonify({
+                "error": "Quantity must be a valid positive number"
+            }), 400
+
+        ingredient_response = requests.get(
+            f"http://student2-database:5202/api/database/ingredients/{ingredient_id}",
+            timeout=10
+        )
+
+        if ingredient_response.status_code == 404:
+            return jsonify({
+                "error": "Ingredient not found"
+            }), 404
+
+        response = requests.put(
+            f"http://student2-database:5202/api/database/recipe-ingredients/{recipe_ingredient_id}",
+            json={
+                "ingredient_id": ingredient_id,
+                "quantity": quantity,
+                "unit": unit
+            },
+            timeout=10
+        )
+
+        return jsonify(response.json()), response.status_code
+
+    except requests.RequestException:
         return jsonify({
-            "error": "Quantity must be a valid positive number"
-        }), 400
+            "error": "Unable to connect to database service"
+        }), 500
 
-    ingredient = conn.execute("""
-        SELECT ingredient_id
-        FROM ingredients
-        WHERE ingredient_id = ?
-    """, (ingredient_id,)).fetchone()
-
-    if ingredient is None:
-        conn.close()
-
-        return jsonify({
-            "error": "Ingredient not found"
-        }), 404
-
-    conn.execute("""
-        UPDATE recipe_ingredients
-        SET
-            ingredient_id = ?,
-            quantity = ?,
-            unit = ?
-        WHERE id = ?
-    """, (
-        ingredient_id,
-        quantity,
-        unit,
-        recipe_ingredient_id
-    ))
-
-    conn.commit()
-    conn.close()
-
-    return jsonify({
-        "message": "Recipe ingredient updated successfully"
-    })
 
 # -----------------------------
 # DELETE RECIPE INGREDIENT
 # -----------------------------
 
-@app.route("/api/recipe-ingredients/<int:recipe_ingredient_id>", methods=["DELETE"])
+@app.route(
+    "/api/recipe-ingredients/<int:recipe_ingredient_id>",
+    methods=["DELETE"]
+)
 def delete_recipe_ingredient(recipe_ingredient_id):
-    conn = get_db_connection()
+    try:
+        response = requests.delete(
+            f"http://student2-database:5202/api/database/recipe-ingredients/{recipe_ingredient_id}",
+            timeout=10
+        )
 
-    recipe_ingredient = conn.execute("""
-        SELECT *
-        FROM recipe_ingredients
-        WHERE id = ?
-    """, (recipe_ingredient_id,)).fetchone()
+        if response.status_code == 404:
+            return jsonify({
+                "error": "Recipe ingredient not found"
+            }), 404
 
-    if recipe_ingredient is None:
-        conn.close()
+        if not response.ok:
+            return jsonify({
+                "error": "Unable to delete recipe ingredient"
+            }), response.status_code
 
         return jsonify({
-            "error": "Recipe ingredient not found"
-        }), 404
+            "message": "Recipe ingredient deleted successfully"
+        })
 
-    conn.execute("""
-        DELETE FROM recipe_ingredients
-        WHERE id = ?
-    """, (recipe_ingredient_id,))
+    except requests.RequestException:
+        return jsonify({
+            "error": "Unable to connect to database service"
+        }), 500
 
-    conn.commit()
-    conn.close()
-
-    return jsonify({
-        "message": "Recipe ingredient deleted successfully"
-    })
 
 # -----------------------------
 # AI PRICE RECOMMENDATION
