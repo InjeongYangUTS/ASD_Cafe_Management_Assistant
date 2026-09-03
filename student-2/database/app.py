@@ -718,6 +718,139 @@ def delete_database_ingredient(ingredient_id):
     })
 
 
+@app.route("/api/database/menu-prices/<int:menu_id>", methods=["GET"])
+def database_menu_price(menu_id):
+    conn = get_db_connection()
+
+    menu = conn.execute(
+        """
+        SELECT
+            menu_id,
+            name,
+            price
+        FROM menus
+        WHERE menu_id = ?
+        """,
+        (menu_id,)
+    ).fetchone()
+
+    conn.close()
+
+    if menu is None:
+        return jsonify({
+            "error": "Menu item not found"
+        }), 404
+
+    return jsonify(dict(menu))
+
+
+@app.route("/api/database/menu-prices/<int:menu_id>", methods=["PUT"])
+def update_database_menu_price(menu_id):
+    data = request.get_json()
+
+    conn = get_db_connection()
+
+    menu = conn.execute(
+        """
+        SELECT menu_id
+        FROM menus
+        WHERE menu_id = ?
+        """,
+        (menu_id,)
+    ).fetchone()
+
+    if menu is None:
+        conn.close()
+
+        return jsonify({
+            "error": "Menu item not found"
+        }), 404
+
+    conn.execute(
+        """
+        UPDATE menus
+        SET price = ?
+        WHERE menu_id = ?
+        """,
+        (
+            data["price"],
+            menu_id
+        )
+    )
+
+    conn.commit()
+
+    updated_menu = conn.execute(
+        """
+        SELECT
+            menu_id,
+            name,
+            price
+        FROM menus
+        WHERE menu_id = ?
+        """,
+        (menu_id,)
+    ).fetchone()
+
+    conn.close()
+
+    return jsonify(dict(updated_menu))
+
+
+@app.route("/api/database/ai-price-data/<int:menu_id>", methods=["GET"])
+def database_ai_price_data(menu_id):
+    conn = get_db_connection()
+
+    menu = conn.execute(
+        """
+        SELECT
+            menu_id,
+            name,
+            price
+        FROM menus
+        WHERE menu_id = ?
+        """,
+        (menu_id,)
+    ).fetchone()
+
+    if menu is None:
+        conn.close()
+
+        return jsonify({
+            "error": "Menu item not found"
+        }), 404
+
+    cost_result = conn.execute(
+        """
+        SELECT
+            SUM(ri.quantity * ic.unit_cost) AS ingredient_cost
+        FROM recipes r
+        JOIN recipe_ingredients ri
+            ON r.recipe_id = ri.recipe_id
+        JOIN ingredient_costs ic
+            ON ri.ingredient_id = ic.ingredient_id
+        WHERE r.menu_id = ?
+        """,
+        (menu_id,)
+    ).fetchone()
+
+    conn.close()
+
+    ingredient_cost = cost_result["ingredient_cost"]
+
+    if ingredient_cost is None:
+        return jsonify({
+            "error": "No ingredient cost data found for this menu item"
+        }), 400
+
+    return jsonify({
+        "menu_id": menu["menu_id"],
+        "menu_name": menu["name"],
+        "current_price": menu["price"],
+        "ingredient_cost": ingredient_cost
+    })
+
+
 if __name__ == "__main__":
     app.run(
         host="0.0.0.0",
