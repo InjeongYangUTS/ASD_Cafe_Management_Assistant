@@ -1,5 +1,15 @@
 services:
 
+  student2-database:
+    build:
+      context: ./student-2/database
+      dockerfile: Dockerfile
+    container_name: student2-database
+    ports:
+      - "5202:5202"
+    networks:
+      - cafe-network
+
   student2-backend:
     build:
       context: ./student-2
@@ -7,6 +17,8 @@ services:
     container_name: student2-backend
     ports:
       - "5201:5201"
+    depends_on:
+      - student2-database
     networks:
       - cafe-network
 
@@ -23,5 +35,6 @@ services:
       - cafe-network
 
 networks:
+
   cafe-network:
     driver: bridge

@@ -23,22 +23,23 @@ def get_db_connection():
 
 @app.route("/api/menus", methods=["GET"])
 def get_menus():
-    conn = get_db_connection()
+    try:
+        response = requests.get(
+            "http://student2-database:5202/api/database/menus",
+            timeout=10
+        )
 
-    menus = conn.execute("""
-        SELECT
-            menu_id,
-            name,
-            category,
-            description,
-            price
-        FROM menus
-        ORDER BY menu_id
-    """).fetchall()
+        if not response.ok:
+            return jsonify({
+                "error": "Unable to retrieve menus from database service"
+            }), 500
 
-    conn.close()
+        return jsonify(response.json())
 
-    return jsonify([dict(menu) for menu in menus])
+    except requests.RequestException:
+        return jsonify({
+            "error": "Unable to connect to database service"
+        }), 500
 
 
 # -----------------------------
@@ -47,28 +48,28 @@ def get_menus():
 
 @app.route("/api/menus/<int:menu_id>", methods=["GET"])
 def get_menu(menu_id):
-    conn = get_db_connection()
+    try:
+        response = requests.get(
+            f"http://student2-database:5202/api/database/menus/{menu_id}",
+            timeout=10
+        )
 
-    menu = conn.execute("""
-        SELECT
-            menu_id,
-            name,
-            category,
-            description,
-            price
-        FROM menus
-        WHERE menu_id = ?
-    """, (menu_id,)).fetchone()
+        if response.status_code == 404:
+            return jsonify({
+                "error": "Menu item not found"
+            }), 404
 
-    conn.close()
+        if not response.ok:
+            return jsonify({
+                "error": "Unable to retrieve menu item"
+            }), response.status_code
 
-    if menu is None:
+        return jsonify(response.json())
+
+    except requests.RequestException:
         return jsonify({
-            "error": "Menu item not found"
-        }), 404
-
-    return jsonify(dict(menu))
-
+            "error": "Unable to connect to database service"
+        }), 500
 
 # -----------------------------
 # CREATE MENU
@@ -79,7 +80,9 @@ def create_menu():
     data = request.get_json()
 
     if not data:
-        return jsonify({"error": "Request body is required"}), 400
+        return jsonify({
+            "error": "Request body is required"
+        }), 400
 
     name = data.get("name")
     category = data.get("category")
@@ -90,6 +93,7 @@ def create_menu():
         return jsonify({
             "error": "Name, category and price are required"
         }), 400
+
     try:
         price = float(price)
 
@@ -103,25 +107,24 @@ def create_menu():
             "error": "Price must be a valid number"
         }), 400
 
-    conn = get_db_connection()
+    try:
+        response = requests.post(
+            "http://student2-database:5202/api/database/menus",
+            json={
+                "name": name,
+                "category": category,
+                "description": description,
+                "price": price
+            },
+            timeout=10
+        )
 
-    cursor = conn.execute(
-        """
-        INSERT INTO menus (name, category, description, price)
-        VALUES (?, ?, ?, ?)
-        """,
-        (name, category, description, price)
-    )
+        return jsonify(response.json()), response.status_code
 
-    conn.commit()
-
-    new_menu_id = cursor.lastrowid
-    conn.close()
-
-    return jsonify({
-        "message": "Menu item created successfully",
-        "menu_id": new_menu_id
-    }), 201
+    except requests.RequestException:
+        return jsonify({
+            "error": "Unable to connect to database service"
+        }), 500
 
 
 # -----------------------------
@@ -137,74 +140,74 @@ def update_menu(menu_id):
             "error": "Request body is required"
         }), 400
 
-    conn = get_db_connection()
-
-    existing_menu = conn.execute("""
-        SELECT *
-        FROM menus
-        WHERE menu_id = ?
-    """, (menu_id,)).fetchone()
-
-    if existing_menu is None:
-        conn.close()
-
-        return jsonify({
-            "error": "Menu item not found"
-        }), 404
-
-    name = data.get("name", existing_menu["name"])
-    category = data.get("category", existing_menu["category"])
-    description = data.get(
-        "description",
-        existing_menu["description"]
-    )
-    price = data.get("price", existing_menu["price"])
-
     try:
-        price = float(price)
+        existing_response = requests.get(
+            f"http://student2-database:5202/api/database/menus/{menu_id}",
+            timeout=10
+        )
 
-        if price < 0:
-            raise ValueError
+        if existing_response.status_code == 404:
+            return jsonify({
+                "error": "Menu item not found"
+            }), 404
 
-    except (TypeError, ValueError):
-        conn.close()
+        if not existing_response.ok:
+            return jsonify({
+                "error": "Unable to retrieve menu item"
+            }), 500
 
+        existing_menu = existing_response.json()
+
+        name = data.get("name", existing_menu["name"])
+        category = data.get(
+            "category",
+            existing_menu["category"]
+        )
+        description = data.get(
+            "description",
+            existing_menu["description"]
+        )
+        price = data.get(
+            "price",
+            existing_menu["price"]
+        )
+
+        try:
+            price = float(price)
+
+            if price < 0:
+                raise ValueError
+
+        except (TypeError, ValueError):
+            return jsonify({
+                "error": "Price must be a valid positive number"
+            }), 400
+
+        response = requests.put(
+            f"http://student2-database:5202/api/database/menus/{menu_id}",
+            json={
+                "name": name,
+                "category": category,
+                "description": description,
+                "price": price
+            },
+            timeout=10
+        )
+
+        if not response.ok:
+            return jsonify(response.json()), response.status_code
+
+        updated_response = requests.get(
+            f"http://student2-database:5202/api/database/menus/{menu_id}",
+            timeout=10
+        )
+
+        return jsonify(updated_response.json())
+
+    except requests.RequestException:
         return jsonify({
-            "error": "Price must be a valid positive number"
-        }), 400
-
-    conn.execute("""
-        UPDATE menus
-        SET
-            name = ?,
-            category = ?,
-            description = ?,
-            price = ?
-        WHERE menu_id = ?
-    """, (
-        name,
-        category,
-        description,
-        price,
-        menu_id
-    ))
-
-    conn.commit()
-
-    updated_menu = conn.execute("""
-        SELECT
-            menu_id,
-            name,
-            category,
-            description,
-            price
-        FROM menus
-        WHERE menu_id = ?
-    """, (menu_id,)).fetchone()
-
-    conn.close()
-
-    return jsonify(dict(updated_menu))
+            "error": "Unable to connect to database service"
+        }), 500
 
 
 # -----------------------------
@@ -213,32 +216,30 @@ def update_menu(menu_id):
 
 @app.route("/api/menus/<int:menu_id>", methods=["DELETE"])
 def delete_menu(menu_id):
-    conn = get_db_connection()
+    try:
+        response = requests.delete(
+            f"http://student2-database:5202/api/database/menus/{menu_id}",
+            timeout=10
+        )
 
-    menu = conn.execute("""
-        SELECT *
-        FROM menus
-        WHERE menu_id = ?
-    """, (menu_id,)).fetchone()
+        if response.status_code == 404:
+            return jsonify({
+                "error": "Menu item not found"
+            }), 404
 
-    if menu is None:
-        conn.close()
+        if not response.ok:
+            return jsonify({
+                "error": "Unable to delete menu item"
+            }), response.status_code
 
         return jsonify({
-            "error": "Menu item not found"
-        }), 404
+            "message": "Menu item deleted successfully"
+        })
 
-    conn.execute("""
-        DELETE FROM menus
-        WHERE menu_id = ?
-    """, (menu_id,))
-
-    conn.commit()
-    conn.close()
-
-    return jsonify({
-        "message": "Menu item deleted successfully"
-    })
+    except requests.RequestException:
+        return jsonify({
+            "error": "Unable to connect to database service"
+        }), 500
 
 
 # -----------------------------
