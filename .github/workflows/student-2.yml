@@ -4,19 +4,13 @@ on:
   push:
     branches:
       - student-2-menu-recipe
-    paths:
-      - "student-2/**"
-      - ".github/workflows/student-2.yml"
-      - "docker-compose.yml"
-
+      - main
   pull_request:
-    paths:
-      - "student-2/**"
-      - ".github/workflows/student-2.yml"
-      - "docker-compose.yml"
+    branches:
+      - main
 
 jobs:
-  test-and-build:
+  student2-build-test:
     runs-on: ubuntu-latest
 
     steps:
@@ -28,36 +22,33 @@ jobs:
         with:
           python-version: "3.12"
 
+      # ---------- Backend ----------
       - name: Install backend dependencies
         run: |
           pip install -r student-2/backend/requirements.txt
 
+      - name: Run backend tests
+        run: |
+          pytest student-2/backend/tests
+
+      # ---------- Frontend ----------
       - name: Install frontend dependencies
         run: |
           pip install -r student-2/frontend/requirements.txt
 
-      - name: Check backend Python syntax
+      # ---------- Database ----------
+      - name: Install database dependencies
         run: |
-          python -m py_compile student-2/backend/app.py
+          pip install -r student-2/database/requirements.txt
 
-      - name: Check frontend Python syntax
+      - name: Verify database service
         run: |
-          python -m py_compile student-2/frontend/app.py
+          python -m py_compile student-2/database/app.py
 
-      - name: Run Student 2 backend tests
+      # ---------- Docker ----------
+      - name: Build Student 2 containers
         run: |
-          pip install pytest
-          pytest student-2/tests/test_backend.py -v
-
-      - name: Build backend Docker image
-        run: |
-          docker build \
-            -t student2-backend \
-            -f student-2/backend/Dockerfile \
-            ./student-2
-
-      - name: Build frontend Docker image
-        run: |
-          docker build \
-            -t student2-frontend \
-            ./student-2/frontend
+          docker compose build \
+            student2-database \
+            student2-backend \
+            student2-frontend
