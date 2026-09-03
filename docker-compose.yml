@@ -230,9 +230,12 @@ services:
     environment:
       PORT: 8500
       DATABASE_API_URL: http://student-5-database:7500/api
+      ORDER_SERVICE_URL: http://student-4-backend:8400/api
     depends_on:
       student-5-database:
         condition: service_healthy
+      student-4-backend:
+        condition: service_started
     networks:
       - cafe-net
     restart: unless-stopped

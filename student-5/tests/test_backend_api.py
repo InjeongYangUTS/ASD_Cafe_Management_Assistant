@@ -259,3 +259,122 @@ def test_rejects_refund_above_remaining_amount():
     assert response.status_code == 400
     assert result["error"] == "Refund exceeds the remaining payment amount"
     assert result["remaining_amount"] == 8.50
+
+def test_rejects_payment_that_does_not_match_order_total():
+    order = {
+        "id": 7,
+        "total_amount": 12.70,
+        "status": "READY",
+    }
+
+    with backend_app.app.test_client() as client:
+        with patch.object(
+            backend_app,
+            "ORDER_SERVICE_URL",
+            "http://student-4-backend:8400/api",
+        ):
+            with patch.object(
+                backend_app,
+                "call_order_service",
+                return_value=mock_response(200, order),
+            ):
+                response = client.post(
+                    "/api/payments/process",
+                    json={
+                        "order_id": 7,
+                        "customer_id": 7,
+                        "amount": 10.00,
+                        "payment_method": "card",
+                    },
+                )
+
+    result = response.get_json()
+
+    assert response.status_code == 400
+    assert result["error"] == (
+        "Payment amount does not match order total"
+    )
+    assert result["order_total"] == 12.70
+
+
+def test_payment_updates_student_4_order_status():
+    order = {
+        "id": 7,
+        "order_number": "A-1007",
+        "total_amount": 12.70,
+        "status": "READY",
+    }
+
+    pending_payment = {
+        "id": 11,
+        "order_id": 7,
+        "customer_id": 7,
+        "amount": 12.70,
+        "payment_method": "card",
+        "payment_status": "pending",
+        "paid_at": None,
+    }
+
+    completed_payment = {
+        **pending_payment,
+        "payment_status": "completed",
+        "paid_at": "2026-09-03 18:00:00",
+    }
+
+    transaction = {
+        "id": 11,
+        "payment_id": 11,
+        "transaction_reference": "PAY-INTEGRATION1",
+        "transaction_type": "payment",
+        "amount": 12.70,
+        "status": "completed",
+    }
+
+    updated_order = {
+        **order,
+        "status": "COMPLETED",
+    }
+
+    database_responses = [
+        mock_response(201, pending_payment),
+        mock_response(201, transaction),
+        mock_response(200, completed_payment),
+    ]
+
+    order_responses = [
+        mock_response(200, order),
+        mock_response(200, updated_order),
+    ]
+
+    with backend_app.app.test_client() as client:
+        with patch.object(
+            backend_app,
+            "ORDER_SERVICE_URL",
+            "http://student-4-backend:8400/api",
+        ):
+            with patch.object(
+                backend_app,
+                "call_database",
+                side_effect=database_responses,
+            ):
+                with patch.object(
+                    backend_app,
+                    "call_order_service",
+                    side_effect=order_responses,
+                ):
+                    response = client.post(
+                        "/api/payments/process",
+                        json={
+                            "order_id": 7,
+                            "customer_id": 7,
+                            "amount": 12.70,
+                            "payment_method": "card",
+                        },
+                    )
+
+    result = response.get_json()
+
+    assert response.status_code == 201
+    assert result["payment"]["payment_status"] == "completed"
+    assert result["order_update"]["status"] == "COMPLETED"
+    assert result["order_update_warning"] is None

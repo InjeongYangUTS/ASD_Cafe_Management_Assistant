@@ -15,6 +15,11 @@ DATABASE_API_URL = os.getenv(
     "http://127.0.0.1:5005/api",
 )
 
+ORDER_SERVICE_URL = os.getenv(
+    "ORDER_SERVICE_URL",
+    "",
+)
+
 
 def current_time():
     return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
@@ -24,6 +29,14 @@ def call_database(method, endpoint, data=None):
     return requests.request(
         method=method,
         url=f"{DATABASE_API_URL}/{endpoint}",
+        json=data,
+        timeout=5,
+    )
+
+def call_order_service(method, endpoint, data=None):
+    return requests.request(
+        method=method,
+        url=f"{ORDER_SERVICE_URL}/{endpoint}",
         json=data,
         timeout=5,
     )
@@ -111,6 +124,51 @@ def process_payment():
             }
         ), 400
 
+    order = None
+
+    if ORDER_SERVICE_URL:
+        try:
+            order_response = call_order_service(
+                "GET",
+                f"orders/{data['order_id']}",
+            )
+
+            if order_response.status_code == 404:
+                return jsonify({"error": "Order not found"}), 404
+
+            if order_response.status_code != 200:
+                return jsonify(
+                    {"error": "Order service returned an error"}
+                ), 502
+
+            order = order_response.json()
+            order_total = float(order["total_amount"])
+
+            if round(float(data["amount"]), 2) != round(order_total, 2):
+                return jsonify(
+                    {
+                        "error": "Payment amount does not match order total",
+                        "order_total": order_total,
+                    }
+                ), 400
+
+            if order["status"] in ["COMPLETED", "CANCELLED"]:
+                return jsonify(
+                    {
+                        "error": (
+                            f"Cannot pay for an order with "
+                            f"{order['status']} status"
+                        )
+                    }
+                ), 400
+
+        except requests.RequestException:
+            return jsonify({"error": "Order service is unavailable"}), 503
+        except (KeyError, TypeError, ValueError):
+            return jsonify(
+                {"error": "Order service returned invalid data"}
+            ), 502
+
     payment_data = {
         "order_id": data["order_id"],
         "customer_id": data["customer_id"],
@@ -167,11 +225,51 @@ def process_payment():
             },
         )
 
+        order_update = None
+        order_update_warning = None
+
+        if ORDER_SERVICE_URL:
+            try:
+                status_response = call_order_service(
+                    "PUT",
+                    f"order-status/{data['order_id']}",
+                    {
+                        "status": "COMPLETED",
+                        "changed_by": "payment",
+                        "note": (
+                            f"Payment {payment['id']} "
+                            f"completed successfully"
+                        ),
+                    },
+                )
+
+                if status_response.status_code == 200:
+                    order_update = status_response.json()
+                else:
+                    status_error = status_response.json()
+                    order_update_warning = status_error.get(
+                        "error",
+                        "Order status could not be updated",
+                    )
+
+            except (
+                requests.RequestException,
+                ValueError,
+            ):
+                order_update_warning = (
+                    "Payment succeeded, but the order status "
+                    "could not be updated"
+                )          
+
         return jsonify(
             {
                 "message": "Payment processed successfully",
                 "payment": completed_response.json(),
                 "transaction": transaction_response.json(),
+                "order_update": order_update,
+                "order_update_warning": order_update_warning,
+                "order_update": order_update,
+                "order_update_warning": order_update_warning,
             }
         ), 201
 

@@ -297,13 +297,13 @@ python -m pytest student-5/tests -v
 Current test result:
 
 ```text
-12 passed
+14 passed
 ```
 
 | Test file | Coverage |
 |---|---|
 | `test_database_api.py` | Health, create, read, update, delete, and required-field validation |
-| `test_backend_api.py` | Health, payment listing, payment processing, payment validation, refund processing, and refund-limit validation |
+| `test_backend_api.py` | Health, payment processing and validation, refunds, order-total validation, and Student 4 status integration |
 
 The tests use temporary or mocked database responses and do not modify the normal seeded database.
 
@@ -313,12 +313,13 @@ The tests use temporary or mocked database responses and do not modify the norma
 
 Student 5 currently receives `order_id` and `customer_id` values in payment requests.
 
-The intended team integration is:
+The implemented team integration is:
 
-- Shared authentication provides the authenticated customer or staff identity.
-- Student 4 provides order totals and order-status information.
-- Student 5 processes the associated payment.
-- After successful payment, the team system can mark the relevant order as paid or completed.
+- Student 5 retrieves the order from Student 4.
+- Student 5 verifies that the submitted payment amount matches the order total.
+- Student 5 rejects completed or cancelled orders.
+- After successful payment, Student 5 requests that Student 4 mark the order as completed.
+- If the status update fails, the payment remains recorded and the response includes an integration warning..
 
 The Student 5 database stores external order and customer identifiers as integers because foreign-key constraints cannot cross independent microservice databases.
 
