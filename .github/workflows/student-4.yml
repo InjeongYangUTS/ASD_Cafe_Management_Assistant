@@ -1,1 +1,214 @@
+# =====================================================================
+# Student 4 - Stella Kwon - Order & Kitchen Management
+# ASD 2026 Release 0 : build and validate my three microservices
+#
+#   job 1  unit-tests   - lint + pytest with no containers (fast feedback)
+#   job 2  build        - build the frontend, backend and database images
+#   job 3  validate     - run the stack with the shared docker-compose,
+#                         check health, run the integration tests and the
+#                         Plan -> Act -> Observe -> Adapt agentic loop
+# =====================================================================
 
+name: Student 4 - Order & Kitchen Management
+
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "student-4/**"
+      - "docker-compose.yml"
+      - "docker/**"
+      - ".github/workflows/student-4.yml"
+  pull_request:
+    paths:
+      - "student-4/**"
+      - "docker-compose.yml"
+      - "docker/**"
+      - ".github/workflows/student-4.yml"
+  workflow_dispatch:
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+
+  # -------------------------------------------------------------------
+  # 1. Unit tests - no containers needed
+  # -------------------------------------------------------------------
+  unit-tests:
+    name: Unit tests (database API + AI-Mode)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r student-4/database/requirements.txt
+          pip install -r student-4/backend/requirements.txt
+          pip install pytest pyflakes
+
+      - name: Check every module parses and has no unused/undefined names
+        run: |
+          python -m compileall -q student-4/database student-4/backend \
+                                  student-4/frontend student-4/agentic
+          python -m pyflakes student-4/database/*.py student-4/backend/*.py \
+                             student-4/frontend/app.py student-4/agentic/loop.py
+
+      - name: Validate the seed script and the schema
+        run: |
+          cd student-4/database
+          python seed.py
+          python - <<'PY'
+          import sqlite3
+          conn = sqlite3.connect("orders.db")
+          for table, minimum in (("orders", 10), ("order_items", 10),
+                                 ("order_statuses", 10)):
+              count = conn.execute("SELECT COUNT(*) FROM %s" % table).fetchone()[0]
+              assert count >= minimum, "%s has only %d rows" % (table, count)
+              print("%-16s %d rows" % (table, count))
+          PY
+
+      - name: Run the unit test suite
+        run: |
+          cd student-4
+          python -m pytest tests -v --tb=short
+
+  # -------------------------------------------------------------------
+  # 2. Build the three container images
+  # -------------------------------------------------------------------
+  build:
+    name: Build containers
+    runs-on: ubuntu-latest
+    needs: unit-tests
+
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [frontend, backend, database]
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build student-4-${{ matrix.service }}
+        uses: docker/build-push-action@v6
+        with:
+          context: student-4/${{ matrix.service }}
+          push: false
+          load: true
+          tags: student-4-${{ matrix.service }}:ci
+          cache-from: type=gha,scope=student-4-${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=student-4-${{ matrix.service }}
+
+  # -------------------------------------------------------------------
+  # 3. Run the stack and validate it end to end
+  # -------------------------------------------------------------------
+  validate:
+    name: Integration + agentic loop
+    runs-on: ubuntu-latest
+    needs: build
+
+    env:
+      S4_DB_URL: http://localhost:7400
+      S4_BACKEND_URL: http://localhost:8400
+      S4_FRONTEND_URL: http://localhost:5400
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install test dependencies
+        run: pip install pytest requests
+
+      - name: Start my three microservices with the shared compose file
+        run: |
+          docker compose up -d --build \
+            student-4-database student-4-backend student-4-frontend
+          docker compose ps
+
+      - name: Wait for every container to report healthy
+        run: |
+          for endpoint in \
+            "$S4_DB_URL/db/health" \
+            "$S4_BACKEND_URL/api/health" \
+            "$S4_FRONTEND_URL/health"
+          do
+            echo "waiting for $endpoint"
+            for attempt in $(seq 1 30); do
+              if curl -fsS --max-time 5 "$endpoint" > /dev/null; then
+                echo "  up after ${attempt} attempt(s)"
+                break
+              fi
+              if [ "$attempt" -eq 30 ]; then
+                echo "  TIMED OUT"
+                docker compose logs --no-color
+                exit 1
+              fi
+              sleep 2
+            done
+          done
+
+      - name: Show the health report of each service
+        run: |
+          curl -s "$S4_DB_URL/db/health"      | python -m json.tool
+          curl -s "$S4_BACKEND_URL/api/health" | python -m json.tool
+          curl -s "$S4_FRONTEND_URL/health"    | python -m json.tool
+
+      - name: Confirm the database container seeded 10+ records per table
+        run: curl -s "$S4_DB_URL/db/stats" | python -m json.tool
+
+      - name: Run the integration tests against the running containers
+        run: |
+          cd student-4
+          python -m pytest tests/test_integration.py -v --tb=short
+
+      - name: Check the three screens render
+        run: |
+          for page in /pos /kitchen /status; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" "$S4_FRONTEND_URL$page")
+            echo "$code  $page"
+            [ "$code" = "200" ] || exit 1
+          done
+
+      - name: Run the agentic review loop (Plan → Act → Observe → Adapt)
+        run: |
+          cd student-4
+          python agentic/loop.py --max-iterations 3
+
+      - name: Upload the agentic loop logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: student-4-agentic-logs
+          path: student-4/agentic/logs/
+          if-no-files-found: warn
+
+      - name: Container logs (on failure)
+        if: failure()
+        run: docker compose logs --no-color --tail 200
+
+      - name: Tear the stack down
+        if: always()
+        run: docker compose down -v
