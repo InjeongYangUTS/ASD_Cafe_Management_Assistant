@@ -1,0 +1,645 @@
+/* =====================================================================
+   Student 1 (Hangyeol Yi) - Customer Feedback & Reviews
+   Feature stylesheet.
+
+   The shared team theme (/shared/css/style.css) is loaded first and is
+   NOT modified. This file only adds the two screens my feature needs and
+   reuses the same palette, radius and typography:
+
+     cream #fffdf9   text #333333   muted #777777
+     feedback blue  #c7ddff / #a9c8f5 / #f3f7ff   (my feature colour,
+     taken from .feedback-card in the shared theme so my screens match
+     the card the user clicked to get here)
+     cards: radius 25px, soft shadow
+   ===================================================================== */
+
+:root {
+    --s1-cream: #fffdf9;
+    --s1-white: #ffffff;
+    --s1-text: #333333;
+    --s1-muted: #777777;
+    --s1-line: #ece7df;
+
+    --s1-blue: #c7ddff;
+    --s1-blue-strong: #a9c8f5;
+    --s1-blue-soft: #f3f7ff;
+
+    --s1-green: #cdeac0;
+    --s1-green-soft: #f2faef;
+    --s1-yellow: #f6df9f;
+    --s1-yellow-soft: #fff9e6;
+    --s1-red: #e5a3a3;
+    --s1-red-soft: #fdeeee;
+    --s1-star: #f0b429;
+
+    --s1-shadow: 0 8px 25px rgba(0, 0, 0, 0.06);
+    --s1-radius: 25px;
+}
+
+/* The shared theme centres every page with flex; my screens are full
+   application layouts, so this class opts out of that on my pages only. */
+body.s1-app {
+    display: block;
+    justify-content: flex-start;
+    align-items: stretch;
+}
+
+
+/* =========================
+   TOP BAR
+   ========================= */
+
+.s1-topbar {
+    padding: 18px 30px;
+
+    background-color: var(--s1-white);
+    border-bottom: 2px solid var(--s1-blue);
+}
+
+.s1-topbar h1 {
+    margin: 0;
+    font-size: 24px;
+}
+
+
+/* =========================
+   PAGE LAYOUT
+   ========================= */
+
+.s1-page {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 28px 24px 60px;
+}
+
+.s1-card {
+    padding: 24px 26px;
+    margin-bottom: 22px;
+
+    background-color: var(--s1-white);
+
+    border: 2px solid var(--s1-line);
+    border-radius: var(--s1-radius);
+    box-shadow: var(--s1-shadow);
+}
+
+.s1-card > h2 {
+    margin: 0 0 4px;
+    font-size: 20px;
+}
+
+.s1-card > p.s1-hint {
+    margin: 0 0 18px;
+    font-size: 14px;
+    color: var(--s1-muted);
+}
+
+.s1-section-title {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: baseline;
+    justify-content: space-between;
+}
+
+
+/* =========================
+   STAR RATING INPUT
+
+   Radio inputs laid out in reverse so the CSS sibling selector can light
+   up the chosen star and every star before it, with no JavaScript. The
+   radios stay in the DOM and keyboard focus still works, so the control
+   remains usable without a mouse.
+   ========================= */
+
+.s1-stars {
+    display: inline-flex;
+    flex-direction: row-reverse;
+    justify-content: flex-end;
+
+    margin-bottom: 6px;
+}
+
+.s1-stars input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+}
+
+.s1-stars label {
+    padding: 0 3px;
+
+    font-size: 34px;
+    line-height: 1;
+    color: var(--s1-line);
+
+    cursor: pointer;
+}
+
+.s1-stars input:checked ~ label,
+.s1-stars label:hover,
+.s1-stars label:hover ~ label {
+    color: var(--s1-star);
+}
+
+.s1-stars input:focus-visible + label {
+    outline: 2px solid var(--s1-blue-strong);
+    border-radius: 4px;
+}
+
+.s1-star-display {
+    font-size: 17px;
+    letter-spacing: 1px;
+    color: var(--s1-star);
+    white-space: nowrap;
+}
+
+
+/* =========================
+   FORMS
+   ========================= */
+
+.s1-field {
+    margin-bottom: 16px;
+}
+
+.s1-field label {
+    display: block;
+    margin-bottom: 6px;
+
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.s1-field input[type="text"],
+.s1-field textarea,
+.s1-field select {
+    width: 100%;
+    padding: 11px 14px;
+
+    font-family: inherit;
+    font-size: 15px;
+    color: var(--s1-text);
+
+    background-color: var(--s1-cream);
+
+    border: 2px solid var(--s1-line);
+    border-radius: 14px;
+}
+
+.s1-field textarea {
+    min-height: 110px;
+    resize: vertical;
+}
+
+.s1-field input:focus,
+.s1-field textarea:focus,
+.s1-field select:focus {
+    outline: none;
+    border-color: var(--s1-blue-strong);
+    background-color: var(--s1-white);
+}
+
+.s1-button {
+    padding: 11px 24px;
+
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--s1-text);
+
+    background-color: var(--s1-blue);
+
+    border: 2px solid var(--s1-blue-strong);
+    border-radius: 999px;
+    cursor: pointer;
+}
+
+.s1-button:hover {
+    background-color: var(--s1-blue-soft);
+}
+
+.s1-button.ghost {
+    background-color: var(--s1-white);
+    border-color: var(--s1-line);
+}
+
+.s1-button.danger {
+    background-color: var(--s1-red-soft);
+    border-color: var(--s1-red);
+}
+
+.s1-button.small {
+    padding: 6px 14px;
+    font-size: 13px;
+}
+
+.s1-button[disabled] {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.s1-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+
+/* =========================
+   MESSAGES
+   ========================= */
+
+.s1-message {
+    padding: 12px 18px;
+    margin-bottom: 16px;
+
+    font-size: 14px;
+
+    border: 2px solid var(--s1-line);
+    border-radius: 14px;
+}
+
+.s1-message.success {
+    background-color: var(--s1-green-soft);
+    border-color: var(--s1-green);
+}
+
+.s1-message.error {
+    background-color: var(--s1-red-soft);
+    border-color: var(--s1-red);
+}
+
+.s1-message.info {
+    background-color: var(--s1-blue-soft);
+    border-color: var(--s1-blue);
+}
+
+
+/* =========================
+   REVIEW CARDS
+   ========================= */
+
+.s1-review {
+    padding: 18px 20px;
+    margin-bottom: 14px;
+
+    background-color: var(--s1-cream);
+
+    border: 2px solid var(--s1-line);
+    border-radius: 18px;
+}
+
+.s1-review-head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    justify-content: space-between;
+
+    margin-bottom: 8px;
+}
+
+.s1-review h3 {
+    margin: 0;
+    font-size: 16px;
+}
+
+.s1-review p {
+    margin: 0 0 10px;
+    font-size: 15px;
+    line-height: 1.55;
+}
+
+.s1-meta {
+    font-size: 12px;
+    color: var(--s1-muted);
+}
+
+.s1-response {
+    padding: 10px 14px;
+    margin: 10px 0;
+
+    font-size: 14px;
+
+    background-color: var(--s1-blue-soft);
+    border-left: 4px solid var(--s1-blue-strong);
+    border-radius: 0 12px 12px 0;
+}
+
+
+/* =========================
+   TAGS AND BADGES
+   ========================= */
+
+.s1-tag {
+    display: inline-block;
+    padding: 3px 11px;
+    margin: 0 5px 5px 0;
+
+    font-size: 12px;
+
+    background-color: var(--s1-white);
+    border: 2px solid var(--s1-line);
+    border-radius: 999px;
+}
+
+.s1-tag.negative {
+    background-color: var(--s1-red-soft);
+    border-color: var(--s1-red);
+}
+
+.s1-tag.positive {
+    background-color: var(--s1-green-soft);
+    border-color: var(--s1-green);
+}
+
+.s1-tag.neutral {
+    background-color: var(--s1-yellow-soft);
+    border-color: var(--s1-yellow);
+}
+
+.s1-tag.ai {
+    background-color: var(--s1-blue-soft);
+    border-color: var(--s1-blue);
+}
+
+
+/* =========================
+   AI PANEL
+   ========================= */
+
+.s1-ai {
+    border-color: var(--s1-blue);
+    background-color: var(--s1-blue-soft);
+}
+
+.s1-ai-block {
+    padding: 14px 18px;
+    margin-bottom: 12px;
+
+    background-color: var(--s1-white);
+    border-radius: 16px;
+}
+
+.s1-ai-block h4 {
+    margin: 0 0 6px;
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--s1-muted);
+}
+
+.s1-ai-block p,
+.s1-ai-block li {
+    margin: 0 0 6px;
+    font-size: 15px;
+    line-height: 1.55;
+}
+
+.s1-ai-block ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.s1-ai-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 12px;
+}
+
+.s1-correction {
+    padding: 10px 14px;
+    margin-bottom: 8px;
+
+    font-size: 13px;
+
+    background-color: var(--s1-yellow-soft);
+    border-left: 4px solid var(--s1-yellow);
+    border-radius: 0 12px 12px 0;
+}
+
+.s1-ai-source {
+    font-size: 12px;
+    color: var(--s1-muted);
+}
+
+details.s1-raw {
+    margin-top: 10px;
+    font-size: 13px;
+}
+
+details.s1-raw pre {
+    max-height: 320px;
+    padding: 12px;
+    overflow: auto;
+
+    font-size: 12px;
+    white-space: pre-wrap;
+
+    background-color: var(--s1-cream);
+    border-radius: 12px;
+}
+
+
+/* =========================
+   STAT TILES
+   ========================= */
+
+.s1-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+
+    margin-bottom: 20px;
+}
+
+.s1-stat {
+    padding: 14px 16px;
+
+    background-color: var(--s1-white);
+    border: 2px solid var(--s1-line);
+    border-radius: 16px;
+}
+
+.s1-stat .value {
+    font-size: 26px;
+    font-weight: 700;
+}
+
+.s1-stat .label {
+    font-size: 12px;
+    color: var(--s1-muted);
+}
+
+
+/* =========================
+   TABLES
+   ========================= */
+
+.s1-table-wrap {
+    overflow-x: auto;
+}
+
+.s1-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.s1-table th,
+.s1-table td {
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--s1-line);
+    vertical-align: top;
+}
+
+.s1-table th {
+    font-size: 12px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--s1-muted);
+}
+
+.s1-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: flex-end;
+
+    margin-bottom: 18px;
+}
+
+.s1-filters .s1-field {
+    margin-bottom: 0;
+    min-width: 150px;
+}
+
+
+/* =========================
+   HTMX BUSY INDICATOR
+   ========================= */
+
+.s1-indicator {
+    display: none;
+    font-size: 14px;
+    color: var(--s1-muted);
+}
+
+.htmx-request .s1-indicator,
+.htmx-request.s1-indicator {
+    display: inline;
+}
+
+
+@media (max-width: 640px) {
+    .s1-topbar {
+        padding: 14px 18px;
+    }
+
+    .s1-page {
+        padding: 18px 14px 40px;
+    }
+
+    .s1-card {
+        padding: 18px 16px;
+    }
+}
+
+
+/* =========================
+   ASK-THE-AI BOX
+
+   One row: question in, answer out. Collapses to two rows on a phone.
+   ========================= */
+
+.s1-ask {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.s1-ask input[type="text"] {
+    flex: 1 1 320px;
+    padding: 12px 16px;
+
+    font-family: inherit;
+    font-size: 15px;
+    color: var(--s1-text);
+
+    background-color: var(--s1-white);
+
+    border: 2px solid var(--s1-blue-strong);
+    border-radius: 999px;
+}
+
+.s1-ask input[type="text"]:focus {
+    outline: none;
+    border-color: var(--s1-text);
+}
+
+
+/* Staff reply row on each review card. */
+
+.s1-reply {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+
+    margin-top: 12px;
+}
+
+.s1-reply input[type="text"] {
+    flex: 1 1 260px;
+    padding: 8px 14px;
+
+    font-family: inherit;
+    font-size: 14px;
+
+    background-color: var(--s1-white);
+
+    border: 2px solid var(--s1-line);
+    border-radius: 14px;
+}
+
+.s1-reply input[type="text"]:focus {
+    outline: none;
+    border-color: var(--s1-blue-strong);
+}
+
+
+/* =========================
+   SEARCH AND DATE FILTERS
+
+   The search box takes the space left over; the date and sort controls
+   keep their natural width so the row stays readable when it wraps on a
+   narrow screen.
+   ========================= */
+
+.s1-filters .s1-search {
+    flex: 1 1 260px;
+}
+
+.s1-field input[type="search"],
+.s1-field input[type="date"] {
+    width: 100%;
+    padding: 11px 14px;
+
+    font-family: inherit;
+    font-size: 15px;
+    color: var(--s1-text);
+
+    background-color: var(--s1-cream);
+
+    border: 2px solid var(--s1-line);
+    border-radius: 14px;
+}
+
+.s1-field input[type="search"]:focus,
+.s1-field input[type="date"]:focus {
+    outline: none;
+    border-color: var(--s1-blue-strong);
+    background-color: var(--s1-white);
+}

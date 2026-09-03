@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Local configuration - .env.example is committed instead
+.env
+
+# SQLite databases are created by the containers, never committed
+*.db
+
+# macOS
+.DS_Store

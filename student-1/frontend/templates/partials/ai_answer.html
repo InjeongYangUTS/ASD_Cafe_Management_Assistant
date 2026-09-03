@@ -1,0 +1,35 @@
+{#
+   The answer to one staff question.
+
+   'mode' is always shown. A staff member acting on this needs to know
+   whether the wording came from the model or from the rule-based
+   fallback, and hiding that would make the answer look more authoritative
+   than it is.
+#}
+{% if error %}
+    <div class="s1-message error">{{ error }}</div>
+{% else %}
+
+    <div class="s1-ai-block" style="margin-top:14px;">
+
+        <h4>{{ result.question }}</h4>
+
+        <p>{{ result.answer }}</p>
+
+        <p class="s1-ai-source" style="margin:0;">
+            {% if result.mode == 'ollama' %}
+                Answered by <strong>{{ result.model }}</strong> through Ollama,
+                from the reviews in the database.
+            {% else %}
+                Answered from the measured review data
+                ({{ result.model }}).
+            {% endif %}
+        </p>
+
+        {% if result.note %}
+            <p class="s1-meta" style="margin:6px 0 0;">{{ result.note }}</p>
+        {% endif %}
+
+    </div>
+
+{% endif %}

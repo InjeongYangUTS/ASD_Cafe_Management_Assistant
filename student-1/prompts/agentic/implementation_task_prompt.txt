@@ -1,0 +1,60 @@
+Feature Name:
+Customer Feedback & Reviews (Student 1 - Hangyeol Yi)
+
+Microservices:
+- student-1-database  (port 7100) owns feedback.db and exposes /db/*
+- student-1-backend   (port 8100) review logic and AI-Mode, exposes /api/*
+- student-1-frontend  (port 5110) HTMX screens /review and /reviews
+
+Database Tables:
+- customer_feedback: id, customer_id, customer_name, order_id,
+  order_number, rating, title, comment, category, status, staff_response,
+  sentiment, sentiment_score, ai_summary, ai_issues, ai_model,
+  analysed_at, submitted_at, updated_at
+- store_logs: id, feedback_id, entity, action, actor, actor_role, detail,
+  created_at
+
+Important domain rules:
+- store_logs deliberately has NO foreign key cascade on feedback_id. Its
+  purpose is to record deletions, so the log must outlive the row it
+  describes. Any recommendation to add ON DELETE CASCADE is invalid.
+- rating is 1 to 5 and is required. comment is required.
+- The customer supplies ONLY a rating and a comment. category is derived
+  from the wording by the backend.
+- AI columns are written only through PUT /db/feedback/<id>/analysis, so
+  a customer edit cannot forge a sentiment score. This is deliberate.
+
+Endpoints:
+- GET/POST         /api/feedback
+- GET/PUT/DELETE   /api/feedback/<id>
+- PUT              /api/feedback/<id>/status
+- POST             /api/feedback/<id>/response
+- GET              /api/feedback/<id>/logs
+- GET              /api/logs
+- GET              /api/summary
+- GET              /api/orders
+- POST             /api/ai/ask
+- POST             /api/ai/analyse/<id>
+- POST             /api/ai/analyse-pending
+- POST             /api/ai/insights
+- GET              /api/health
+
+These are the ONLY endpoints that exist. Do not invent others.
+
+Validation Evidence:
+{{VALIDATION_EVIDENCE}}
+
+Task:
+Review the Customer Feedback & Reviews microservices using the validation
+evidence above.
+
+Base your answer only on the Validation Evidence - it already reflects real
+HTTP requests made to the running services and real database checks. Do not
+claim to have made requests yourself, and do not rely on assumptions beyond
+that evidence. If the evidence indicates a service is not responding, say:
+Unable to verify live endpoint behavior.
+
+Output rules:
+- If the evidence does not support an improvement, write:
+  No evidence-backed improvement identified.
+- Return exactly two bullet points, or the no-evidence sentence.

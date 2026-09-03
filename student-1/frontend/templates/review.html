@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}Leave a Review{% endblock %}
+
+{#
+   CUSTOMER SCREEN
+
+   Top    : star rating + comment. That is all a customer is asked for -
+            no category dropdown. The backend derives the category from
+            the wording, because customers classify their own complaints
+            badly and resent being asked to.
+   Bottom : the reviews this customer has already written, each with
+            Edit and Delete. Both halves are swapped by HTMX, so posting
+            a review updates the list without a page reload.
+#}
+
+{% block content %}
+
+<div class="s1-card">
+
+    <h2>How was your visit, {{ customer.name }}?</h2>
+    <p class="s1-hint">
+        Pick a star rating and tell us what happened. Your review goes
+        straight to the team.
+    </p>
+
+    <form hx-post="/review"
+          hx-target="#my-reviews"
+          hx-swap="outerHTML"
+          hx-disabled-elt="find button"
+          hx-on::after-request="if (event.detail.successful) this.reset()">
+
+        <div class="s1-field">
+            <label for="star-5">Your rating</label>
+
+            {# Reversed order so the CSS sibling selector can fill in every
+               star up to the one chosen. 5 is first in the DOM, last on screen. #}
+            <div class="s1-stars">
+                <input type="radio" id="star-5" name="rating" value="5" required>
+                <label for="star-5" title="5 stars - excellent">&#9733;</label>
+
+                <input type="radio" id="star-4" name="rating" value="4">
+                <label for="star-4" title="4 stars - good">&#9733;</label>
+
+                <input type="radio" id="star-3" name="rating" value="3">
+                <label for="star-3" title="3 stars - okay">&#9733;</label>
+
+                <input type="radio" id="star-2" name="rating" value="2">
+                <label for="star-2" title="2 stars - poor">&#9733;</label>
+
+                <input type="radio" id="star-1" name="rating" value="1">
+                <label for="star-1" title="1 star - bad">&#9733;</label>
+            </div>
+        </div>
+
+        <div class="s1-field">
+            <label for="title">Headline <span class="s1-meta">(optional)</span></label>
+            <input type="text" id="title" name="title" maxlength="120"
+                   placeholder="Sum it up in a few words">
+        </div>
+
+        <div class="s1-field">
+            <label for="comment">Your review</label>
+            <textarea id="comment" name="comment" maxlength="2000" required
+                      placeholder="What did you order, and how was it? Naming the item helps us fix the right thing."></textarea>
+        </div>
+
+        <div class="s1-actions">
+            <button type="submit" class="s1-button">Post review</button>
+            <span class="s1-indicator">Posting&hellip;</span>
+        </div>
+
+    </form>
+
+</div>
+
+{% include "partials/my_reviews.html" %}
+
+{% endblock %}

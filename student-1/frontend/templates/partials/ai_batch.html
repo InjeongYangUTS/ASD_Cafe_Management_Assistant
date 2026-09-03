@@ -1,0 +1,66 @@
+{#
+   Result of running AI-Mode over the reviews that had never been
+   analysed. Each row shows the sentiment the model returned and the tags
+   it detected, so the marker can see AI-Mode doing live work rather than
+   replaying stored text.
+#}
+{% if error %}
+    <div class="s1-message error">{{ error }}</div>
+{% else %}
+    {% if result.analysed %}
+        <div class="s1-message success">
+            Analysed {{ result.analysed }} review(s) with
+            <strong>{{ result.model }}</strong>.
+            {{ result.remaining }} still waiting
+            (up to {{ result.batch_limit }} per run).
+        </div>
+
+        <div class="s1-table-wrap" style="margin-bottom:16px;">
+            <table class="s1-table">
+                <thead>
+                    <tr>
+                        <th>Review</th>
+                        <th>Rating</th>
+                        <th>Sentiment</th>
+                        <th>Issues found</th>
+                        <th>Source</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in result.results %}
+                        <tr>
+                            <td>#{{ row.id }} {{ row.title or '' }}</td>
+                            <td>{{ row.rating }}</td>
+                            <td>
+                                <span class="s1-tag {{ row.sentiment|lower }}">
+                                    {{ row.sentiment|title }}
+                                    ({{ '%+.2f'|format(row.sentiment_score) }})
+                                </span>
+                            </td>
+                            <td>
+                                {% for issue in row.ai_issues %}
+                                    <span class="s1-tag negative">{{ issue.replace('_', ' ') }}</span>
+                                {% else %}
+                                    <span class="s1-meta">none</span>
+                                {% endfor %}
+                            </td>
+                            <td><span class="s1-tag ai">{{ row.mode }}</span></td>
+                        </tr>
+
+                        {% for correction in row.corrections %}
+                            <tr>
+                                <td colspan="5" class="s1-meta">
+                                    Measured data applied to #{{ row.id }}: {{ correction }}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="s1-message info">
+            Every review has already been analysed.
+        </div>
+    {% endif %}
+{% endif %}
