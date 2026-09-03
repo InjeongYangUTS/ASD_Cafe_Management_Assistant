@@ -1,0 +1,35 @@
+{
+  "_comment": [
+    "Menu vocabulary used to work out WHICH MENU ITEM a review is talking",
+    "about, so the staff screen can answer 'which items get complaints and",
+    "which get praise'.",
+    "",
+    "FALLBACK CACHE ONLY. The live source of menu names is the Menu API",
+    "(GET /api/menus), read through the Order service, and live names are",
+    "merged over this file at runtime. This copy exists so the analysis",
+    "still works when that service is not running, and every result is",
+    "tagged with menu_source so it is always visible which was used.",
+    "",
+    "'aliases' are the words customers actually type. Matching is",
+    "longest-alias-first, so 'vanilla latte' is never double counted as a",
+    "plain 'latte'."
+  ],
+  "version": "2026-09-03",
+  "items": [
+    { "menu_id": 1,  "name": "Cappuccino",           "category": "DRINK", "aliases": ["cappuccino", "cappucino", "cap "] },
+    { "menu_id": 2,  "name": "Latte",                "category": "DRINK", "aliases": ["latte", "oat latte", "soy latte"] },
+    { "menu_id": 3,  "name": "Flat White",           "category": "DRINK", "aliases": ["flat white", "oat flat white"] },
+    { "menu_id": 4,  "name": "Long Black",           "category": "DRINK", "aliases": ["long black"] },
+    { "menu_id": 5,  "name": "Iced Long Black",      "category": "DRINK", "aliases": ["iced long black"] },
+    { "menu_id": 6,  "name": "Iced Latte",           "category": "DRINK", "aliases": ["iced latte"] },
+    { "menu_id": 7,  "name": "Vanilla Latte",        "category": "DRINK", "aliases": ["vanilla latte"] },
+    { "menu_id": 8,  "name": "Caramel Latte",        "category": "DRINK", "aliases": ["caramel latte"] },
+    { "menu_id": 9,  "name": "Hot Chocolate",        "category": "DRINK", "aliases": ["hot chocolate", "hot choc"] },
+    { "menu_id": 10, "name": "Chicken Sandwich",     "category": "FOOD",  "aliases": ["chicken sandwich", "chicken sanga"] },
+    { "menu_id": 11, "name": "Ham & Cheese Toastie", "category": "FOOD",  "aliases": ["ham & cheese toastie", "ham and cheese toastie", "ham and cheese", "toastie"] },
+    { "menu_id": 12, "name": "Avocado Toast",        "category": "FOOD",  "aliases": ["avocado toast", "avo toast", "smashed avo"] },
+    { "menu_id": 13, "name": "Chocolate Cake",       "category": "FOOD",  "aliases": ["chocolate cake", "choc cake"] },
+    { "menu_id": 14, "name": "Blueberry Muffin",     "category": "FOOD",  "aliases": ["blueberry muffin", "muffin"] },
+    { "menu_id": 15, "name": "Croissant",            "category": "FOOD",  "aliases": ["croissant", "croisant"] }
+  ]
+}

@@ -25,10 +25,22 @@ stop_services() {
             kill "$pid" 2>/dev/null || true
         done < "$PIDFILE"
         rm -f "$PIDFILE"
-        echo "stopped."
-    else
-        echo "nothing running (no $PIDFILE)."
     fi
+
+    # Fallback: free the ports even if a previous run crashed before writing
+    # its pid file. Without this you get "Address already in use" and the old
+    # code keeps serving, which is very confusing while developing.
+    if command -v lsof > /dev/null 2>&1; then
+        for port in "$DB_PORT" "$BACKEND_PORT" "$FRONTEND_PORT" 8200 8300; do
+            pids=$(lsof -ti tcp:"$port" 2>/dev/null || true)
+            if [ -n "$pids" ]; then
+                # shellcheck disable=SC2086
+                kill $pids 2>/dev/null || true
+            fi
+        done
+    fi
+
+    echo "stopped."
 }
 
 case "${1:-}" in

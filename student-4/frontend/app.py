@@ -36,7 +36,14 @@ BACKEND_URL = os.environ.get("BACKEND_URL", "http://localhost:8400").rstrip("/")
 SHARED_DIR = os.path.abspath(
     os.environ.get("SHARED_DIR", os.path.join(BASE_DIR, "..", "..", "shared"))
 )
-SHARED_HOME = os.environ.get("SHARED_HOME_URL", "http://localhost:5100/staff-dashboard")
+
+# Link back to the shared entry point. Resolved per request from the host the
+# BROWSER used - see inject_shared_home() below - so the link works from any
+# device. Set SHARED_HOME_URL only to override that with a fixed address.
+SHARED_HOME_URL = os.environ.get("SHARED_HOME_URL")
+SHARED_PORT = os.environ.get("SHARED_PORT", "5100")
+SHARED_PATH = os.environ.get("SHARED_PATH", "/staff-dashboard")
+
 OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.2")
 
 HTTP_TIMEOUT = float(os.environ.get("HTTP_TIMEOUT", 5))
@@ -89,6 +96,28 @@ def call_backend(method, path, timeout=None, **kwargs):
         raise BackendError(data.get("error") or "Request failed.")
 
     return data
+
+
+@app.context_processor
+def inject_shared_home():
+    """
+    Make `shared_home` available to every template.
+
+    The address is built from the host in the incoming request, not from
+    "localhost", so the "Staff Dashboard" link resolves correctly wherever the
+    page is opened from - the marker's laptop, a phone on the same Wi-Fi, or
+    another machine on the network. Opening this app at
+    http://192.168.1.20:5400 sends the link to 192.168.1.20:5100.
+    """
+    if SHARED_HOME_URL:
+        return {"shared_home": SHARED_HOME_URL}
+
+    host = request.host.split(":")[0]
+    return {
+        "shared_home": "%s://%s:%s%s" % (
+            request.scheme, host, SHARED_PORT, SHARED_PATH
+        )
+    }
 
 
 def trigger(html, *events):
@@ -205,7 +234,6 @@ def pos():
     return render_template(
         "pos.html",
         active="pos",
-        shared_home=SHARED_HOME,
         menu_count=menu_count,
         menu_source=menu_source,
         customer_name=session.get("customer_name", ""),
@@ -217,7 +245,6 @@ def kitchen():
     return render_template(
         "kitchen.html",
         active="kitchen",
-        shared_home=SHARED_HOME,
         ollama_model=OLLAMA_MODEL,
     )
 
@@ -227,7 +254,6 @@ def status_page():
     return render_template(
         "status.html",
         active="status",
-        shared_home=SHARED_HOME,
         statuses=ALL_STATUSES,
     )
 

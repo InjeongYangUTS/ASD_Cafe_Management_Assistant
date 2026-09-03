@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+    
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Inventory Dashboard</title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='css/inventory_dashboard.css') }}"
+    >
+
+</head>
+
+<body>
+
+<div class="dashboard-container">
+
+    <!-- =========================================================
+         HEADER
+    ========================================================== -->
+
+    <header class="header">
+
+        <div class="title-container">
+
+            <img
+                src="{{ url_for('static', filename='icons/box.svg') }}"
+                alt="Inventory Box Icon"
+                class="box-icon"
+            >
+
+            <h1 class="dashboard-title">
+                Inventory Dashboard
+            </h1>
+
+        </div>
+
+        <a href="{{ shared_home }}" class="back-link">
+            ← Back to Main Dashboard
+        </a>
+
+    </header>
+
+    <!-- =========================================================
+         MANAGEMENT BUTTONS
+    ========================================================== -->
+
+    <nav class="management-buttons">
+
+        <a
+            href="{{ url_for('inventory.inventory_management') }}"
+            class="management-button inventory-button"
+        >
+            Inventory Management
+        </a>
+
+        <a
+            href="{{ url_for('supplier.supplier_management') }}"
+            class="management-button supplier-button"
+        >
+            Supplier Management
+        </a>
+
+        <a
+            href="{{ url_for('restock.restock_order_management') }}"
+            class="management-button restock-button"
+        >
+            Restock Order Management
+        </a>
+
+    </nav>
+
+    <!-- =========================================================
+         SUMMARY
+    ========================================================== -->
+
+    <div class="summary-container">
+
+        <table class="summary-table">
+
+            <thead>
+
+                <tr>
+                    <th>Total Items</th>
+                    <th>Low Stock</th>
+                    <th>Out of Stock</th>
+                    <th>Pending Orders</th>
+                </tr>
+
+            </thead>
+
+            <tbody>
+
+                <tr>
+                    <td>{{ total_items | default('') }}</td>
+                    <td>{{ low_stock_count | default('') }}</td>
+                    <td>{{ out_of_stock_count | default('') }}</td>
+                    <td>{{ pending_orders_count | default('') }}</td>
+                </tr>
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+
+    <!-- =========================================================
+         MAIN CONTENT
+    ========================================================== -->
+
+    <main class="main-content">
+
+
+        <!-- =====================================================
+             LEFT COLUMN
+        ====================================================== -->
+
+        <div class="left-column">
+
+
+            <!-- LOW STOCK -->
+
+            <section>
+
+                <h2 class="section-title">
+                    Low Stock Items
+                </h2>
+
+
+                <table class="data-table low-stock-table">
+
+                    <thead>
+
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Quantity</th>
+                            <th>Status</th>
+                        </tr>
+
+                    </thead>
+
+
+                    <tbody>
+
+                        {% if low_stock_items %}
+
+                            {% for item in low_stock_items %}
+
+                                <tr>
+                                    <td>{{ item.id }}</td>
+                                    <td>{{ item.name }}</td>
+                                    <td>{{ item.quantity }}</td>
+                                    <td>{{ item.status }}</td>
+                                </tr>
+
+                            {% endfor %}
+
+                        {% else %}
+
+                            
+
+                        {% endif %}
+
+                    </tbody>
+
+                </table>
+
+            </section>
+
+
+            <!-- RECENT RESTOCK -->
+
+            <section>
+
+                <h2 class="section-title">
+                    Recent Restock Orders
+                </h2>
+
+
+                <table class="data-table restock-table">
+
+                    <thead>
+
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Supplier Name</th>
+                            <th>Status</th>
+                        </tr>
+
+                    </thead>
+
+
+                    <tbody>
+
+                        {% if recent_restock_orders %}
+
+                            {% for order in recent_restock_orders %}
+
+                                <tr>
+                                    <td>{{ order.id }}</td>
+                                    <td>{{ order.name }}</td>
+                                    <td>{{ order.supplier_name }}</td>
+                                    <td>{{ order.status }}</td>
+                                </tr>
+
+                            {% endfor %}
+
+                        {% else %}
+
+                        {% endif %}
+
+                    </tbody>
+
+                </table>
+
+            </section>
+
+        </div>
+
+
+        <!-- =====================================================
+             RIGHT COLUMN
+        ====================================================== -->
+
+        <section class="ai-section">
+
+            <h2 class="section-title">
+                Ask AI Agent
+            </h2>
+
+
+            <form method="POST" action="{{ url_for('dashboard.inventory_dashboard') }}">
+
+                <label
+                    for="ai-question"
+                    class="ai-label"
+                >
+                    Question
+                </label>
+
+
+                <textarea
+                    id="ai-question"
+                    name="question"
+                    class="question-box"
+                >{{ ai_question | default('') }}</textarea>
+
+
+                <div class="ask-button-row">
+
+                    <button
+                        type="submit"
+                        class="ask-ai-button"
+                    >
+                        Ask AI Agent
+                    </button>
+
+                </div>
+
+
+                <span class="ai-label">
+                    Answer
+                </span>
+
+
+                <div class="answer-box">{% if ai_answer %}{{ ai_answer }}{% else %}The answer from the AI agent will be displayed here...{% endif %}</div>
+
+            </form>
+
+        </section>
+
+    </main>
+
+</div>
+
+</body>
+</html>

@@ -1,0 +1,17 @@
+Student 4 - NFR measurements  (30 samples per endpoint)
+
+Endpoint                                         mean      p50      p95  target
+----------------------------------------------------------------------------------
+GET /api/orders (list with items)                6.1ms     5.9ms     6.9ms  PASS
+GET /api/order-status (kitchen board)            7.5ms     5.2ms     7.7ms  PASS
+GET /api/menu (read-through to Student 2)        4.3ms     4.2ms     5.4ms  PASS
+GET /db/orders/1 (database service)              2.4ms     2.3ms     2.7ms  PASS
+GET /kitchen (rendered page)                     1.9ms     1.8ms     2.1ms  PASS
+GET /ui/kitchen/board (HTMX partial)             9.0ms     8.8ms    10.5ms  PASS
+
+NFR2  p95 under 300 ms on every endpoint: PASS (worst 10.5 ms)
+
+NFR3  100 concurrent reads (20 threads): 0.36s, 278 req/s, all 200: True
+
+NFR4  POST /api/orders end to end: 18 ms (price source: menu-service, stock deducted: True)
+      benchmark order removed - no test data left behind

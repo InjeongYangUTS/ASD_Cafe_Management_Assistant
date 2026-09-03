@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>{% block title %}Feedback &amp; Reviews{% endblock %} &middot; Cafe Management Assistant</title>
+
+    <!-- Shared team theme (owned by the group - not modified by student 3) -->
+    <link rel="stylesheet" href="/shared/css/style.css">
+
+    <!-- Student 1 feature stylesheet -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/feedback.css') }}">
+
+    <!-- HTMX 2.0.10, vendored so the demonstration runs without internet access -->
+    <script src="{{ url_for('static', filename='js/htmx.min.js') }}"></script>
+</head>
+
+<body class="s1-app">
+
+    {#- Owner kept in the source rather than on screen: the two audiences
+        reach their own page from their own dashboard, so an in-app nav bar
+        between them was only clutter.
+        Student 1 - Hangyeol Yi - student-1-frontend, port 5110 -#}
+    <header class="s1-topbar">
+        <h1>Customer Feedback &amp; Reviews</h1>
+    </header>
+
+    <main class="s1-page">
+        {% block content %}{% endblock %}
+    </main>
+
+</body>
+
+</html>

@@ -1,0 +1,20 @@
+CUSTOMER REVIEW
+
+Star rating : {{RATING}} out of 5
+Order       : {{ORDER_NUMBER}}
+Title       : {{TITLE}}
+Comment     : {{COMMENT}}
+
+Issue tags our deterministic rules already detected:
+{{DETECTED_ISSUES}}
+
+Task:
+Classify this review.
+
+Reply with exactly these four lines and nothing else:
+
+SENTIMENT: one of POSITIVE, NEUTRAL, NEGATIVE
+SCORE: a number between -1.0 and 1.0
+ISSUES: a comma separated list of short snake_case problem tags, or none
+SUMMARY: one sentence, maximum 25 words, describing what this customer is
+telling the cafe.

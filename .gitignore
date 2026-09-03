@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Local configuration - .env.example is committed instead
+.env
+
+# macOS
+.DS_Store
+
+# student-1 databases are built by the container from seed.py,
+# so they are never committed. Other features commit their own.
+student-1/**/*.db

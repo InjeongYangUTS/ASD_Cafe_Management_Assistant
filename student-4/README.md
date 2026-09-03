@@ -87,6 +87,26 @@ docker compose ps
 | Backend health | http://localhost:8400/api/health |
 | Database health | http://localhost:7400/db/health |
 
+### Opening it from another device
+
+Every link between the shared entry point and this feature is built from the
+host the **browser** used, not from `localhost`. Open the shared app at
+`http://<the host machine's IP>:5100` from a phone or a second laptop on the
+same network and the dashboard cards, and the "Staff Dashboard" link back,
+all point at that same IP automatically. Nothing needs reconfiguring.
+
+```bash
+ipconfig getifaddr en0        # macOS - find the host IP
+hostname -I                   # Linux
+# then browse to http://<that IP>:5100 from any device on the network
+```
+
+`SHARED_PORT` (default 5100) changes which port the back-link uses;
+`SHARED_HOME_URL` pins it to one fixed address if that is ever wanted.
+
+If another device cannot connect, it is the host firewall, not the app -
+ports 5100 / 5400 / 8400 / 7400 have to be reachable.
+
 For AI-Mode, bring up the model too:
 
 ```bash

@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+
+{% block title %}Staff Review Board{% endblock %}
+
+{#
+   STAFF SCREEN
+
+   Top    : AI analysis. One button runs AI-Mode over every review -
+            which menu items draw complaints, which draw praise, what to
+            fix first, and what to do about it.
+   Bottom : every customer review from the database, filterable, with the
+            staff actions (reply, change status) on each row.
+#}
+
+{% block content %}
+
+{% if error %}
+    <div class="s1-message error">{{ error }}</div>
+{% endif %}
+
+{# ---------------- headline figures ---------------- #}
+<div class="s1-stats">
+
+    <div class="s1-stat">
+        <div class="value">{{ summary.review_count or 0 }}</div>
+        <div class="label">Total reviews</div>
+    </div>
+
+    <div class="s1-stat">
+        <div class="value">{{ '%.2f'|format(summary.average_rating or 0) }}</div>
+        <div class="label">Average rating</div>
+    </div>
+
+    <div class="s1-stat">
+        <div class="value">{{ summary.by_status.get('SUBMITTED', 0) if summary.by_status else 0 }}</div>
+        <div class="label">Waiting for a reply</div>
+    </div>
+
+    <div class="s1-stat">
+        <div class="value">{{ summary.by_sentiment.get('NEGATIVE', 0) if summary.by_sentiment else 0 }}</div>
+        <div class="label">Negative sentiment</div>
+    </div>
+
+    <div class="s1-stat">
+        <div class="value">{{ summary.unanalysed_count or 0 }}</div>
+        <div class="label">Awaiting AI review</div>
+    </div>
+
+</div>
+
+
+{# ---------------- AI-Mode : ask a question, get an answer ---------------- #}
+<div class="s1-card s1-ai">
+
+    <div class="s1-section-title">
+        <h2>Ask the AI about these reviews</h2>
+        <span class="s1-ai-source">
+            AI-Mode &middot; Ollama &middot; {{ ollama_model }}
+        </span>
+    </div>
+
+    <form class="s1-ask"
+          hx-post="/reviews/ai/ask"
+          hx-target="#ai-answer"
+          hx-swap="innerHTML"
+          hx-disabled-elt="find button">
+
+        <input type="text" name="question" required maxlength="300"
+               placeholder="e.g. Which menu items do customers complain about?">
+
+        <button type="submit" class="s1-button">Ask</button>
+    </form>
+
+    <p class="s1-hint" style="margin:10px 0 0;">
+        Answers come from the reviews in the database only.
+        <span class="s1-indicator">Asking {{ ollama_model }}&hellip;</span>
+    </p>
+
+    <div id="ai-answer"></div>
+
+    {# Every review is analysed by the rules the moment it is written, so
+       none is ever unlabelled. This upgrades those rule-based verdicts
+       with the language model. Kept small on purpose - the question box
+       above is the main control. #}
+    <p style="margin:14px 0 0;">
+        <button class="s1-button ghost small"
+                hx-post="/reviews/ai/analyse-pending"
+                hx-target="#ai-answer"
+                hx-swap="innerHTML"
+                hx-disabled-elt="this">Re-check with {{ ollama_model }}
+            ({{ summary.unanalysed_count or 0 }})</button>
+    </p>
+
+</div>
+
+
+{# ---------------- filters ---------------- #}
+<div class="s1-card">
+
+    <h2>All customer reviews</h2>
+    <p class="s1-hint">
+        Every review in the feedback database. Each one is labelled with a
+        sentiment and a category worked out from what the customer wrote.
+    </p>
+
+    {#
+       Search, a date range, and a sort order.
+
+       The search box fires on keyup with a 400ms delay so the list
+       follows the typing without a request per keystroke. Everything
+       else fires on change. One form, so the three controls always
+       submit together and a search survives changing the sort.
+    #}
+    <form class="s1-filters"
+          hx-get="/reviews/list"
+          hx-target="#staff-reviews"
+          hx-swap="outerHTML"
+          hx-trigger="change, keyup changed delay:400ms from:#filter-search">
+
+        <div class="s1-field s1-search">
+            <label for="filter-search">Search reviews</label>
+            <input type="search" id="filter-search" name="search"
+                   maxlength="100" value="{{ filters.search }}"
+                   placeholder="Words in a review, or a customer's name">
+        </div>
+
+        <div class="s1-field">
+            <label for="filter-from">From</label>
+            {# lang is set on the input itself: the empty-state text and
+               the field order of a native date picker come from the
+               browser's locale, not the page. On a Korean-language
+               browser this field renders as "연도-월-일" without it. #}
+            <input type="date" id="filter-from" name="date_from"
+                   lang="en-AU" value="{{ filters.date_from }}">
+        </div>
+
+        <div class="s1-field">
+            <label for="filter-to">To</label>
+            <input type="date" id="filter-to" name="date_to"
+                   lang="en-AU" value="{{ filters.date_to }}">
+        </div>
+
+        <div class="s1-field">
+            <label for="filter-sort">Sort by</label>
+            <select id="filter-sort" name="sort">
+                <option value="newest"  {{ 'selected' if filters.sort == 'newest' }}>Newest first</option>
+                <option value="oldest"  {{ 'selected' if filters.sort == 'oldest' }}>Oldest first</option>
+                <option value="highest" {{ 'selected' if filters.sort == 'highest' }}>Highest rating first</option>
+                <option value="lowest"  {{ 'selected' if filters.sort == 'lowest' }}>Lowest rating first</option>
+            </select>
+        </div>
+
+        {# Clear every filter and reload the full list.
+
+           Always rendered, not only when a filter is set. HTMX swaps the
+           review list alone, so this form is not re-rendered when a
+           filter changes - a button shown conditionally would never
+           appear at the moment it became useful.
+
+           The fields are emptied before the request is issued, so the
+           request carries the cleared values and the controls match what
+           comes back. #}
+        <div class="s1-field">
+            <label for="filter-clear">&nbsp;</label>
+            <button type="button" id="filter-clear" class="s1-button ghost"
+                    hx-get="/reviews/list"
+                    hx-target="#staff-reviews"
+                    hx-swap="outerHTML"
+                    hx-include="closest form"
+                    hx-on:click="
+                        const form = this.closest('form');
+                        form.querySelector('#filter-search').value = '';
+                        form.querySelector('#filter-from').value = '';
+                        form.querySelector('#filter-to').value = '';
+                        form.querySelector('#filter-sort').value = 'newest';
+                    ">Clear</button>
+        </div>
+
+        <span class="s1-indicator">Loading&hellip;</span>
+
+    </form>
+
+    {% include "partials/staff_reviews.html" %}
+
+</div>
+
+{% endblock %}
