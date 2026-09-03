@@ -1,7 +1,7 @@
-from flask import Blueprint, render_template, request
+from flask import Blueprint, jsonify, render_template, request
 
 from db import get_db_connection
-from agentic_inventory import get_ai_restock_recommendation
+from agentic_inventory import run_agentic_loop
 
 dashboard_bp = Blueprint(
     "dashboard",
@@ -72,7 +72,6 @@ def inventory_dashboard():
         FROM inventory
         WHERE status IN ('LOW', 'OUT OF STOCK')
         ORDER BY quantity ASC
-        LIMIT 5
     """)
 
     low_stock_rows = cursor.fetchall()
@@ -130,10 +129,16 @@ def inventory_dashboard():
 
         if ai_question:
 
-            ai_answer = get_ai_restock_recommendation(
-                ai_question,
-                low_stock_items
-            )
+            try:
+                workflow = run_agentic_loop(
+                    question=ai_question,
+                    save_log=True
+                )
+
+                ai_answer = workflow["adapt"]
+
+            except RuntimeError as error:
+                ai_answer = str(error)
 
     return render_template(
         "inventory_dashboard.html",
@@ -150,37 +155,29 @@ def inventory_dashboard():
         ai_answer=ai_answer
     )
 
-@dashboard_bp.route("/ai-restock-recommendation", methods=["POST"])
+@dashboard_bp.route(
+    "/ai-restock-recommendation",
+    methods=["POST"]
+)
 def ai_restock_recommendation():
 
-    connection = get_db_connection()
-    cursor = connection.cursor()
+    data = request.get_json(silent=True) or {}
+    question = data.get("question", "").strip()
 
-    cursor.execute("""
-        SELECT
-            id,
-            name,
-            quantity,
-            unit,
-            minimum_stock,
-            status
-        FROM inventory
-        WHERE status IN ('LOW', 'OUT OF STOCK')
-        ORDER BY
-            CASE
-                WHEN status = 'OUT OF STOCK' THEN 1
-                WHEN status = 'LOW' THEN 2
-                ELSE 3
-            END,
-            quantity ASC
-    """)
+    if not question:
+        return jsonify({
+            "error": "A question is required."
+        }), 400
 
-    inventory_items = cursor.fetchall()
+    try:
+        workflow = run_agentic_loop(
+            question=question,
+            save_log=True
+        )
 
-    connection.close()
+        return jsonify(workflow)
 
-    recommendation = get_ai_restock_recommendation(
-        inventory_items
-    )
-
-    return recommendation
+    except RuntimeError as error:
+        return jsonify({
+            "error": str(error)
+        }), 503

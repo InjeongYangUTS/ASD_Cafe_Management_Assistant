@@ -30,6 +30,7 @@ def create_app():
         static_folder=str(STATIC_DIR)
     )
 
+    app.config["SECRET_KEY"] = "inventory-development-secret-key"
 
     # =====================================================
     # REGISTER BLUEPRINTS

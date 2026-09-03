@@ -88,7 +88,8 @@ def initialise_database():
             inventory_id INTEGER NOT NULL,
             supplier_id INTEGER NOT NULL,
             quantity REAL NOT NULL,
-            status TEXT NOT NULL,
+            order_date TEXT NOT NULL DEFAULT CURRENT_DATE,
+            status TEXT NOT NULL DEFAULT 'Pending',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
             FOREIGN KEY (inventory_id)
@@ -98,6 +99,32 @@ def initialise_database():
                 REFERENCES suppliers(id)
         )
     """)
+    
+    # =========================================================
+    # ADD order_date TO EXISTING RESTOCK ORDERS TABLE
+    # =========================================================
+
+    cursor.execute("""
+        PRAGMA table_info(restock_orders)
+    """)
+
+    restock_order_columns = [
+        column[1]
+        for column in cursor.fetchall()
+    ]
+
+    if "order_date" not in restock_order_columns:
+
+        cursor.execute("""
+            ALTER TABLE restock_orders
+            ADD COLUMN order_date TEXT
+        """)
+
+        cursor.execute("""
+            UPDATE restock_orders
+            SET order_date = DATE(created_at)
+            WHERE order_date IS NULL
+        """)
 
     # =====================================================
     # INVENTORY DUMMY DATA

@@ -1,6 +1,10 @@
-import sqlite3
-import requests
+import json
 import os
+import sqlite3
+from datetime import datetime
+from pathlib import Path
+
+import requests
 
 def get_ai_restock_recommendation(question, low_stock_items):
 
@@ -49,9 +53,9 @@ Instructions:
     try:
 
         response = requests.post(
-            "http://localhost:11434/api/generate",
+            OLLAMA_URL,
             json={
-                "model": "qwen2.5:0.5b",
+                "model": MODEL_NAME,
                 "prompt": prompt,
                 "stream": False
             },
@@ -83,9 +87,17 @@ DATABASE = os.path.join(
     "inventory.db"
 )
 
-OLLAMA_URL = "http://localhost:11434/api/generate"
+OLLAMA_URL = os.getenv(
+    "OLLAMA_URL",
+    "http://localhost:11434/api/generate"
+)
 
-MODEL_NAME = "qwen2.5:0.5b"
+MODEL_NAME = os.getenv(
+    "OLLAMA_MODEL",
+    "qwen2.5:0.5b"
+)
+
+LOG_DIRECTORY = Path(BASE_DIR) / "logs"
 
 
 # =========================================================
@@ -126,11 +138,17 @@ def get_inventory_context():
 
     for row in rows:
 
+        shortage = max(
+            row["minimum_stock"] - row["quantity"],
+            0
+        )
+
         inventory_context += (
             f"ID: {row['id']}, "
             f"Name: {row['name']}, "
             f"Current Quantity: {row['quantity']:g} {row['unit']}, "
             f"Minimum Stock: {row['minimum_stock']:g} {row['unit']}, "
+            f"Shortage: {shortage:g} {row['unit']}, "
             f"Status: {row['status']}\n"
         )
 
@@ -162,13 +180,15 @@ def ask_ollama(prompt):
 
     except requests.RequestException as error:
 
-        return f"AI service unavailable: {error}"
+        raise RuntimeError(
+            f"AI service unavailable: {error}"
+        ) from error
     
     # =========================================================
 # PLAN
 # =========================================================
 
-def plan(inventory_context):
+def plan(inventory_context, question):
 
     prompt = f"""
 You are an AI inventory management agent for a cafe.
@@ -176,6 +196,17 @@ You are an AI inventory management agent for a cafe.
 The following inventory items are currently LOW or OUT OF STOCK:
 
 {inventory_context}
+
+USER REQUEST:
+
+{question}
+
+STATUS RULES:
+- The provided Status field is authoritative.
+- LOW and OUT OF STOCK are different statuses.
+- An item with Status LOW must never be described as OUT OF STOCK.
+- An item with Status OUT OF STOCK must never be described as LOW.
+- Do not infer or change an item's status.
 
 PLAN PHASE:
 
@@ -197,7 +228,7 @@ Keep the plan concise.
 # ACT
 # =========================================================
 
-def act(inventory_context, plan_result):
+def act(inventory_context, question, plan_result):
 
     prompt = f"""
 You are an AI inventory management agent for a cafe.
@@ -209,6 +240,10 @@ CURRENT INVENTORY DATA:
 PLAN:
 
 {plan_result}
+
+USER REQUEST:
+
+{question}
 
 ACT PHASE:
 
@@ -230,7 +265,7 @@ Return a concise analysis.
 # OBSERVE
 # =========================================================
 
-def observe(inventory_context, act_result):
+def observe(inventory_context, question, act_result):
 
     prompt = f"""
 You are reviewing an inventory analysis.
@@ -238,6 +273,10 @@ You are reviewing an inventory analysis.
 ORIGINAL INVENTORY DATA:
 
 {inventory_context}
+
+USER REQUEST:
+
+{question}
 
 ANALYSIS PRODUCED DURING ACT:
 
@@ -268,6 +307,7 @@ Keep the observation concise.
 
 def adapt(
     inventory_context,
+    question,
     plan_result,
     act_result,
     observe_result
@@ -279,6 +319,10 @@ You are an AI inventory management agent for a cafe.
 ORIGINAL INVENTORY DATA:
 
 {inventory_context}
+
+USER REQUEST:
+
+{question}
 
 PLAN:
 
@@ -312,34 +356,33 @@ Return a numbered priority list.
 # AGENTIC LOOP
 # =========================================================
 
-def run_agentic_loop():
+def run_agentic_loop(
+    question="Which items should be restocked first?",
+    save_log=True
+):
+    inventory_context = get_inventory_context()
 
     print("\n========================================")
     print("INVENTORY AGENTIC AI WORKFLOW")
     print("Plan -> Act -> Observe -> Adapt")
-    print("========================================\n")
+    print("========================================")
 
+    print("\nUSER REQUEST")
+    print(question)
 
-    inventory_context = get_inventory_context()
-
-
-    print("CURRENT INVENTORY CONTEXT")
-    print("----------------------------------------")
+    print("\nCURRENT INVENTORY CONTEXT")
     print(inventory_context)
-
-
-    # PLAN
 
     print("\n========================================")
     print("PLAN")
     print("========================================")
 
-    plan_result = plan(inventory_context)
+    plan_result = plan(
+        inventory_context,
+        question
+    )
 
     print(plan_result)
-
-
-    # ACT
 
     print("\n========================================")
     print("ACT")
@@ -347,13 +390,11 @@ def run_agentic_loop():
 
     act_result = act(
         inventory_context,
+        question,
         plan_result
     )
 
     print(act_result)
-
-
-    # OBSERVE
 
     print("\n========================================")
     print("OBSERVE")
@@ -361,13 +402,11 @@ def run_agentic_loop():
 
     observe_result = observe(
         inventory_context,
+        question,
         act_result
     )
 
     print(observe_result)
-
-
-    # ADAPT
 
     print("\n========================================")
     print("ADAPT")
@@ -375,6 +414,7 @@ def run_agentic_loop():
 
     adapt_result = adapt(
         inventory_context,
+        question,
         plan_result,
         act_result,
         observe_result
@@ -382,10 +422,49 @@ def run_agentic_loop():
 
     print(adapt_result)
 
+    workflow_result = {
+        "timestamp": datetime.now().isoformat(),
+        "question": question,
+        "inventory_context": inventory_context,
+        "plan": plan_result,
+        "act": act_result,
+        "observe": observe_result,
+        "adapt": adapt_result
+    }
+
+    if save_log:
+        LOG_DIRECTORY.mkdir(
+            parents=True,
+            exist_ok=True
+        )
+
+        log_name = (
+            "inventory_agent_"
+            + datetime.now().strftime("%Y%m%d_%H%M%S")
+            + ".json"
+        )
+
+        log_path = LOG_DIRECTORY / log_name
+
+        with open(
+            log_path,
+            "w",
+            encoding="utf-8"
+        ) as log_file:
+            json.dump(
+                workflow_result,
+                log_file,
+                ensure_ascii=False,
+                indent=4
+            )
+
+        print(f"\nWorkflow log saved to: {log_path}")
 
     print("\n========================================")
     print("AGENTIC LOOP COMPLETE")
     print("========================================\n")
+
+    return workflow_result
 
 
 if __name__ == "__main__":
