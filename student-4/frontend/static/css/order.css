@@ -1,16 +1,3 @@
-/* =====================================================================
-   Student 4 (Stella Kwon) - Order & Kitchen Management
-   Feature stylesheet.
-
-   The shared team theme (/shared/css/style.css) is loaded first and is
-   NOT modified. This file only adds the screens my feature needs and
-   reuses the same palette, radius and typography:
-
-     cream  #fffdf9   text #333333   muted #777777
-     kitchen pink   #ffcaca / #ebaec5 / #fff0f5   (my feature colour)
-     menu yellow    #f6df9f       inventory green #cdeac0
-     payment blue   #c7ddff       cards: radius 25px, soft shadow
-   ===================================================================== */
 
 :root {
     --s4-cream: #fffdf9;
@@ -36,9 +23,6 @@
     --s4-radius: 25px;
 }
 
-
-/* The shared theme centres every page with flex; my screens are full
-   application layouts, so this class opts out of that on my pages only. */
 body.s4-app {
     display: block;
     justify-content: flex-start;
@@ -48,11 +32,6 @@ body.s4-app {
     background-color: var(--s4-cream);
     color: var(--s4-text);
 }
-
-
-/* =========================
-   TOP BAR
-   ========================= */
 
 .s4-topbar {
     display: flex;
@@ -106,11 +85,6 @@ body.s4-app {
     border-color: var(--s4-pink-strong);
 }
 
-
-/* =========================
-   LAYOUT
-   ========================= */
-
 .s4-page {
     max-width: 1240px;
     margin: 0 auto;
@@ -162,11 +136,6 @@ body.s4-app {
     font-size: 13px;
     color: var(--s4-muted);
 }
-
-
-/* =========================
-   MENU GRID (POS)
-   ========================= */
 
 .s4-station-group {
     margin-bottom: 22px;
@@ -232,11 +201,6 @@ body.s4-app {
     opacity: 0.45;
     cursor: not-allowed;
 }
-
-
-/* =========================
-   CART
-   ========================= */
 
 .s4-cart-line {
     display: grid;
@@ -313,11 +277,6 @@ body.s4-app {
     color: var(--s4-muted);
 }
 
-
-/* =========================
-   FORM CONTROLS
-   ========================= */
-
 .s4-field {
     margin-bottom: 14px;
 }
@@ -390,11 +349,6 @@ body.s4-app {
 
 .s4-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
-
-/* =========================
-   BADGES
-   ========================= */
-
 .s4-badge {
     display: inline-block;
     padding: 4px 11px;
@@ -419,11 +373,6 @@ body.s4-app {
 .s4-badge.station-PASTRY  { background-color: var(--s4-blue-soft); color: #2f5c9e; }
 
 .s4-badge.risk { background-color: #fdeeee; color: #9c2a25; }
-
-
-/* =========================
-   KITCHEN DISPLAY BOARD
-   ========================= */
 
 .s4-board {
     display: grid;
@@ -512,11 +461,6 @@ body.s4-app {
     flex-wrap: wrap;
 }
 
-
-/* =========================
-   AI PANEL
-   ========================= */
-
 .s4-ai-metrics {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
@@ -601,11 +545,6 @@ details.s4-details summary {
     color: var(--s4-muted);
 }
 
-
-/* =========================
-   TABLES / STATUS LIST
-   ========================= */
-
 .s4-table-wrap { overflow-x: auto; }
 
 table.s4-table {
@@ -641,9 +580,6 @@ table.s4-table td.s4-num {
     white-space: nowrap;
 }
 
-
-/* Status timeline */
-
 .s4-timeline { list-style: none; margin: 0; padding: 0; }
 
 .s4-timeline li {
@@ -675,11 +611,6 @@ table.s4-table td.s4-num {
     margin-top: 2px;
 }
 
-
-/* =========================
-   ALERTS
-   ========================= */
-
 .s4-alert {
     padding: 13px 16px;
     border-radius: 12px;
@@ -694,11 +625,6 @@ table.s4-table td.s4-num {
 .s4-alert.error { border-color: var(--s4-red); background-color: var(--s4-red-soft); }
 
 .s4-alert strong { display: block; margin-bottom: 3px; }
-
-
-/* =========================
-   MISC
-   ========================= */
 
 .s4-muted { color: var(--s4-muted); font-size: 13px; }
 
@@ -719,15 +645,17 @@ table.s4-table td.s4-num {
     background-color: var(--s4-white);
 }
 
+.s4-chip.inline {
+    display: inline-block;
+    margin-left: 6px;
+    font-size: 12px;
+    vertical-align: 1px;
+}
+
 .s4-chip.up   { border-color: var(--s4-green); background-color: var(--s4-green-soft); }
 .s4-chip.down { border-color: var(--s4-red); background-color: var(--s4-red-soft); }
 
 .htmx-request .s4-btn { opacity: 0.5; }
-
-
-/* =========================
-   RESPONSIVE
-   ========================= */
 
 @media (max-width: 1100px) {
     .s4-board { grid-template-columns: repeat(2, minmax(0, 1fr)); }

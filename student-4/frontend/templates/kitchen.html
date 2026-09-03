@@ -6,22 +6,16 @@
 
 <div class="s4-page-head">
     <h2>Kitchen Display System</h2>
-    <p>
-        Live ticket board. Move a ticket along the lifecycle
-        PENDING → CONFIRMED → PREPARING → READY → COMPLETED; every change is
-        written to the order_statuses history table.
-    </p>
+    <p>Live ticket board. Move each ticket along as the kitchen works it.</p>
 </div>
 
 {% include "partials/service_strip.html" %}
 
-<!-- ============ AI-MODE PANEL ============ -->
 <section class="s4-panel green" style="margin-bottom: 24px;">
 
     <h3>AI-Mode · Kitchen Analysis</h3>
     <p class="s4-panel-sub">
-        Frontend → Backend/API → Ollama → {{ ollama_model }} → back to this panel.
-        The backend builds the prompt from a compact summary of the live queue.
+        <span class="s4-chip inline">model: {{ ollama_model }}</span>
     </p>
 
     <button class="s4-btn green"
@@ -39,15 +33,12 @@
 
     <div id="s4-ai" style="margin-top: 18px;">
         <p class="s4-muted">
-            Press <strong>Analyse kitchen now</strong> to send the current queue
-            to the LLM.
+            Press <strong>Analyse kitchen now</strong> to read the live queue.
         </p>
     </div>
 
 </section>
 
-
-<!-- ============ BOARD ============ -->
 <div id="s4-board"
      hx-get="/ui/kitchen/board"
      hx-trigger="load, every 15s, boardChanged from:body"

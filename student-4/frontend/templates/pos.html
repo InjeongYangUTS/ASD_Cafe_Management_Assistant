@@ -6,26 +6,22 @@
 
 <div class="s4-page-head">
     <h2>Point of Sale</h2>
-    <p>
-        Take an order at the counter. Prices come from Student 2's Menu API;
-        stock is checked and deducted through Student 3's Inventory API when
-        the order is placed.
-    </p>
+    <p>Take an order at the counter.</p>
 </div>
 
 {% include "partials/service_strip.html" %}
 
 <div class="s4-split">
 
-    <!-- ============ MENU ============ -->
     <section class="s4-panel yellow">
 
         <h3>Menu</h3>
         <p class="s4-panel-sub">
-            {{ menu_count }} items ·
-            price source:
-            <strong>{{ "Student 2 Menu API" if menu_source == "menu-service"
-                       else "local fallback cache" }}</strong>
+            {{ menu_count }} items
+            <span class="s4-chip inline {{ 'up' if menu_source == 'menu-service' else 'down' }}">
+                {{ "Menu API" if menu_source == "menu-service"
+                   else "fallback cache" }}
+            </span>
         </p>
 
         <div id="s4-menu"
@@ -37,12 +33,10 @@
 
     </section>
 
-
-    <!-- ============ CART ============ -->
     <aside class="s4-panel pink">
 
         <h3>Current Order</h3>
-        <p class="s4-panel-sub">Items are held in this browser session until you place the order.</p>
+        <p class="s4-panel-sub">Not saved until you place the order.</p>
 
         <div id="s4-cart"
              hx-get="/ui/cart"
@@ -94,12 +88,9 @@
 
 </div>
 
-
-<!-- ============ RECENT ORDERS ============ -->
 <section class="s4-panel" style="margin-top: 24px;">
 
     <h3>Orders placed today</h3>
-    <p class="s4-panel-sub">Read straight back from the order database service.</p>
 
     <div id="s4-recent"
          hx-get="/ui/orders/recent"

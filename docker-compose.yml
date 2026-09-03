@@ -121,8 +121,12 @@ services:
       PORT: 5400
       BACKEND_URL: http://student-4-backend:8400
       SHARED_DIR: /app/shared
-      SHARED_HOME_URL: http://localhost:5100/staff-dashboard
+      SHARED_PORT: 5100
       OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2}
+      # Must match shared-frontend so the login session cookie set on :5100
+      # can be read here. This service never signs anyone in - it only reads
+      # the role, so a customer cannot open the kitchen board.
+      SECRET_KEY: ${SHARED_SECRET_KEY:-temporary-secret-key}
     volumes:
       # Read-only reuse of the group stylesheet and icons - never modified.
       - ./shared:/app/shared:ro

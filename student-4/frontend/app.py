@@ -17,6 +17,7 @@ stylesheet is reused rather than copied.
 """
 
 import os
+from functools import wraps
 from datetime import datetime
 
 import requests
@@ -38,11 +39,8 @@ SHARED_DIR = os.path.abspath(
 )
 
 # Link back to the shared entry point. Resolved per request from the host the
-# BROWSER used - see inject_shared_home() below - so the link works from any
-# device. Set SHARED_HOME_URL only to override that with a fixed address.
-SHARED_HOME_URL = os.environ.get("SHARED_HOME_URL")
+# BROWSER used - see inject_shared_home() below - so it works from any device.
 SHARED_PORT = os.environ.get("SHARED_PORT", "5100")
-SHARED_PATH = os.environ.get("SHARED_PATH", "/staff-dashboard")
 
 OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.2")
 
@@ -59,7 +57,7 @@ ALL_STATUSES = ["PENDING", "CONFIRMED", "PREPARING", "READY",
                 "COMPLETED", "CANCELLED"]
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "student-4-order-frontend-key")
+app.secret_key = os.environ.get("SECRET_KEY", "temporary-secret-key")
 
 
 # =====================================================================
@@ -98,25 +96,71 @@ def call_backend(method, path, timeout=None, **kwargs):
     return data
 
 
+
+# =====================================================================
+# Roles
+# =====================================================================
+# Authentication belongs to the shared service on :5100. This feature only
+# reads the session it issued, so a customer cannot open the staff screens.
+
+STAFF_PATH = os.environ.get("STAFF_PATH", "/staff-dashboard")
+CUSTOMER_PATH = os.environ.get("CUSTOMER_PATH", "/customer-dashboard")
+
+
+def is_staff():
+    return "staff_id" in session
+
+
+def is_customer():
+    return "customer_id" in session and "staff_id" not in session
+
+
+def shared_link(path):
+    """Absolute URL back to the shared app, on the host the browser used."""
+    host = request.host.split(":")[0]
+    return "%s://%s:%s%s" % (request.scheme, host, SHARED_PORT, path)
+
+
+def staff_only(view):
+    """Send a signed-in customer back to their own dashboard."""
+    @wraps(view)
+    def guarded(*args, **kwargs):
+        if is_customer():
+            return redirect(shared_link(CUSTOMER_PATH))
+        return view(*args, **kwargs)
+    return guarded
+
+
+def staff_only_partial(view):
+    """Same rule for the HTMX fragments the staff screens call."""
+    @wraps(view)
+    def guarded(*args, **kwargs):
+        if is_customer():
+            return ('<div class="s4-alert error"><strong>Staff only</strong>'
+                    'This view is not available on a customer account.</div>'), 403
+        return view(*args, **kwargs)
+    return guarded
+
+
 @app.context_processor
 def inject_shared_home():
     """
-    Make `shared_home` available to every template.
+    Give every template the right way home for whoever is signed in.
 
     The address is built from the host in the incoming request, not from
-    "localhost", so the "Staff Dashboard" link resolves correctly wherever the
-    page is opened from - the marker's laptop, a phone on the same Wi-Fi, or
-    another machine on the network. Opening this app at
-    http://192.168.1.20:5400 sends the link to 192.168.1.20:5100.
+    "localhost", so the link resolves wherever the page is opened from - the
+    marker's laptop, a phone on the same Wi-Fi, another machine on the
+    network. A customer goes back to the customer dashboard, staff to the
+    staff dashboard.
     """
-    if SHARED_HOME_URL:
-        return {"shared_home": SHARED_HOME_URL}
+    customer = is_customer()
 
-    host = request.host.split(":")[0]
     return {
-        "shared_home": "%s://%s:%s%s" % (
-            request.scheme, host, SHARED_PORT, SHARED_PATH
-        )
+        "shared_home": shared_link(CUSTOMER_PATH if customer else STAFF_PATH),
+        "shared_home_label": ("Back to Customer Dashboard" if customer
+                              else "Back to Staff Dashboard"),
+        "is_customer": customer,
+        "is_staff": is_staff(),
     }
 
 
@@ -241,6 +285,7 @@ def pos():
 
 
 @app.get("/kitchen")
+@staff_only
 def kitchen():
     return render_template(
         "kitchen.html",
@@ -250,6 +295,7 @@ def kitchen():
 
 
 @app.get("/status")
+@staff_only
 def status_page():
     return render_template(
         "status.html",
@@ -425,11 +471,13 @@ def render_board():
 
 
 @app.get("/ui/kitchen/board")
+@staff_only_partial
 def ui_board():
     return render_board()
 
 
 @app.put("/ui/kitchen/advance/<int:order_id>")
+@staff_only_partial
 def ui_advance(order_id):
     target = request.values.get("status")
 
@@ -448,6 +496,7 @@ def ui_advance(order_id):
 
 
 @app.post("/ui/ai/analyse")
+@staff_only_partial
 def ui_ai_analyse():
     try:
         result = call_backend(
@@ -469,6 +518,7 @@ def ui_ai_analyse():
 # =====================================================================
 
 @app.get("/ui/status/list")
+@staff_only_partial
 def ui_status_list():
     params = {"limit": 50}
 
@@ -505,6 +555,7 @@ def render_detail(order_id, message=None, message_kind="ok"):
 
 
 @app.get("/ui/status/<int:order_id>")
+@staff_only_partial
 def ui_status_detail(order_id):
     return render_detail(order_id)
 

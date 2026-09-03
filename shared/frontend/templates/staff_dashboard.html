@@ -1,17 +1,10 @@
 {#-
-Feature service base URLs.
+Feature base URLs, built from the host the BROWSER used rather than
+"localhost", so every card works from any machine on the network - the
+marker's laptop, a phone on the same Wi-Fi, Windows or macOS alike.
 
-Built from the host the BROWSER actually used, not from "localhost", so
-these links work from any device: the marker's laptop, a phone on the same
-Wi-Fi, or another machine on the network. Opening the dashboard at
-http://192.168.1.20:5100 makes every card point at 192.168.1.20 too.
-
-Port convention (see docker-compose.yml): frontend 5N00.
-5100 is this shared app, so Student 1 uses 5110.
-
-Each student: point your own card at your own base below.
-S1 -> Customer Feedback S2 -> Menu & Recipe S3 -> Inventory
-S4 -> Order & Kitchen S5 -> Payment & Billing
+Port convention (docker-compose.yml): frontend 5N00.
+5100 is this shared app, so Student 1 sits on 5110.
 -#}
 {%- set HOST = request.scheme ~ '://' ~ request.host.split(':')[0] -%}
 {%- set S1 = HOST ~ ':5110' -%}
@@ -95,6 +88,7 @@ S4 -> Order & Kitchen S5 -> Payment & Billing
 
 
         <!-- Menu & Recipe Management -->
+        {#- Student 2 (Ei Thandar) - student2-frontend -#}
         <a href="{{ S2 }}/staff" class="dashboard-card menu-card">
 
             <svg class="dashboard-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -115,7 +109,7 @@ S4 -> Order & Kitchen S5 -> Payment & Billing
 
 
         <!-- Inventory & Restocking -->
-        {#- Student 3 (Injeong Yang): replace href with {{ '{{ S3 }}' }}/inventory -#}
+        {#- Student 3 (Injeong Yang) - student-3-frontend -#}
         <a href="{{ S3 }}/inventory/" class="dashboard-card inventory-card">
 
             <svg class="dashboard-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -137,7 +131,8 @@ S4 -> Order & Kitchen S5 -> Payment & Billing
 
 
         <!-- Payment & Billing -->
-        <a href="{{ S5 }}" class="dashboard-card payment-card">
+        {#- Student 5 (Ong Ath Vongnathi) - student-5-frontend -#}
+        <a href="{{ S5 }}/" class="dashboard-card payment-card">
 
             <svg class="dashboard-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <rect x="2.5" y="5.5" width="19" height="13" rx="2" stroke="#333333" stroke-width="1.4" />
@@ -161,6 +156,8 @@ S4 -> Order & Kitchen S5 -> Payment & Billing
 
     <p class="back-link">
         <a href="/">← Back to Home</a>
+        &nbsp;·&nbsp;
+        <a href="/logout">Sign out</a>
     </p>
 
 </body>
