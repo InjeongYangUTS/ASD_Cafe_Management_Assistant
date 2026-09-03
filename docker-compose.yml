@@ -209,31 +209,45 @@ services:
 
   # ===================================================================
   # STUDENT 5 - Ong Ath Vongnathi (Kota) - Payment & Billing
-  #   calls student-4-backend for order totals and status updates:
-  #     GET http://student-4-backend:8400/api/orders/<id>
-  #     PUT http://student-4-backend:8400/api/order-status/<id>
-  # ===================================================================
-  # student-5-database:
-  #   build: ./student-5/database
-  #   container_name: student-5-database
-  #   ports: ["7500:7500"]
-  #   networks: [cafe-net]
-  #
-  # student-5-backend:
-  #   build: ./student-5/backend
-  #   container_name: student-5-backend
-  #   ports: ["8500:8500"]
-  #   environment:
-  #     DB_SERVICE_URL: http://student-5-database:7500
-  #     ORDER_SERVICE_URL: http://student-4-backend:8400
-  #     OLLAMA_URL: http://ollama:11434
-  #   networks: [cafe-net]
-  #
-  # student-5-frontend:
-  #   build: ./student-5/frontend
-  #   container_name: student-5-frontend
-  #   ports: ["5500:5500"]
-  #   networks: [cafe-net]
+  # ============================================================
+
+  student-5-database:
+    build: ./student-5/database
+    container_name: student-5-database
+    ports:
+      - "7500:7500"
+    environment:
+      PORT: 7500
+    networks:
+      - cafe-net
+    restart: unless-stopped
+
+  student-5-backend:
+    build: ./student-5/backend
+    container_name: student-5-backend
+    ports:
+      - "8500:8500"
+    environment:
+      PORT: 8500
+      DATABASE_API_URL: http://student-5-database:7500/api
+    depends_on:
+      student-5-database:
+        condition: service_healthy
+    networks:
+      - cafe-net
+    restart: unless-stopped
+
+  student-5-frontend:
+    build: ./student-5/frontend
+    container_name: student-5-frontend
+    ports:
+      - "5500:5500"
+    depends_on:
+      student-5-backend:
+        condition: service_healthy
+    networks:
+      - cafe-net
+    restart: unless-stopped
 
 
 networks:

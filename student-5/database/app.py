@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 import sqlite3
 
@@ -244,4 +245,8 @@ def delete_record(resource, record_id):
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5005, debug=True)
+    app.run(
+    host="0.0.0.0",
+    port=int(os.getenv("PORT", "5005")),
+    debug=os.getenv("FLASK_DEBUG", "false").lower() == "true",
+)

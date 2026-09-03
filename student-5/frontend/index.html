@@ -301,7 +301,8 @@
     </main>
 
     <script>
-        const API_URL = "http://127.0.0.1:5006";
+        const API_URL =
+    `${window.location.protocol}//${window.location.hostname}:8500`;
 
         function showMessage(elementId, message, successful) {
             const element = document.getElementById(elementId);

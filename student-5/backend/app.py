@@ -339,5 +339,8 @@ def process_refund():
         return jsonify({"error": "Database service is unavailable"}), 503
     
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5006, debug=True)
-
+    app.run(
+    host="0.0.0.0",
+    port=int(os.getenv("PORT", "5006")),
+    debug=os.getenv("FLASK_DEBUG", "false").lower() == "true",
+)
