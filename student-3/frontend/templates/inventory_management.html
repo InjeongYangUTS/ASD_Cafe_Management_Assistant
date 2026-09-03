@@ -221,7 +221,20 @@
                     </td>
 
                     <td>
-                        {{ item["status"] }}
+
+                        <span
+                            class="status-badge
+                            {% if item['status'] == 'OUT OF STOCK' %}
+                                status-out
+                            {% elif item['status'] == 'LOW' %}
+                                status-low
+                            {% else %}
+                                status-normal
+                            {% endif %}"
+                        >
+                            {{ item["status"] }}
+                        </span>
+
                     </td>
 
                 </tr>

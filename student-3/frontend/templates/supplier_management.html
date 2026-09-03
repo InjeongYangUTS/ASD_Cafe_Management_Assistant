@@ -114,8 +114,19 @@
                         <td>{{ supplier["phone"] }}</td>
                         <td>{{ supplier["email"] }}</td>
                         <td>{{ supplier["supplies"] }}</td>
-                        <td>{{ supplier["status"] }}</td>
-                    </tr>
+                        <td>
+                            <span
+                                class="status-badge
+                                {% if supplier['status'] == 'Active' %}
+                                    status-active
+                                {% else %}
+                                    status-inactive
+                                {% endif %}"
+                            >
+                                {{ supplier["status"] }}
+                            </span>
+                        </td>
+                                            </tr>
 
                 {% endfor %}
 
