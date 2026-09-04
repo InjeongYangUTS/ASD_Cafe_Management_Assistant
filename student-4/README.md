@@ -301,22 +301,4 @@ artifact).
 `price`/`unit_price`), so Student 2's exact field naming will not break the
 integration on demo day.
 
-## 9. Known issues and limitations
 
-- **No authentication on my own endpoints yet.** The shared login exists at
-  :5100, but `student-4-backend` does not verify a session — any caller on the
-  Docker network can place an order. Release 1: accept the shared session
-  cookie and populate `customer_id` / `staff_id` from it rather than from the form.
-- **`stock_deducted = 0` is recorded but not reconciled.** If Student 3's
-  service is down at order time the flag is set correctly, but nothing retries
-  the deduction later. Release 1: a reconciliation endpoint.
-- **The fallback price cache can drift.** If Student 2 changes a price while
-  their service is down, my fallback serves the old one. Prices are tagged with
-  `price_source` so the drift is visible, but there is no expiry.
-- **LLM output is non-deterministic.** Two analyses of the same queue can be
-  worded differently. The metrics beside the narrative are deterministic, which
-  is what the staff should trust.
-- **Single-host deployment.** One `docker compose` on one machine; SQLite would
-  need replacing before more than one instance of the database service could run.
-- **The kitchen board polls every 15 seconds** rather than pushing. Fine at this
-  scale; server-sent events would be the Release 1 answer.
