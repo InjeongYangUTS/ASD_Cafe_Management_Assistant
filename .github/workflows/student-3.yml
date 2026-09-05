@@ -1,0 +1,63 @@
+name: Student 3 - Inventory & Restocking CI
+
+on:
+  push:
+    paths:
+      - "student-3/**"
+      - "docker-compose.yml"
+      - ".github/workflows/student-3.yml"
+
+  pull_request:
+    paths:
+      - "student-3/**"
+      - "docker-compose.yml"
+      - ".github/workflows/student-3.yml"
+
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+
+          if [ -f student-3/backend/requirements.txt ]; then
+            pip install -r student-3/backend/requirements.txt
+          fi
+
+          pip install pytest requests
+
+      - name: Validate Python syntax
+        run: |
+          python -m compileall student-3/backend
+          python -m compileall student-3/database
+
+      - name: Run Student 3 tests
+        run: |
+          if [ -d student-3/tests ]; then
+            pytest student-3/tests -v
+          else
+            echo "No Student 3 tests directory found."
+          fi
+
+      - name: Validate Docker Compose
+        run: |
+          docker compose config
+
+      - name: Build Student 3 containers
+        run: |
+          docker compose build \
+            student-3-database \
+            student-3-backend \
+            student-3-frontend
