@@ -534,6 +534,89 @@ details.s1-raw pre {
 }
 
 
+/* ---------------------------------------------------------------------
+   AI waiting panel
+
+   A local model without a GPU takes most of a minute. The old indicator
+   was one line of grey text, which reads as nothing happening. This sits
+   where the answer will appear, so the eye is already in the right place
+   when it arrives.
+
+   HTMX toggles .htmx-indicator for the life of the request, so there is
+   no JavaScript here.
+   --------------------------------------------------------------------- */
+.s1-waiting {
+    display: none;
+
+    align-items: center;
+    gap: 14px;
+
+    margin-top: 14px;
+    padding: 16px 20px;
+
+    background-color: var(--s1-white);
+    border: 1px solid var(--s1-blue);
+    border-radius: 16px;
+}
+
+.htmx-request .s1-waiting,
+.htmx-request.s1-waiting {
+    display: flex;
+}
+
+.s1-waiting strong {
+    display: block;
+    font-size: 15px;
+    color: var(--s1-text);
+}
+
+.s1-waiting span {
+    font-size: 13px;
+    color: var(--s1-muted);
+}
+
+/* Three dots rising in turn - slow enough to read as patience rather
+   than as something stuck. */
+.s1-waiting-dots {
+    display: flex;
+    flex: 0 0 auto;
+    gap: 6px;
+}
+
+.s1-waiting-dots span {
+    width: 9px;
+    height: 9px;
+
+    background-color: var(--s1-blue-strong);
+    border-radius: 50%;
+
+    animation: s1-bounce 1.4s ease-in-out infinite;
+}
+
+.s1-waiting-dots span:nth-child(2) { animation-delay: 0.2s; }
+.s1-waiting-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes s1-bounce {
+    0%, 80%, 100% {
+        transform: translateY(0);
+        opacity: 0.45;
+    }
+    40% {
+        transform: translateY(-6px);
+        opacity: 1;
+    }
+}
+
+/* Respect a reader who has asked the system to stop animating. The panel
+   still appears; only the movement stops. */
+@media (prefers-reduced-motion: reduce) {
+    .s1-waiting-dots span {
+        animation: none;
+        opacity: 0.8;
+    }
+}
+
+
 @media (max-width: 640px) {
     .s1-topbar {
         padding: 14px 18px;

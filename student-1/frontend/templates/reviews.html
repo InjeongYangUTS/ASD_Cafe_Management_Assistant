@@ -63,6 +63,7 @@
           hx-post="/reviews/ai/ask"
           hx-target="#ai-answer"
           hx-swap="innerHTML"
+          hx-indicator="#ai-waiting"
           hx-disabled-elt="find button">
 
         <input type="text" name="question" required maxlength="300"
@@ -73,8 +74,28 @@
 
     <p class="s1-hint" style="margin:10px 0 0;">
         Answers come from the reviews in the database only.
-        <span class="s1-indicator">Asking {{ ollama_model }}&hellip;</span>
     </p>
+
+    {# Waiting state.
+
+       A local model on a machine without a GPU takes the better part of a
+       minute, which is long enough that a small line of grey text reads as
+       "nothing happened". This panel replaces it: it says what is running,
+       that the wait is expected, and keeps a pulse going so the page never
+       looks frozen.
+
+       HTMX shows it for the duration of the request through the
+       htmx-indicator class, so no JavaScript is involved. #}
+    <div id="ai-waiting" class="s1-waiting htmx-indicator">
+        <div class="s1-waiting-dots" aria-hidden="true">
+            <span></span><span></span><span></span>
+        </div>
+        <div>
+            <strong>Asking {{ ollama_model }}&hellip;</strong>
+            <span>Reading every review, then writing the answer.
+                  This takes up to a minute without a GPU.</span>
+        </div>
+    </div>
 
     <div id="ai-answer"></div>
 
@@ -87,6 +108,7 @@
                 hx-post="/reviews/ai/analyse-pending"
                 hx-target="#ai-answer"
                 hx-swap="innerHTML"
+                hx-indicator="#ai-waiting"
                 hx-disabled-elt="this">Re-check with {{ ollama_model }}
             ({{ summary.unanalysed_count or 0 }})</button>
     </p>
