@@ -1,12 +1,4 @@
-"""
-Student 1 (Hangyeol Yi) - Customer Feedback & Reviews
-Shared pytest fixtures.
-
-The database service is exercised through Flask's test client against a
-throwaway SQLite file, so the suite needs no running containers and no
-network. That keeps CI honest and fast: a failure here is a failure in my
-code, not a flaky port.
-"""
+"""Shared pytest fixtures. Uses a throwaway SQLite file, so no containers are needed."""
 
 import importlib
 import os
@@ -17,8 +9,7 @@ import pytest
 
 STUDENT_DIR = Path(__file__).resolve().parent.parent
 
-# The services import each other by plain module name, the way they do
-# inside their own containers.
+# Import by plain module name, as the services do inside their containers.
 for path in (STUDENT_DIR / "database", STUDENT_DIR / "backend"):
     sys.path.insert(0, str(path))
 
@@ -77,7 +68,6 @@ def menu_vocabulary():
     sys.path.insert(0, str(STUDENT_DIR / "backend"))
     from services.database_api import MenuClient
 
-    # Point at a port nothing is listening on so the client uses its
-    # documented fallback rather than reaching for a live Menu API.
+    # A dead port, so the client uses its documented fallback.
     client = MenuClient(base_url="http://127.0.0.1:9")
     return client._fallback

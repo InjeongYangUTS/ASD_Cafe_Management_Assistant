@@ -1,42 +1,3 @@
-"""
-Student 1 (Hangyeol Yi) - Customer Feedback & Reviews
-AI-Mode : customer sentiment analysis and staff questions about reviews.
-
-Request path (as required by the Release 0 brief):
-
-    Frontend -> Backend/API -> Ollama -> LLM (Qwen / Llama) -> Backend -> Frontend
-
-The backend, not the frontend, builds the prompt. That keeps the model
-name, the system prompt and the amount of context we send in one place,
-and stops raw customer data leaking into the browser.
-
-Prompt text lives in student-1/prompts/service/*.txt and is loaded through
-services.prompt_loader, so the wording is a reviewable artefact rather than
-a literal buried in this file.
-
-Three layers, in the order they run:
-
-  1. measure_*()   Deterministic facts computed in Python - rating
-                   distribution, issue-tag frequencies, per-category
-                   averages, priority scores. These numbers ARE the
-                   prompt context: we send a compact summary, never
-                   hundreds of raw reviews. That is the context
-                   management story for this feature.
-
-  2. LLM call      The model writes the human-readable narrative on top
-                   of those facts.
-
-  3. Validation    The narrative is checked back against the measured
-                   facts. The LLM writes the prose; it does not get to
-                   contradict the numbers. Any override is recorded in
-                   'corrections' so it stays visible on screen and in the
-                   technical report rather than being silently swallowed.
-
-If Ollama is unreachable, every function falls back to a rule-based
-result with the SAME output shape, so the screens never break during a
-demonstration. The 'mode' field always says which path ran.
-"""
-
 import json
 import re
 from collections import Counter, defaultdict
@@ -44,15 +5,6 @@ from datetime import datetime, timedelta, timezone
 
 from services.prompt_loader import load_prompt, load_and_render
 
-# ---------------------------------------------------------------------
-# Issue taxonomy.
-#
-# Each tag maps to the words customers use, so the same review always
-# produces the same tags whether or not the LLM is running.
-#
-# severity weights a tag when ranking what to fix first: hygiene outranks
-# a noisy grinder even if the grinder is mentioned more often.
-# ---------------------------------------------------------------------
 ISSUE_RULES = [
     ("slow_service", 1.0,
      ["wait", "waited", "waiting", "slow", "queue", "line", "took ages",
@@ -87,9 +39,6 @@ ISSUE_RULES = [
      ["bland", "stale", "burnt", "soggy", "dry", "undercooked", "overcooked"]),
 ]
 
-# Praise tags. Not problems, but the staff screen is far more useful when
-# it also shows what is working, and the LLM needs both sides to write a
-# balanced summary.
 PRAISE_RULES = [
     ("coffee_quality", ["best coffee", "great coffee", "well made",
                         "perfectly extracted", "flat white", "good coffee"]),
@@ -115,14 +64,8 @@ NEGATIVE_WORDS = [
 
 SENTIMENTS = ["POSITIVE", "NEUTRAL", "NEGATIVE"]
 
-# Recorded in ai_model when the deterministic rules produced the result
-# rather than a language model. Every screen shows this value, so a
-# rule-based verdict is never mistaken for the model's.
 RULES_MODEL = "rules"
 
-# System prompts are read from student-1/prompts/service/ on first use and
-# cached, so a prompt edit needs a restart rather than a redeploy, and the
-# file is what a reviewer reads to see how the model was instructed.
 _PROMPT_CACHE = {}
 
 
@@ -131,10 +74,6 @@ def system_prompt(name):
         _PROMPT_CACHE[name] = load_prompt("service/%s" % name)
     return _PROMPT_CACHE[name]
 
-
-# =====================================================================
-# Shared helpers
-# =====================================================================
 
 def _parse_time(value):
     if not value:
@@ -168,20 +107,8 @@ def issue_weight(tag):
     return 1.0
 
 
-# ---------------------------------------------------------------------
-# Which menu item is this review about?
-# ---------------------------------------------------------------------
-
 def match_menu_items(text, vocabulary):
-    """
-    Return the menu items named in a review, most specific first.
-
-    Aliases are matched longest-first and each match is blanked out of
-    the working copy of the text, so "vanilla latte" is attributed to
-    Vanilla Latte and is NOT also counted as a plain Latte. Without that
-    masking every specialty coffee would inflate the Latte totals and the
-    per-item ranking would be meaningless.
-    """
+    """Return the menu items named in a review, matching longer aliases first."""
     if not vocabulary:
         return []
 
@@ -205,10 +132,6 @@ def match_menu_items(text, vocabulary):
     return found
 
 
-# Which category a complaint belongs to. The customer never picks this -
-# they only leave a star rating and a comment - so the service derives it
-# from what they wrote. What went WRONG decides the category; the menu
-# item only decides it for a review with no problem in it.
 ISSUE_CATEGORY = {
     "slow_service": "WAIT_TIME",
     "cold_food": "FOOD",
@@ -241,24 +164,12 @@ def classify_category(text, vocabulary=None):
     return "GENERAL"
 
 
-# =====================================================================
-# Layer 1a : deterministic analysis of ONE review
-# =====================================================================
-
 def measure_review(review):
-    """
-    Rule-based sentiment for a single review.
-
-    The star rating is the strongest available signal and the customer
-    chose it themselves, so it anchors the score. The wording then nudges
-    it: a 3-star review full of complaints is more negative than a bare
-    3-star with no comment.
-    """
+    """Rule-based sentiment for one review, anchored on the star rating and nudged by the wording."""
     rating = int(review.get("rating") or 3)
     text = "%s %s" % (review.get("title") or "", review.get("comment") or "")
     lowered = text.lower()
 
-    # Rating 1 -> -1.0, 3 -> 0.0, 5 -> +1.0
     score = (rating - 3) / 2.0
 
     positive_hits = [word for word in POSITIVE_WORDS if word in lowered]
@@ -338,13 +249,7 @@ def parse_review_reply(text):
 
 
 def analyse_review(review, llm):
-    """
-    Full AI-Mode analysis of one review.
-
-    Always returns the deterministic measurement. 'mode' says whether the
-    sentiment came from the LLM or from the fallback rules, so the screen
-    and the marker can both see which path ran.
-    """
+    """Full AI-Mode analysis of one review; 'mode' says whether the LLM or the rules produced it."""
     measured = measure_review(review)
     prompt = build_review_prompt(review, measured)
 
@@ -388,9 +293,6 @@ def analyse_review(review, llm):
     sentiment = parsed["sentiment"]
     score = parsed["score"]
 
-    # Check the model against the customer's star rating. A 1-star review
-    # that opens politely sometimes comes back POSITIVE. The rating is the
-    # customer's own verdict, so on a bad disagreement the rating wins.
     rating = int(review.get("rating") or 3)
 
     if rating <= 2 and sentiment == "POSITIVE":
@@ -421,9 +323,6 @@ def analyse_review(review, llm):
             % (score, measured["sentiment_score"])
         )
 
-    # Union of both sources. A tag our rules matched is a literal phrase
-    # in the review text, so it is evidence and is never dropped just
-    # because the model did not repeat it.
     issues = list(dict.fromkeys(measured["issues"] + parsed["issues"]))
 
     result.update({
@@ -451,30 +350,9 @@ def fallback_summary(review, measured):
     return "%s-star review with no specific issue detected." % rating
 
 
-# =====================================================================
-# Layer 1b : deterministic analysis of the WHOLE review set
-# =====================================================================
-
 def measure_store(reviews, now=None, recent_days=7,
                   menu_vocabulary=None, order_items=None):
-    """
-    Store-wide facts. This is the context we hand the LLM for the
-    "which menu items draw complaints, which draw praise, and what should
-    we fix" analysis.
-
-    Issue tags come from the stored AI results where a review has been
-    analysed, and from the rule-based detector where it has not, so a
-    freshly submitted review still counts towards the complaint totals
-    without waiting for an AI run.
-
-    menu_vocabulary : {menu name: entry} from MenuClient. Optional - the
-                      per-item breakdown is simply empty without it.
-    order_items     : {order_id: [menu name, ...]} from OrderClient, used
-                      to attribute a review that names no item itself.
-    """
-    # Naive UTC, to match the datetime('now') stamps parsed out of the
-    # database. Comparing a local-time "now" against UTC timestamps put
-    # the recency window ten hours out on an Australian machine.
+    """Store-wide measured facts, used as the LLM context for the whole-store analysis."""
     now = now or datetime.now(timezone.utc).replace(tzinfo=None)
     cutoff = now - timedelta(days=recent_days)
     menu_vocabulary = menu_vocabulary or {}
@@ -501,7 +379,6 @@ def measure_store(reviews, now=None, recent_days=7,
     unanalysed = 0
     negative_reviews = []
 
-    # Per-menu-item accumulators
     menu_ratings = defaultdict(list)
     menu_issues = defaultdict(Counter)
     menu_praise = defaultdict(Counter)
@@ -537,16 +414,6 @@ def measure_store(reviews, now=None, recent_days=7,
 
         category_ratings[review.get("category") or "GENERAL"].append(rating)
 
-        # ---------------------------------------------------------------
-        # Attribute this review to a menu item.
-        #
-        # What the customer NAMED wins over what they bought: someone who
-        # ordered three things and complained about the flat white is
-        # telling us about the flat white, not about the muffin. Only when
-        # they name nothing do we fall back to the order lines, and then
-        # only when the order had a single item - splitting one complaint
-        # across four items would invent evidence that is not there.
-        # ---------------------------------------------------------------
         named = match_menu_items(text, menu_vocabulary)
 
         if named:
@@ -591,12 +458,6 @@ def measure_store(reviews, now=None, recent_days=7,
                 "issues": tags,
             })
 
-    # Priority score per complaint theme:
-    #
-    #   frequency   how many customers raised it
-    #   severity    1.0 for a 5-star mention up to 2.0 for a 1-star one
-    #   weight      fixed importance from ISSUE_RULES
-    #   recency     1.5x on the share raised in the last week
     priorities = []
     for tag, count in issue_counter.items():
         tag_ratings = issue_ratings[tag]
@@ -635,9 +496,6 @@ def measure_store(reviews, now=None, recent_days=7,
         if ratings else 0.0
     )
 
-    # Per-item breakdown: which items draw complaints, which draw praise.
-    # Items mentioned once are kept but marked low-confidence - one bad
-    # muffin is an anecdote, four is a pattern.
     menu_feedback = []
     for name, item_ratings in menu_ratings.items():
         mean_rating = sum(item_ratings) / len(item_ratings)
@@ -783,16 +641,6 @@ def _menu_sentence(metrics):
     return " ".join(parts)
 
 
-# =====================================================================
-# Free-text question about the reviews
-# =====================================================================
-
-# Question routing.
-#
-# A question has two dimensions and both have to be read. "What is the
-# most complimented menu?" mentions the menu, but the menu breakdown
-# (complaints first) does not answer it. Subject = menu, polarity =
-# praise, shape = superlative.
 MENU_WORDS = ["menu", "item", "dish", "drink", "coffee", "food", "beverage"]
 
 PRAISE_WORDS = [
@@ -818,20 +666,11 @@ SUPERLATIVE_WORDS = ["most", "best", "worst", "top", "least", "highest",
 
 
 def question_focus(question):
-    """
-    Return (subject, polarity, superlative).
-
-    subject     'menu'    the question is about menu items
-                'overall' the question is about the cafe in general
-    polarity    'praise' | 'complaint' | 'priority' | 'rating' | 'summary'
-    superlative True when the question asks for a single winner
-    """
+    """Return (subject, polarity, superlative) describing what the question asks for."""
     lowered = (question or "").lower()
 
     subject = "menu" if any(word in lowered for word in MENU_WORDS) else "overall"
 
-    # Polarity is read before the generic buckets so that "which MENU items
-    # do customers COMPLAIN about" is not swallowed by the menu keyword.
     if any(word in lowered for word in PRAISE_WORDS):
         polarity = "praise"
     elif any(word in lowered for word in COMPLAINT_WORDS):
@@ -849,15 +688,7 @@ def question_focus(question):
 
 
 def rank_menu_items(rows, best_first):
-    """
-    Order menu items so the strongest EVIDENCE comes first, not merely the
-    highest number.
-
-    A 5.00-star item with one review does not beat a 4.67-star item with
-    three. Naming the one-review item as "the most praised" would be
-    answering a question the data cannot answer, so items backed by more
-    than one review are ranked ahead of those that are not.
-    """
+    """Order menu items by strength of evidence, so a single-review item does not outrank a well-reviewed one."""
     return sorted(
         rows,
         key=lambda row: (row["confidence"] == "low",
@@ -908,14 +739,7 @@ def name_menu_verdict(metrics, best_first, superlative):
 
 
 def questioned_menu_items(question, metrics, vocabulary=None):
-    """
-    The menu items the question actually names, restricted to items we
-    have review data for.
-
-    "How do customers feel about the latte?" has to be answered about the
-    Latte alone. Listing every item on the menu next to it is not an
-    answer, it is a data dump the reader has to filter themselves.
-    """
+    """The menu items the question names, restricted to those we hold reviews for."""
     named = match_menu_items(question, vocabulary or {})
     if not named:
         return []
@@ -954,19 +778,10 @@ def describe_menu_item(row):
 
 
 def heuristic_answer(question, metrics, vocabulary=None):
-    """
-    Rule-based answer, used when Ollama cannot be reached and whenever the
-    model's reply fails validation.
-
-    The order of these branches is the whole design: the most specific
-    reading of the question wins, so a question naming one item is never
-    answered with a list of every item.
-    """
+    """Rule-based answer, used when Ollama is unreachable or the model's reply fails validation."""
     subject, polarity, superlative = question_focus(question)
     issues = metrics.get("top_issues") or []
 
-    # 1. A named menu item beats everything else, whatever else the
-    #    question sounds like it is asking.
     asked_about = questioned_menu_items(question, metrics, vocabulary)
     if asked_about:
         return " ".join(describe_menu_item(row) for row in asked_about[:2])
@@ -978,7 +793,6 @@ def heuristic_answer(question, metrics, vocabulary=None):
         return ("No review mentions %s yet, so there is nothing to report "
                 "on it." % " or ".join(unreviewed[:2]))
 
-    # 2. Menu subject: answer about items, in the polarity that was asked.
     if subject == "menu":
         if polarity == "praise":
             return name_menu_verdict(metrics, True, superlative)
@@ -993,7 +807,6 @@ def heuristic_answer(question, metrics, vocabulary=None):
                                         worst[0]["reviews"]))
         return _menu_sentence(metrics)
 
-    # 3. Overall subject.
     if polarity == "praise":
         praise = metrics.get("top_praise") or []
         if not praise:
@@ -1038,24 +851,12 @@ def heuristic_answer(question, metrics, vocabulary=None):
 
 
 def build_review_summary(question, metrics, vocabulary=None):
-    """
-    The factual context handed to the model for one question.
-
-    When the question names a menu item the summary is NARROWED to that
-    item. Handing a small model the whole store summary and asking about
-    one latte reliably produced a recital of every item on the menu -
-    correct data, but not an answer. Narrowing the context is what keeps
-    the reply on the question.
-    """
+    """The factual context handed to the model, narrowed to one menu item when the question names one."""
     asked_about = questioned_menu_items(question, metrics, vocabulary)
 
     if not asked_about:
         subject, polarity, _superlative = question_focus(question)
 
-        # A question about which items are PRAISED gets only the praised
-        # items. Handing the model the complaints table as well is what
-        # made it answer "what is the most complimented menu?" with a list
-        # of complaints - the data it was given led with them.
         if subject == "menu" and polarity in ("praise", "complaint"):
             best = polarity == "praise"
             rows = rank_menu_items(
@@ -1128,16 +929,7 @@ def build_question_prompt(question, metrics, vocabulary=None):
 
 def answer_question(question, reviews, llm, now=None,
                     menu_vocabulary=None, order_items=None):
-    """
-    Answer one free-text staff question about the reviews.
-
-        frontend -> backend -> Ollama -> LLM -> backend -> frontend
-
-    Same measured context as the full analysis, so the answer is grounded
-    in the same numbers shown on screen. Falls back to a keyword-routed
-    rule-based answer when Ollama is unreachable, so the box always
-    returns something useful.
-    """
+    """Answer one free-text staff question, falling back to the rules when Ollama is unreachable."""
     metrics = measure_store(reviews, now=now,
                             menu_vocabulary=menu_vocabulary,
                             order_items=order_items)
@@ -1160,9 +952,6 @@ def answer_question(question, reviews, llm, now=None,
         result["model"] = "heuristic"
         return result
 
-    # A question about an item nobody has reviewed has a definite answer,
-    # "no data". Sent to the LLM it would get the whole store summary and
-    # answer about a different item. Answer it here and skip the call.
     reviewed = {row["menu_item"] for row in metrics["menu_feedback"]}
     unreviewed = [name for name in match_menu_items(question, menu_vocabulary or {})
                   if name not in reviewed]
@@ -1186,14 +975,6 @@ def answer_question(question, reviews, llm, now=None,
 
     cleaned = " ".join((raw or "").split())
 
-    # Reject an answer that is just the context read back. A small model
-    # often replies with the summary table it was given: "- Average
-    # rating: 2.00 - Complaints: slow service x1". The numbers are right
-    # but it is not an answer, so the rule-based sentence is used instead.
-    #
-    # Only the STRUCTURE is checked. An earlier version also rejected the
-    # phrases "stars over" and "average rating", and threw away good prose
-    # for using ordinary English.
     looks_like_a_list = (
         cleaned.count(" - ") >= 2
         or cleaned.lstrip().startswith("-")
@@ -1207,9 +988,6 @@ def answer_question(question, reviews, llm, now=None,
         result["model"] = "heuristic"
         return result
 
-    # A one-word or empty reply is not an answer. Small models sometimes
-    # echo a heading and stop, so anything that short falls back rather
-    # than being shown as if the model had answered.
     if len(cleaned) < 25:
         result["raw_response"] = raw
         result["note"] = ("The model did not return a usable answer - "
@@ -1217,12 +995,6 @@ def answer_question(question, reviews, llm, now=None,
         result["model"] = "heuristic"
         return result
 
-    # A superlative needs evidence, not just the biggest number.
-    #
-    # llama3.2 answered "the Croissant is complimented more, with a higher
-    # average rating" - 5.00 from ONE review, over 4.67 from three. True,
-    # but useless. Where the model crowns a single-review item over a
-    # better-evidenced one, the measured ranking replaces it.
     subject, polarity, superlative = question_focus(question)
 
     if superlative and subject == "menu" and polarity in ("praise", "complaint"):
@@ -1257,9 +1029,6 @@ def answer_question(question, reviews, llm, now=None,
                 result["model"] = "heuristic"
                 return result
 
-    # If the question was about specific menu items, the answer has to stay
-    # on them. A reply that wanders onto other items is not wrong so much
-    # as unusable: the reader has to work out which sentence was theirs.
     asked_about = questioned_menu_items(question, metrics, menu_vocabulary)
 
     if asked_about:

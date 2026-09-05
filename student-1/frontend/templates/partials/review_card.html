@@ -1,19 +1,13 @@
-{#
-   One review as the customer sees it. Edit swaps this card for the inline
-   form; Cancel swaps it back. The whole card is the HTMX target, so an
-   edit never disturbs the rest of the list.
-#}
 <article class="s1-review" id="review-{{ review.id }}">
 
     <div class="s1-review-head">
         <h3>{{ review.title or 'Review' }}</h3>
         <span class="s1-star-display"
-              title="{{ review.rating }} out of 5">{{ '*' * review.rating }}{{ '.' * (5 - review.rating) }}</span>
+              title="{{ review.rating }} out of 5">{{ '★' * review.rating }}{{ '☆' * (5 - review.rating) }}</span>
     </div>
 
     <p>{{ review.comment }}</p>
 
-    {# No order number: nothing links a review to a real order yet. #}
     <p class="s1-meta">
         Review #{{ review.id }} &middot; {{ review.submitted_at|cafe_time }}
         &middot; {{ status_labels.get(review.status, review.status) }}
@@ -45,8 +39,6 @@
                     hx-target="#review-{{ review.id }}"
                     hx-swap="outerHTML">Edit</button>
 
-            {# Confirmation happens in the page, not in a browser dialog -
-               see partials/review_delete_confirm.html for why. #}
             <button class="s1-button danger small"
                     hx-get="/review/{{ review.id }}/confirm-delete"
                     hx-target="#review-{{ review.id }}"

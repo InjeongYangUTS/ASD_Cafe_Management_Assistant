@@ -1,16 +1,3 @@
-{#
-   Delete confirmation, asked inside the page.
-
-   This replaced hx-confirm, which calls the browser's own confirm()
-   dialog. When that dialog is blocked - an embedded browser, a strict
-   pop-up setting - HTMX takes the "no" and cancels the request without a
-   word, so the Delete button appears to do nothing at all. A silent
-   no-op is the worst possible failure for a destructive control: the
-   customer cannot tell whether their review was deleted or not.
-
-   Asking here always works, and it can also say what is about to be
-   deleted, which a one-line dialog cannot.
-#}
 <article class="s1-review" id="review-{{ review.id }}">
 
     <div class="s1-message error" style="margin-bottom:12px;">
@@ -21,7 +8,7 @@
     <div class="s1-review-head">
         <h3>{{ review.title or 'Review' }}</h3>
         <span class="s1-star-display"
-              title="{{ review.rating }} out of 5">{{ '*' * review.rating }}{{ '.' * (5 - review.rating) }}</span>
+              title="{{ review.rating }} out of 5">{{ '★' * review.rating }}{{ '☆' * (5 - review.rating) }}</span>
     </div>
 
     <p>{{ review.comment }}</p>

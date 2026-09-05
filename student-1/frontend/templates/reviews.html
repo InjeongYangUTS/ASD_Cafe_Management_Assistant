@@ -2,15 +2,16 @@
 
 {% block title %}Staff Review Board{% endblock %}
 
-{#
-   STAFF SCREEN
+{% block back_link %}
+    <a class="s1-back" href="{{ staff_home }}">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.2"
+                  stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        Dashboard
+    </a>
+{% endblock %}
 
-   Top    : AI analysis. One button runs AI-Mode over every review -
-            which menu items draw complaints, which draw praise, what to
-            fix first, and what to do about it.
-   Bottom : every customer review from the database, filterable, with the
-            staff actions (reply, change status) on each row.
-#}
 
 {% block content %}
 
@@ -18,7 +19,6 @@
     <div class="s1-message error">{{ error }}</div>
 {% endif %}
 
-{# ---------------- headline figures ---------------- #}
 <div class="s1-stats">
 
     <div class="s1-stat">
@@ -49,7 +49,6 @@
 </div>
 
 
-{# ---------------- AI-Mode : ask a question, get an answer ---------------- #}
 <div class="s1-card s1-ai">
 
     <div class="s1-section-title">
@@ -76,33 +75,19 @@
         Answers come from the reviews in the database only.
     </p>
 
-    {# Waiting state.
-
-       A local model on a machine without a GPU takes the better part of a
-       minute, which is long enough that a small line of grey text reads as
-       "nothing happened". This panel replaces it: it says what is running,
-       that the wait is expected, and keeps a pulse going so the page never
-       looks frozen.
-
-       HTMX shows it for the duration of the request through the
-       htmx-indicator class, so no JavaScript is involved. #}
     <div id="ai-waiting" class="s1-waiting htmx-indicator">
         <div class="s1-waiting-dots" aria-hidden="true">
             <span></span><span></span><span></span>
         </div>
         <div>
             <strong>Asking {{ ollama_model }}&hellip;</strong>
-            <span>Reading every review, then writing the answer.
-                  This takes up to a minute without a GPU.</span>
+            <span>Brewing an answer from every review.
+                  This can take a minute.</span>
         </div>
     </div>
 
     <div id="ai-answer"></div>
 
-    {# Every review is analysed by the rules the moment it is written, so
-       none is ever unlabelled. This upgrades those rule-based verdicts
-       with the language model. Kept small on purpose - the question box
-       above is the main control. #}
     <p style="margin:14px 0 0;">
         <button class="s1-button ghost small"
                 hx-post="/reviews/ai/analyse-pending"
@@ -116,7 +101,6 @@
 </div>
 
 
-{# ---------------- filters ---------------- #}
 <div class="s1-card">
 
     <h2>All customer reviews</h2>
@@ -125,14 +109,6 @@
         sentiment and a category worked out from what the customer wrote.
     </p>
 
-    {#
-       Search, a date range, and a sort order.
-
-       The search box fires on keyup with a 400ms delay so the list
-       follows the typing without a request per keystroke. Everything
-       else fires on change. One form, so the three controls always
-       submit together and a search survives changing the sort.
-    #}
     <form class="s1-filters"
           hx-get="/reviews/list"
           hx-target="#staff-reviews"
@@ -148,10 +124,6 @@
 
         <div class="s1-field">
             <label for="filter-from">From</label>
-            {# lang is set on the input itself: the empty-state text and
-               the field order of a native date picker come from the
-               browser's locale, not the page. On a Korean-language
-               browser this field renders as "연도-월-일" without it. #}
             <input type="date" id="filter-from" name="date_from"
                    lang="en-AU" value="{{ filters.date_from }}">
         </div>
@@ -172,16 +144,6 @@
             </select>
         </div>
 
-        {# Clear every filter and reload the full list.
-
-           Always rendered, not only when a filter is set. HTMX swaps the
-           review list alone, so this form is not re-rendered when a
-           filter changes - a button shown conditionally would never
-           appear at the moment it became useful.
-
-           The fields are emptied before the request is issued, so the
-           request carries the cleared values and the controls match what
-           comes back. #}
         <div class="s1-field">
             <label for="filter-clear">&nbsp;</label>
             <button type="button" id="filter-clear" class="s1-button ghost"

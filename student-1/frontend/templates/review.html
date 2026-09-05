@@ -1,18 +1,18 @@
 {% extends "base.html" %}
 
 {% block title %}Leave a Review{% endblock %}
+{% block page_width %}s1-page-narrow{% endblock %}
 
-{#
-   CUSTOMER SCREEN
+{% block back_link %}
+    <a class="s1-back" href="{{ customer_home }}">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.2"
+                  stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        Dashboard
+    </a>
+{% endblock %}
 
-   Top    : star rating + comment. That is all a customer is asked for -
-            no category dropdown. The backend derives the category from
-            the wording, because customers classify their own complaints
-            badly and resent being asked to.
-   Bottom : the reviews this customer has already written, each with
-            Edit and Delete. Both halves are swapped by HTMX, so posting
-            a review updates the list without a page reload.
-#}
 
 {% block content %}
 
@@ -30,11 +30,9 @@
           hx-disabled-elt="find button"
           hx-on::after-request="if (event.detail.successful) this.reset()">
 
-        <div class="s1-field">
-            <label for="star-5">Your rating</label>
+        <div class="s1-field s1-rating-field">
+            <label for="star-5" class="s1-visually-hidden">Your rating</label>
 
-            {# Reversed order so the CSS sibling selector can fill in every
-               star up to the one chosen. 5 is first in the DOM, last on screen. #}
             <div class="s1-stars">
                 <input type="radio" id="star-5" name="rating" value="5" required>
                 <label for="star-5" title="5 stars - excellent">&#9733;</label>

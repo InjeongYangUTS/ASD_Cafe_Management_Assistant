@@ -19,15 +19,12 @@
 
 <body class="s1-app">
 
-    {#- Owner kept in the source rather than on screen: the two audiences
-        reach their own page from their own dashboard, so an in-app nav bar
-        between them was only clutter.
-        Student 1 - Hangyeol Yi - student-1-frontend, port 5110 -#}
     <header class="s1-topbar">
+        {% block back_link %}{% endblock %}
         <h1>Customer Feedback &amp; Reviews</h1>
     </header>
 
-    <main class="s1-page">
+    <main class="s1-page {% block page_width %}{% endblock %}">
         {% block content %}{% endblock %}
     </main>
 

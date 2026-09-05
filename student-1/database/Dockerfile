@@ -1,9 +1,3 @@
-# =====================================================================
-# Student 1 (Hangyeol Yi) - Customer Feedback & Reviews
-# DATABASE microservice : owns feedback.db and exposes it over /db/*
-#
-# Build:  docker compose build student-1-database
-# =====================================================================
 FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \

@@ -1,16 +1,7 @@
-"""
-Student 1 (Hangyeol Yi) - Customer Feedback & Reviews
-Tests for the DATABASE microservice (/db/* API).
-
-These cover the rules the schema promises and the two design decisions
-the technical report defends: the audit trail survives a delete, and the
-AI columns cannot be written through the ordinary update path.
-"""
+"""Tests for the /db/* API, including the audit trail surviving a delete."""
 
 
-# =====================================================================
 # Create
-# =====================================================================
 
 def test_create_returns_the_stored_review(db_client):
     response = db_client.post("/db/feedback", json={
@@ -65,9 +56,7 @@ def test_unknown_category_is_rejected(db_client):
     assert response.status_code == 400
 
 
-# =====================================================================
 # Read
-# =====================================================================
 
 def test_customer_filter_returns_only_that_customer(seeded_client):
     payload = seeded_client.get("/db/feedback?customer_id=1").get_json()
@@ -97,9 +86,7 @@ def test_stats_counts_both_tables(seeded_client):
     assert stats["unanalysed_count"] == 3
 
 
-# =====================================================================
 # Update
-# =====================================================================
 
 def test_update_changes_the_review_and_logs_it(db_client):
     review_id = db_client.post("/db/feedback", json={
@@ -129,8 +116,7 @@ def test_status_change_is_logged_separately_from_an_edit(db_client):
     actions = [entry["action"] for entry
                in db_client.get("/db/feedback/%d/logs" % review_id).get_json()["logs"]]
 
-    # A staff member moving the status is a different event from a
-    # customer rewriting their review, and the log has to tell them apart.
+    # A status change and a customer edit must log as different events.
     assert "STATUS_CHANGED" in actions
     assert "UPDATED" not in actions
 
@@ -143,9 +129,7 @@ def test_empty_update_is_rejected(db_client):
     assert db_client.put("/db/feedback/%d" % review_id, json={}).status_code == 400
 
 
-# =====================================================================
 # AI analysis write-back
-# =====================================================================
 
 def test_analysis_is_stored_and_round_trips_as_a_list(db_client):
     review_id = db_client.post("/db/feedback", json={
@@ -219,9 +203,7 @@ def test_ai_columns_cannot_be_written_through_the_ordinary_update(db_client):
     assert forged["ai_summary"] is None
 
 
-# =====================================================================
 # Delete
-# =====================================================================
 
 def test_delete_removes_the_review(db_client):
     review_id = db_client.post("/db/feedback", json={
@@ -252,9 +234,7 @@ def test_audit_trail_survives_the_delete(db_client):
     assert "DELETED" in actions, "the deletion itself was not recorded"
 
 
-# =====================================================================
 # Health
-# =====================================================================
 
 def test_health_reports_both_tables(db_client):
     payload = db_client.get("/db/health").get_json()
@@ -263,9 +243,7 @@ def test_health_reports_both_tables(db_client):
     assert set(payload["tables"]) == {"customer_feedback", "store_logs"}
 
 
-# =====================================================================
 # One customer must never reach another customer's review
-# =====================================================================
 
 def test_a_customer_cannot_edit_another_customers_review(db_client):
     """
@@ -277,9 +255,7 @@ def test_a_customer_cannot_edit_another_customers_review(db_client):
         "customer_id": 1, "rating": 4, "comment": "Mine.",
     }).get_json()
 
-    # The database service itself is deliberately not the gate: it is a
-    # storage API and takes what it is told. What it MUST do is record who
-    # made the change, so an unauthorised edit is at least attributable.
+    # The storage API is not the gate, but it must record who made the change.
     db_client.put("/db/feedback/%d" % mine["id"], json={
         "comment": "Edited by someone else.",
         "actor": "customer:999", "actor_role": "CUSTOMER",

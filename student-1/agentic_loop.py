@@ -1,45 +1,3 @@
-"""
-Student 1 (Hangyeol Yi) - Customer Feedback & Reviews
-Agentic loop:  PLAN -> ACT -> OBSERVE -> ADAPT
-
-Follows the course pattern (Lab 01 section 6, Lab 03 section 6) with the
-multi-model workflow from Lab 03:
-
-    OBSERVE       deterministic checks against the running microservices.
-                  These are FACTS. Nothing below is allowed to contradict
-                  them.
-
-    IMPLEMENTATION AGENT   qwen2.5:0.5b  reads the evidence and proposes
-                           exactly two improvements.
-
-    REVIEW AGENT           llama3.1:8b   reviews that proposal against the
-                           same evidence. A second, larger model is used on
-                           purpose: a model reviewing its own output agrees
-                           with itself.
-
-    HUMAN REVIEW  Accept / Partially Accept / Reject. The human decides;
-                  the agents only advise.
-
-    ADAPT         the action that follows from the decision.
-
-Prompts are read from student-1/prompts/agentic/*.txt, so what the agents
-were told is a reviewable artefact rather than a string in this file.
-
-Every run is written to student-1/agentic/logs/ as .md (readable) and
-.jsonl (machine readable) for the technical report.
-
-OWNERSHIP NOTE
-    This loop reads review data through the student-1-database HTTP API,
-    not by opening feedback.db. The same rule that applies to the other
-    microservices applies to my own tooling - otherwise the rule is not a
-    rule, it is a preference.
-
-Usage
-    python student-1/agentic_loop.py                 interactive
-    python student-1/agentic_loop.py --no-input      CI / non-interactive
-    python student-1/agentic_loop.py --no-ai         deterministic only
-"""
-
 import argparse
 import json
 import os
@@ -53,8 +11,6 @@ from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent
 
-# Reuse the backend's own AI-Mode client and prompt loader so the loop and
-# the running service are configured identically and cannot drift apart.
 sys.path.insert(0, str(BASE_DIR / "backend"))
 
 from services.llm_client import LLMClient, OLLAMA_MODEL, OLLAMA_REVIEW_MODEL  # noqa: E402
@@ -68,18 +24,13 @@ WEB_URL = os.getenv("FRONTEND_URL", "http://127.0.0.1:5110").rstrip("/")
 
 LOG_DIR = BASE_DIR / "agentic" / "logs"
 
-# Release 0 requires at least ten records in every table.
 MIN_FEEDBACK_ROWS = 10
 MIN_LOG_ROWS = 10
 
-# Non-functional requirement, stated in the course terms: 19 of 20 reads
-# must return within 500 ms.
 NFR_SAMPLES = 20
 NFR_BUDGET_SECONDS = 0.500
 NFR_ALLOWED_FAILURES = 1
 
-
-# ====================================== Plan ======================================
 
 PLAN = {
     "goal": (
@@ -116,8 +67,6 @@ PLAN = {
 }
 
 
-# ============================== Observe: Database ===============================
-
 def validate_feedback_row(row):
     """One review, checked against the rules the schema promises."""
     if not isinstance(row.get("id"), int):
@@ -137,8 +86,6 @@ def validate_feedback_row(row):
             "POSITIVE", "NEUTRAL", "NEGATIVE"):
         return False, "unknown sentiment %r (id %s)" % (row["sentiment"], row["id"])
 
-    # An analysed review must carry both the verdict and the model that
-    # produced it, otherwise the result cannot be attributed to anything.
     if row.get("analysed_at") and not row.get("ai_model"):
         return False, "analysed review %s has no ai_model recorded" % row["id"]
 
@@ -174,9 +121,6 @@ def observe_database():
         if not ok:
             return False, message
 
-    # The audit trail must outlive the rows it describes. If every DELETED
-    # entry still has a matching review, the no-cascade design is untested
-    # rather than proven.
     live_ids = {row["id"] for row in feedback}
     orphan_deletes = [
         entry for entry in logs
@@ -196,8 +140,6 @@ def observe_database():
            len(orphan_deletes), "y" if len(orphan_deletes) == 1 else "ies")
     )
 
-
-# ============================ Observe: Live Endpoints ============================
 
 def observe_live_endpoints():
     results = []
@@ -225,15 +167,8 @@ def observe_live_endpoints():
     return results
 
 
-# ================================ Observe: NFR ==================================
-
 def observe_nfr():
-    """
-    Course NFR: 19 of 20 reads within 500 ms.
-
-    Measured against the backend rather than the database service, because
-    that is the path a screen actually takes.
-    """
+    """Course NFR check: 19 of 20 backend reads within 500 ms."""
     durations = []
 
     for _ in range(NFR_SAMPLES):
@@ -260,13 +195,8 @@ def observe_nfr():
     return ok, message
 
 
-# ============================== Observe: AI-Mode ================================
-
 def observe_ai_mode(llm):
-    """
-    Prove the Release 0 AI request path end to end:
-        this loop -> backend/API -> Ollama -> approved LLM -> back.
-    """
+    """Prove the AI request path end to end: loop -> backend -> Ollama -> LLM -> back."""
     question = "Which menu items do customers complain about?"
 
     try:
@@ -287,12 +217,8 @@ def observe_ai_mode(llm):
                % (mode, model, answer[:160] or "(empty)"))
     print("  %s" % message)
 
-    # 'heuristic' is a valid outcome - it is the designed fallback - but it
-    # is NOT evidence that the LLM path works, so it is not a pass.
     return mode == "ollama" and bool(answer), message
 
-
-# ============================ Implementation & Review Agents ======================
 
 def get_implementation_agent_advice(llm, evidence):
     prompt = load_and_render(
@@ -316,13 +242,8 @@ def get_review_agent_advice(llm, recommendation, evidence):
                           max_tokens=200)
 
 
-# ============================== Human Review & Adapt =============================
-
 def human_review(interactive=True):
     if not interactive:
-        # In CI there is nobody to ask. Recording "Deferred" is honest;
-        # auto-accepting would fabricate a human decision that never
-        # happened, and the whole point of this step is the human.
         print("HUMAN REVIEW: skipped (--no-input), decision deferred")
         return "Deferred"
 
@@ -361,8 +282,6 @@ def adapt(decision, observations):
     print("ADAPT: %s" % action)
     return action
 
-
-# ================================== Evidence log =================================
 
 def write_logs(record):
     LOG_DIR.mkdir(parents=True, exist_ok=True)
@@ -426,8 +345,6 @@ def write_logs(record):
 
     return jsonl_path, md_path
 
-
-# ================================== Main / Entry =================================
 
 def main():
     parser = argparse.ArgumentParser(
@@ -545,7 +462,6 @@ def main():
     print()
     print("LOOP COMPLETE - %s" % ("PASS" if all_passed else "FAIL"))
 
-    # Non-zero on failure so GitHub Actions fails the job.
     return 0 if all_passed else 1
 
 

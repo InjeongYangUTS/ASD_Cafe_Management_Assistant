@@ -1,35 +1,3 @@
-"""
-Student 1 (Hangyeol Yi) - Customer Feedback & Reviews
-DATABASE MICROSERVICE  (container: student-1-database, port 7100)
-
-This service is the ONLY process that opens feedback.db. Every other
-microservice - including my own backend/API - reads and writes this data
-exclusively through the /db/* HTTP endpoints below. That is the
-Cross-Feature Database API Integration rule for Release 0.
-
-Writes to customer_feedback always append a matching store_logs row in
-the SAME transaction. Putting that here rather than in the backend means
-the audit trail cannot be bypassed by whichever service called us.
-
-Endpoints
-    GET    /db/health
-    GET    /db/stats
-
-    GET    /db/feedback              ?customer_id= &status= &sentiment=
-                                     &category= &min_rating= &max_rating=
-                                     &analysed= &days= &needs_reply=
-                                     &submitted_from= &submitted_to=
-                                     &search= &sort= &limit= &offset=
-    POST   /db/feedback
-    GET    /db/feedback/<id>
-    PUT    /db/feedback/<id>
-    DELETE /db/feedback/<id>
-    PUT    /db/feedback/<id>/analysis
-    GET    /db/feedback/<id>/logs
-
-    GET    /db/logs                  ?feedback_id= &action= &limit=
-"""
-
 import json
 import os
 import re
@@ -49,9 +17,6 @@ VALID_ACTIONS = ["CREATED", "UPDATED", "DELETED", "ANALYSED",
                  "STATUS_CHANGED", "RESPONDED"]
 VALID_ACTOR_ROLES = ["CUSTOMER", "STAFF", "SYSTEM", "AI"]
 
-# Sort orders the staff board offers. Whitelisted rather than accepting a
-# column name from the caller: this string is interpolated into SQL, and
-# an ORDER BY is one of the few places a parameter marker cannot go.
 SORT_ORDERS = {
     "newest":  "submitted_at DESC, id DESC",
     "oldest":  "submitted_at ASC, id ASC",
@@ -59,19 +24,11 @@ SORT_ORDERS = {
     "highest": "rating DESC, submitted_at DESC",
 }
 
-# Fields a client is allowed to change through PUT /db/feedback/<id>.
-# The AI columns are deliberately NOT here - they only move through
-# PUT /db/feedback/<id>/analysis, so a customer edit can never forge a
-# sentiment score.
 EDITABLE_FIELDS = ["rating", "title", "comment", "category",
                    "status", "staff_response", "order_id", "order_number"]
 
 app = Flask(__name__)
 
-
-# =====================================================================
-# Connection helpers
-# =====================================================================
 
 def get_conn():
     conn = sqlite3.connect(DB_PATH)
@@ -96,13 +53,7 @@ def error(message, status_code=400, **extra):
 
 
 def row_to_feedback(row):
-    """
-    Turn a sqlite Row into the JSON shape callers expect.
-
-    ai_issues is stored as a JSON string (SQLite has no array type) and is
-    handed back as a real list, so the backend and the templates never have
-    to parse it themselves.
-    """
+    """Turn a sqlite Row into the JSON shape callers expect, with ai_issues parsed to a list."""
     if row is None:
         return None
 
@@ -158,10 +109,6 @@ def parse_int(value, field, minimum=None, maximum=None):
     return number, None
 
 
-# =====================================================================
-# Health / stats
-# =====================================================================
-
 @app.get("/db/health")
 def health():
     try:
@@ -184,11 +131,7 @@ def health():
 
 @app.get("/db/stats")
 def stats():
-    """
-    Aggregates used by the staff screen and, more importantly, as the
-    factual context handed to the LLM in AI-Mode. Computing them in SQL
-    keeps the prompt small: we send counts, not hundreds of raw reviews.
-    """
+    """SQL aggregates for the staff screen and for the LLM context."""
     conn = get_conn()
 
     def group_count(column):
@@ -218,7 +161,6 @@ def stats():
         ).fetchall()
     }
 
-    # Every read has to finish before the connection closes.
     by_status = group_count("status")
     by_category = group_count("category")
     by_sentiment = group_count("sentiment")
@@ -240,10 +182,6 @@ def stats():
         "by_sentiment": by_sentiment,
     })
 
-
-# =====================================================================
-# customer_feedback : CRUD
-# =====================================================================
 
 @app.get("/db/feedback")
 def list_feedback():
@@ -289,9 +227,6 @@ def list_feedback():
         else:
             sql += " AND analysed_at IS NULL"
 
-    # "Reviews from the last N days". Computed in SQLite against the same
-    # datetime('now') the rows were stamped with, so the window cannot
-    # drift with the caller's clock or timezone.
     if request.args.get("days"):
         days, message = parse_int(request.args["days"], "days", 1, 3650)
         if message:
@@ -299,10 +234,6 @@ def list_feedback():
         sql += " AND submitted_at >= datetime('now', ?)"
         params.append("-%d days" % days)
 
-    # Explicit window. The caller supplies UTC datetimes, because that is
-    # what the rows are stamped with - converting a user's local date into
-    # this range is the frontend's job, since only it knows the cafe's
-    # timezone.
     for arg, comparison in (("submitted_from", ">="), ("submitted_to", "<=")):
         value = request.args.get(arg)
         if not value:
@@ -312,17 +243,11 @@ def list_feedback():
         sql += " AND submitted_at %s ?" % comparison
         params.append(value)
 
-    # Free-text search over what the customer actually wrote, plus their
-    # name so staff can find "that review from Priya".
     search = (request.args.get("search") or "").strip()
     if search:
         if len(search) > 100:
             return error("search must be 100 characters or fewer")
 
-        # LIKE treats % and _ as wildcards, so searching for "50%" would
-        # otherwise match every review. The backslash is escaped first,
-        # then the two wildcards, and ESCAPE tells SQLite to read them
-        # literally.
         pattern = "%" + (search.replace("\\", "\\\\")
                                .replace("%", "\\%")
                                .replace("_", "\\_")) + "%"
@@ -331,7 +256,6 @@ def list_feedback():
                 "OR customer_name LIKE ? ESCAPE '\\')")
         params.extend([pattern, pattern, pattern])
 
-    # Reviews nobody has answered yet.
     if request.args.get("needs_reply"):
         if str(request.args["needs_reply"]).lower() in ("1", "true", "yes"):
             sql += " AND (staff_response IS NULL OR TRIM(staff_response) = '')"
@@ -474,8 +398,6 @@ def update_feedback(feedback_id):
         list(updates.values()) + [feedback_id],
     )
 
-    # A status move and a content edit are different events to anyone
-    # reading the audit trail, so they are logged as different actions.
     if "status" in updates and updates["status"] != existing["status"]:
         write_log(
             conn, feedback_id, "STATUS_CHANGED",
@@ -522,8 +444,6 @@ def delete_feedback(feedback_id):
 
     conn.execute("DELETE FROM customer_feedback WHERE id = ?", (feedback_id,))
 
-    # store_logs has no FK cascade on purpose, so this row survives the
-    # delete and the audit trail stays complete.
     write_log(
         conn, feedback_id, "DELETED",
         actor=body.get("actor") or ("customer:%s" % existing["customer_id"]),
@@ -539,11 +459,7 @@ def delete_feedback(feedback_id):
 
 @app.put("/db/feedback/<int:feedback_id>/analysis")
 def save_analysis(feedback_id):
-    """
-    Write back one AI-Mode result. Kept separate from the general PUT so
-    the AI columns have exactly one entry point and every write is logged
-    as an ANALYSED event by the AI actor.
-    """
+    """Write back one AI-Mode result and log it as an ANALYSED event."""
     body = request.get_json(silent=True) or {}
 
     sentiment = str(body.get("sentiment") or "").upper()
@@ -605,10 +521,6 @@ def feedback_logs(feedback_id):
 
     return jsonify({"feedback_id": feedback_id, "count": len(rows), "logs": rows})
 
-
-# =====================================================================
-# store_logs : CRUD
-# =====================================================================
 
 @app.get("/db/logs")
 def list_logs():

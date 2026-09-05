@@ -1,9 +1,3 @@
-# =====================================================================
-# Student 1 (Hangyeol Yi) - Customer Feedback & Reviews
-# FRONTEND microservice : customer review page + staff review board (HTMX)
-#
-# Build:  docker compose build student-1-frontend
-# =====================================================================
 FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -24,5 +18,4 @@ HEALTHCHECK --interval=15s --timeout=5s --start-period=15s --retries=5 \
     CMD python -c "import urllib.request,sys; \
 sys.exit(0 if urllib.request.urlopen('http://localhost:5110/health', timeout=4).status == 200 else 1)"
 
-# 240s timeout: the staff AI panel waits on a full Ollama generation.
 CMD ["gunicorn", "--bind", "0.0.0.0:5110", "--workers", "2", "--timeout", "240", "app:app"]
