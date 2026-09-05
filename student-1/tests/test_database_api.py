@@ -181,11 +181,7 @@ def test_sentiment_score_must_be_in_range(db_client):
 
 
 def test_ai_columns_cannot_be_written_through_the_ordinary_update(db_client):
-    """
-    A customer editing their own review must not be able to set the
-    sentiment the staff screen reads. AI values have exactly one entry
-    point: PUT /db/feedback/<id>/analysis.
-    """
+    """AI columns have one entry point: PUT /db/feedback/<id>/analysis."""
     review_id = db_client.post("/db/feedback", json={
         "customer_id": 1, "rating": 1, "comment": "Terrible.",
     }).get_json()["id"]
@@ -216,11 +212,7 @@ def test_delete_removes_the_review(db_client):
 
 
 def test_audit_trail_survives_the_delete(db_client):
-    """
-    The point of store_logs is to record deletions, so it deliberately has
-    no ON DELETE CASCADE. If this test ever fails, a cascade has been
-    added and the audit trail has quietly stopped being an audit trail.
-    """
+    """store_logs has no ON DELETE CASCADE, so the log outlives the row."""
     review_id = db_client.post("/db/feedback", json={
         "customer_id": 1, "rating": 4, "comment": "Fine.",
     }).get_json()["id"]
@@ -246,11 +238,7 @@ def test_health_reports_both_tables(db_client):
 # One customer must never reach another customer's review
 
 def test_a_customer_cannot_edit_another_customers_review(db_client):
-    """
-    The backend refuses this with 403. The check lives there rather than
-    only in the frontend, because the frontend is not the only possible
-    caller - anything that can reach port 8100 can try.
-    """
+    """The backend refuses with 403, not just the frontend."""
     mine = db_client.post("/db/feedback", json={
         "customer_id": 1, "rating": 4, "comment": "Mine.",
     }).get_json()
@@ -268,11 +256,7 @@ def test_a_customer_cannot_edit_another_customers_review(db_client):
 
 
 def test_customer_filter_does_not_leak_other_customers(seeded_client):
-    """
-    The "my reviews" screen is built from this filter. If it ever returned
-    a row belonging to somebody else, that review would appear on a
-    stranger's screen with Edit and Delete buttons next to it.
-    """
+    """The 'my reviews' filter must never return another customer's row."""
     for customer_id in (1, 2):
         payload = seeded_client.get(
             "/db/feedback?customer_id=%d" % customer_id

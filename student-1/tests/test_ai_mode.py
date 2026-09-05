@@ -57,11 +57,7 @@ def test_allergen_handling_outranks_a_noisy_grinder():
 # Menu attribution
 
 def test_specific_item_is_not_double_counted_as_the_generic_one(menu_vocabulary):
-    """
-    "vanilla latte" belongs to Vanilla Latte only. Without longest-alias
-    masking every specialty coffee would also inflate the plain Latte, and
-    the per-item ranking would be meaningless.
-    """
+    """'vanilla latte' counts as Vanilla Latte only, not also as Latte."""
     matched = ai.match_menu_items("The vanilla latte was cold.", menu_vocabulary)
 
     assert "Vanilla Latte" in matched
@@ -200,10 +196,7 @@ def test_question_prompt_carries_the_question_and_the_evidence(menu_vocabulary):
 
 
 def test_an_unfilled_placeholder_is_an_error():
-    """
-    A placeholder that reaches the model is read as an instruction. It has
-    to fail loudly rather than be sent as literal text.
-    """
+    """An unfilled placeholder must raise, not reach the model as literal text."""
     with pytest.raises(PromptNotFound):
         render("Question: {{STAFF_QUESTION}} Evidence: {{REVIEW_SUMMARY}}",
                staff_question="only one of the two")
@@ -212,13 +205,7 @@ def test_an_unfilled_placeholder_is_an_error():
 # Time display
 
 def test_stored_utc_is_shown_in_sydney_time():
-    """
-    Timestamps are stored in UTC and shown in the cafe's own timezone.
-
-    A review posted at 8am at the counter must read as 8am on the staff
-    board, not as 10pm the previous day. Getting this wrong makes the
-    morning-rush complaints impossible to find.
-    """
+    """Stored in UTC, displayed in the cafe's timezone."""
     import sys
     from pathlib import Path
 

@@ -16,13 +16,7 @@ for path in (STUDENT_DIR / "database", STUDENT_DIR / "backend"):
 
 @pytest.fixture()
 def db_app(tmp_path, monkeypatch):
-    """
-    The database microservice, backed by a fresh SQLite file.
-
-    The module is reloaded per test because it reads FEEDBACK_DB_PATH at
-    import time; without the reload every test would share the first
-    test's database and pass or fail depending on ordering.
-    """
+    """The database service on a fresh SQLite file. Reloaded per test so tests do not share one."""
     monkeypatch.setenv("FEEDBACK_DB_PATH", str(tmp_path / "feedback.db"))
 
     sys.path.insert(0, str(STUDENT_DIR / "database"))
