@@ -1,24 +1,3 @@
-# =====================================================================
-# ASD 2026 Release 0 - Student 1 (Hangyeol Yi)
-# Customer Feedback & Reviews - build and validate my microservices.
-#
-# Stages follow the Lab 05 pipeline shape:
-#
-#   lint-and-unit   fast feedback: syntax, prompts, pytest. No containers.
-#   build-images    the three student-1 images build from the shared
-#                   docker-compose.yml.
-#   smoke-check     bring the stack up and prove every endpoint answers,
-#                   the seeded data is there, and CRUD works end to end.
-#   agentic-loop    run the PLAN -> ACT -> OBSERVE -> ADAPT loop against
-#                   the running stack, deterministic checks only.
-#   evidence-pack   collect the reports and upload them as an artifact.
-#
-# AI-Mode is NOT exercised here. A GitHub runner has no GPU and pulling a
-# model would take longer than the job allows, so the loop runs with
-# --no-ai. The LLM path is demonstrated locally and in the showcase video;
-# claiming it ran in CI when it did not would be false evidence.
-# =====================================================================
-
 name: student-1
 
 on:
@@ -36,7 +15,6 @@ on:
 
 jobs:
 
-  # -------------------------------------------------------------------
   lint-and-unit:
     name: Lint and unit tests
     runs-on: ubuntu-latest
@@ -55,10 +33,10 @@ jobs:
           pip install -r student-1/frontend/requirements.txt
           pip install pytest
 
-      - name: Compile every Python file
+      - name: Compile Python files
         run: python -m compileall -q student-1
 
-      - name: Check the prompt files exist and carry their placeholders
+      - name: Check prompt files
         run: |
           set -e
           for file in \
@@ -80,7 +58,7 @@ jobs:
           grep -q "{{IMPLEMENTATION_RECOMMENDATION}}" student-1/prompts/agentic/review_task_prompt.txt
           echo "All prompt placeholders present"
 
-      - name: Seed the database and run pytest
+      - name: Seed database and run tests
         run: |
           cd student-1
           python database/seed.py
@@ -88,7 +66,6 @@ jobs:
         env:
           FEEDBACK_DB_PATH: ${{ github.workspace }}/student-1/database/feedback.db
 
-  # -------------------------------------------------------------------
   build-images:
     name: Build student-1 images
     runs-on: ubuntu-latest
@@ -97,23 +74,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Show docker compose version
+      - name: Show compose version
         run: docker compose version
 
-      - name: Validate the shared compose configuration
+      - name: Validate compose config
         run: docker compose config --quiet
 
-      - name: Build the three student-1 services
+      - name: Build images
         run: |
           docker compose build \
             student-1-database \
             student-1-backend \
             student-1-frontend
 
-      - name: List the images that were produced
+      - name: List images
         run: docker images --filter "reference=*student-1*" --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}"
 
-  # -------------------------------------------------------------------
   smoke-check:
     name: Smoke check the running stack
     runs-on: ubuntu-latest
@@ -129,9 +105,6 @@ jobs:
       - name: Install test dependencies
         run: pip install requests
 
-      # Only my three services plus the shared entry point. Starting the
-      # whole team stack would make this job fail whenever a teammate's
-      # container is broken, which tells me nothing about my own code.
       - name: Start student-1 services
         run: |
           docker compose up -d \
@@ -139,7 +112,7 @@ jobs:
             student-1-backend \
             student-1-frontend
 
-      - name: Wait for the services to report healthy
+      - name: Wait for services
         run: |
           check_url() {
             local url="$1"
@@ -166,7 +139,7 @@ jobs:
           check_url "http://localhost:5110/review"
           check_url "http://localhost:5110/reviews"
 
-      - name: Verify the seeded data meets the Release 0 minimum
+      - name: Verify seeded data
         run: |
           python - <<'PY'
           import json, sys, urllib.request
@@ -189,12 +162,12 @@ jobs:
           print("Both tables meet the 10-record minimum")
           PY
 
-      - name: Run the CRUD smoke test
+      - name: Run CRUD smoke test
         run: python student-1/tests/smoke_database.py
         env:
           DB_URL: http://localhost:7100
 
-      - name: Show container logs on failure
+      - name: Show logs
         if: failure()
         run: docker compose logs --no-color --tail 200
 
@@ -202,7 +175,6 @@ jobs:
         if: always()
         run: docker compose down -v
 
-  # -------------------------------------------------------------------
   agentic-loop:
     name: Agentic loop (deterministic checks)
     runs-on: ubuntu-latest
@@ -225,7 +197,7 @@ jobs:
             student-1-backend \
             student-1-frontend
 
-      - name: Wait for the backend
+      - name: Wait for backend
         run: |
           for i in $(seq 1 30); do
             code=$(curl -sS -o /dev/null -w "%{http_code}" \
@@ -235,17 +207,14 @@ jobs:
           done
           curl -sS http://localhost:8100/api/health
 
-      # --no-ai because the runner has no model. The loop still runs its
-      # data-quality, endpoint and NFR checks and fails the job on any of
-      # them, which is the part CI can honestly verify.
-      - name: Run PLAN -> ACT -> OBSERVE -> ADAPT
+      - name: Run agentic loop
         run: python student-1/agentic_loop.py --no-ai --no-input
         env:
           DB_SERVICE_URL: http://localhost:7100
           BACKEND_URL: http://localhost:8100
           FRONTEND_URL: http://localhost:5110
 
-      - name: Upload the agentic loop evidence
+      - name: Upload agentic loop logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -257,7 +226,6 @@ jobs:
         if: always()
         run: docker compose down -v
 
-  # -------------------------------------------------------------------
   evidence-pack:
     name: Evidence pack
     runs-on: ubuntu-latest
@@ -266,7 +234,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Create the reports directory
+      - name: Create reports directory
         run: mkdir -p student-1/reports
 
       - name: Generate report.json

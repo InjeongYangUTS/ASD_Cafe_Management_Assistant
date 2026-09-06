@@ -1,7 +1,3 @@
-{#
-   Every customer review, as staff see it. Re-rendered by HTMX whenever a
-   filter changes or a staff action succeeds.
-#}
 <div id="staff-reviews">
 
     {% if error %}
@@ -23,26 +19,17 @@
                         <span class="s1-meta">&middot; {{ review.customer_name or 'Customer' }}</span>
                     </h3>
                     <span class="s1-star-display"
-                          title="{{ review.rating }} out of 5">{{ '*' * review.rating }}{{ '.' * (5 - review.rating) }}</span>
+                          title="{{ review.rating }} out of 5">{{ '★' * review.rating }}{{ '☆' * (5 - review.rating) }}</span>
                 </div>
 
                 <p>{{ review.comment }}</p>
 
-                {# The order number is deliberately not shown. The column is
-                   populated from seed data, but nothing links a review to a
-                   real order yet - the Order service integration is Release
-                   1 work. Displaying A-1007 next to a review would look
-                   like a verified link that does not exist. The review
-                   number is what staff can actually quote. #}
                 <p class="s1-meta">
                     Review #{{ review.id }} &middot; {{ review.submitted_at|cafe_time }}
                     &middot; {{ review.category.replace('_', ' ')|title }}
                     &middot; {{ status_labels.get(review.status, review.status) }}
                 </p>
 
-                {# AI results are shown as evidence, and always labelled with
-                   the model that produced them so nobody mistakes a
-                   rule-based fallback for a model answer. #}
                 {% if review.sentiment %}
                     <div>
                         <span class="s1-tag {{ review.sentiment|lower }}">
@@ -72,11 +59,6 @@
                     </div>
                 {% endif %}
 
-                {# ---- staff action: reply to the customer ----
-                   Replying is the whole staff-side workflow. There is no
-                   separate status button row: answering a review is what
-                   handling it means, so the backend moves a new review to
-                   ACKNOWLEDGED on the first reply by itself. #}
                 <form class="s1-reply"
                       hx-post="/reviews/{{ review.id }}/response"
                       hx-target="#staff-reviews"

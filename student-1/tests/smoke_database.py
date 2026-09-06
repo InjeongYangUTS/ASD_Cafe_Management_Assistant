@@ -1,14 +1,7 @@
-"""
-Student 1 (Hangyeol Yi) - Customer Feedback & Reviews
-Manual smoke test for the DATABASE microservice (/db/* API).
+"""Manual smoke test for the /db/* API: create, read, update, AI write-back, delete,
+then check store_logs recorded every step. Needs the database service on 7100.
 
-Walks one review through its whole life - Create, Read, Update, AI
-analysis write-back, Delete - and then checks that store_logs recorded
-every step, including the deletion.
-
-Usage (service already running on 7100):
     python student-1/tests/smoke_database.py
-    DB_URL=http://localhost:7100 python student-1/tests/smoke_database.py
 """
 
 import os
@@ -34,7 +27,7 @@ def check(label, condition, detail=""):
 
 print("Student 1 - database microservice smoke test against %s\n" % DB_URL)
 
-# ---------------------------------------------------------------- READ
+# READ
 stats = requests.get(DB_URL + "/db/stats", timeout=5).json()
 print("Seeded data")
 check("customer_feedback has >= 10 rows",
@@ -43,11 +36,7 @@ check("customer_feedback has >= 10 rows",
 check("store_logs has >= 10 rows",
       stats["row_counts"]["store_logs"] >= 10,
       stats["row_counts"])
-# Every review is analysed the moment it is written, so "unanalysed" no
-# longer exists. What still has to be true is that some reviews carry a
-# RULE-BASED verdict the language model has not reviewed yet: that is what
-# the staff board's re-check button works through, and without it the
-# AI-Mode demonstration would have nothing to do.
+# Some reviews must carry a rule-based verdict for the re-check button to work on.
 rule_based = [
     row for row in requests.get(
         DB_URL + "/db/feedback", params={"limit": 500}, timeout=5
@@ -60,7 +49,7 @@ check("every review carries a verdict (none left unanalysed)",
 check("some verdicts are rule-based, awaiting an LLM re-check",
       len(rule_based) > 0, len(rule_based))
 
-# -------------------------------------------------------------- CREATE
+# CREATE
 print("\nCreate")
 created = requests.post(
     DB_URL + "/db/feedback",
@@ -86,7 +75,7 @@ check("new review starts as SUBMITTED", review["status"] == "SUBMITTED",
 check("new review has no AI result yet", review["analysed_at"] is None)
 check("ai_issues comes back as a list", isinstance(review["ai_issues"], list))
 
-# ---------------------------------------------------------- VALIDATION
+# VALIDATION
 print("\nValidation is enforced by the database service, not the caller")
 for label, payload in [
     ("rating 9 rejected", {"customer_id": 1, "rating": 9, "comment": "x"}),
@@ -98,7 +87,7 @@ for label, payload in [
     response = requests.post(DB_URL + "/db/feedback", json=payload, timeout=5)
     check(label, response.status_code == 400, response.status_code)
 
-# ---------------------------------------------------------------- READ
+# READ
 print("\nRead")
 fetched = requests.get(DB_URL + "/db/feedback/%d" % review_id, timeout=5)
 check("GET /db/feedback/<id> returns 200", fetched.status_code == 200)
@@ -112,7 +101,7 @@ check("customer_id filter only returns that customer",
       all(f["customer_id"] == 1 for f in mine["feedback"]) and mine["count"] > 0,
       mine["count"])
 
-# -------------------------------------------------------------- UPDATE
+# UPDATE
 print("\nUpdate")
 updated = requests.put(
     DB_URL + "/db/feedback/%d" % review_id,
@@ -139,7 +128,7 @@ check("PUT with an empty body is rejected",
       requests.put(DB_URL + "/db/feedback/%d" % review_id,
                    json={}, timeout=5).status_code == 400)
 
-# ---------------------------------------------------- AI WRITE-BACK
+# AI WRITE-BACK
 print("\nAI analysis write-back")
 analysed = requests.put(
     DB_URL + "/db/feedback/%d/analysis" % review_id,
@@ -162,7 +151,7 @@ check("out-of-range sentiment_score rejected",
                    json={"sentiment": "POSITIVE", "sentiment_score": 5},
                    timeout=5).status_code == 400)
 
-# ---------------------------------------------- AI FIELDS ARE PROTECTED
+# AI FIELDS ARE PROTECTED
 print("\nAI columns cannot be forged through the ordinary PUT")
 forged = requests.put(
     DB_URL + "/db/feedback/%d" % review_id,
@@ -172,7 +161,7 @@ forged = requests.put(
 check("sentiment ignored by PUT /db/feedback/<id>",
       forged["sentiment"] == "NEGATIVE", forged["sentiment"])
 
-# ----------------------------------------------------------- AUDIT LOG
+# AUDIT LOG
 print("\nAudit trail")
 logs = requests.get(
     DB_URL + "/db/feedback/%d/logs" % review_id, timeout=5
@@ -182,7 +171,7 @@ actions = [entry["action"] for entry in logs]
 for action in ("CREATED", "UPDATED", "STATUS_CHANGED", "ANALYSED"):
     check("store_logs recorded %s" % action, action in actions, actions)
 
-# -------------------------------------------------------------- DELETE
+# DELETE
 print("\nDelete")
 deleted = requests.delete(
     DB_URL + "/db/feedback/%d" % review_id,

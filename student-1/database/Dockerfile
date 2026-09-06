@@ -1,9 +1,3 @@
-# =====================================================================
-# Student 1 (Hangyeol Yi) - Customer Feedback & Reviews
-# DATABASE microservice : owns feedback.db and exposes it over /db/*
-#
-# Build:  docker compose build student-1-database
-# =====================================================================
 FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -17,7 +11,9 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
-RUN chmod +x entrypoint.sh && mkdir -p /app/data
+RUN sed -i 's/\r$//' entrypoint.sh \
+    && chmod +x entrypoint.sh \
+    && mkdir -p /app/data
 
 EXPOSE 7100
 

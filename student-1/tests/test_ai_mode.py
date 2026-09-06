@@ -1,12 +1,4 @@
-"""
-Student 1 (Hangyeol Yi) - Customer Feedback & Reviews
-Tests for AI-Mode.
-
-Everything here is deterministic and runs without Ollama. That is the
-point of the design: the measured layer is what the LLM is grounded in
-and what the fallback answers from, so it must be testable on its own.
-The LLM path itself is demonstrated live, not asserted in CI.
-"""
+"""Tests for AI-Mode. Deterministic only - the LLM path is demonstrated live, not asserted here."""
 
 import ai
 from services.prompt_loader import load_prompt, render, PromptNotFound
@@ -14,9 +6,7 @@ from services.prompt_loader import load_prompt, render, PromptNotFound
 import pytest
 
 
-# =====================================================================
 # Sentiment measurement
-# =====================================================================
 
 def test_star_rating_anchors_the_sentiment():
     assert ai.measure_review({"rating": 5, "comment": "Great."})["sentiment"] == "POSITIVE"
@@ -43,9 +33,7 @@ def test_score_stays_within_bounds():
     assert -1.0 <= extreme["sentiment_score"] <= 1.0
 
 
-# =====================================================================
 # Issue and praise detection
-# =====================================================================
 
 def test_detects_the_complaint_themes():
     issues = ai.detect_issues("I waited 20 minutes and the table was dirty.")
@@ -66,16 +54,10 @@ def test_allergen_handling_outranks_a_noisy_grinder():
     assert ai.issue_weight("allergen_handling") > ai.issue_weight("noise")
 
 
-# =====================================================================
 # Menu attribution
-# =====================================================================
 
 def test_specific_item_is_not_double_counted_as_the_generic_one(menu_vocabulary):
-    """
-    "vanilla latte" belongs to Vanilla Latte only. Without longest-alias
-    masking every specialty coffee would also inflate the plain Latte, and
-    the per-item ranking would be meaningless.
-    """
+    """'vanilla latte' counts as Vanilla Latte only, not also as Latte."""
     matched = ai.match_menu_items("The vanilla latte was cold.", menu_vocabulary)
 
     assert "Vanilla Latte" in matched
@@ -94,9 +76,7 @@ def test_unmentioned_items_are_not_matched(menu_vocabulary):
     assert ai.match_menu_items("The service was slow.", menu_vocabulary) == []
 
 
-# =====================================================================
-# Derived category - the customer never picks one
-# =====================================================================
+# Derived category
 
 def test_category_comes_from_what_went_wrong(menu_vocabulary):
     assert ai.classify_category(
@@ -116,9 +96,7 @@ def test_category_defaults_to_general(menu_vocabulary):
     assert ai.classify_category("Nice spot.", menu_vocabulary) == "GENERAL"
 
 
-# =====================================================================
 # Store-wide measurement
-# =====================================================================
 
 REVIEWS = [
     {"id": 1, "rating": 5, "title": "", "comment": "The flat white was perfect.",
@@ -161,9 +139,7 @@ def test_empty_review_set_does_not_crash(menu_vocabulary):
     assert metrics["menu_feedback"] == []
 
 
-# =====================================================================
 # Question routing and the rule-based answer
-# =====================================================================
 
 def test_a_question_about_one_item_is_answered_about_that_item_only(menu_vocabulary):
     metrics = ai.measure_store(REVIEWS, menu_vocabulary=menu_vocabulary)
@@ -193,9 +169,7 @@ def test_a_general_question_gets_the_ranked_priority(menu_vocabulary):
     assert "Fix" in answer
 
 
-# =====================================================================
 # Prompt files
-# =====================================================================
 
 def test_every_service_prompt_loads():
     for name in ("ask_system_prompt.txt", "ask_task_prompt.txt",
@@ -222,27 +196,16 @@ def test_question_prompt_carries_the_question_and_the_evidence(menu_vocabulary):
 
 
 def test_an_unfilled_placeholder_is_an_error():
-    """
-    A placeholder that reaches the model is read as an instruction. It has
-    to fail loudly rather than be sent as literal text.
-    """
+    """An unfilled placeholder must raise, not reach the model as literal text."""
     with pytest.raises(PromptNotFound):
         render("Question: {{STAFF_QUESTION}} Evidence: {{REVIEW_SUMMARY}}",
                staff_question="only one of the two")
 
 
-# =====================================================================
 # Time display
-# =====================================================================
 
 def test_stored_utc_is_shown_in_sydney_time():
-    """
-    Timestamps are stored in UTC and shown in the cafe's own timezone.
-
-    A review posted at 8am at the counter must read as 8am on the staff
-    board, not as 10pm the previous day. Getting this wrong makes the
-    morning-rush complaints impossible to find.
-    """
+    """Stored in UTC, displayed in the cafe's timezone."""
     import sys
     from pathlib import Path
 
@@ -252,8 +215,7 @@ def test_stored_utc_is_shown_in_sydney_time():
     # 2026-09-03 02:05 UTC is 12:05pm in Sydney (AEST, UTC+10).
     assert cafe_time("2026-09-03 02:05:33") == "3 Sep 2026, 12:05 pm"
 
-    # 2026-01-15 02:05 UTC is 1:05pm in Sydney (AEDT, UTC+11) - daylight
-    # saving is applied for the date, not hard-coded.
+    # 2026-01-15 02:05 UTC is 1:05pm in Sydney (AEDT, UTC+11).
     assert cafe_time("2026-01-15 02:05:00") == "15 Jan 2026, 1:05 pm"
 
     # Midnight must read 12:00 am, not 0:00 am.

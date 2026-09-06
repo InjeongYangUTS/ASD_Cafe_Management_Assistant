@@ -1,7 +1,3 @@
-{#
-   Inline edit form. Star ids are suffixed with the review id so several
-   cards can be open at once without the radio groups colliding.
-#}
 <article class="s1-review" id="review-{{ review.id }}">
 
     <form hx-post="/review/{{ review.id }}/update"

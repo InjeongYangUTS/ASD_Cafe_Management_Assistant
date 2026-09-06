@@ -3,8 +3,8 @@
 **Hangyeol Yi (14647705)** · Group 48 · Cafe Management Assistant · Release 0
 
 Customers leave a star rating and a comment. Staff read every review on one
-board and ask the local LLM questions about them - which menu items draw
-complaints, which draw praise, and what to fix first.
+board and can ask a local LLM questions about them, such as which menu items
+draw the most complaints.
 
 ---
 
@@ -23,7 +23,7 @@ Browser
 student-1-frontend  :5110
    |  HTTP
    v
-student-1-backend   :8100 ----> Ollama :11434/v1 ----> qwen2.5:0.5b
+student-1-backend   :8100 ----> Ollama :11434/v1 ----> llama3.2
    |  HTTP                 (AI-Mode)
    v
 student-1-database  :7100
@@ -33,8 +33,8 @@ feedback.db (SQLite)
 ```
 
 Cross-feature reads (order history, menu names) go to the Order service's
-HTTP API. **No service here opens another student's SQLite file**, and no
-other service opens mine.
+HTTP API. No service here opens another student's SQLite file, and no other
+service opens `feedback.db`.
 
 ---
 
@@ -52,29 +52,29 @@ and the AI columns (`sentiment`, `sentiment_score`, `ai_summary`,
 Append-only audit trail: `CREATED`, `UPDATED`, `DELETED`, `ANALYSED`,
 `STATUS_CHANGED`, `RESPONDED`, with the actor and their role.
 
-**`store_logs` has no foreign key cascade on `feedback_id`, on purpose.**
-Its job is to record deletions, so the log entry must outlive the row it
-describes. A cascade would erase exactly the evidence the table exists to
-keep. `test_audit_trail_survives_the_delete` guards this.
+`store_logs` has no foreign key cascade on `feedback_id`. The table records
+deletions, so a log entry has to outlive the row it describes. This leaves
+orphaned rows in the table by design.
+`test_audit_trail_survives_the_delete` guards it.
 
-Seed data: 14 reviews, 33 audit records - both over the Release 0 minimum
-of ten. Seven reviews are deliberately left unanalysed so the AI-Mode
-demonstration does live work rather than replaying stored text.
+Seed data: 30 reviews, 82 audit records, both over the Release 0 minimum of
+ten. Every review arrives with a rule-based verdict; 15 of the seeded reviews
+still carry that verdict, so the staff board's re-check button has live work
+to do with the model.
 
 ---
 
-## Two design decisions worth knowing
+## Design decisions
 
 **The customer never picks a category.** They give a star rating and a
-comment, nothing else. The backend derives `category` from the wording
-(`ai.classify_category`), because customers classify their own complaints
-badly and resent being asked to. Staff can still filter by category.
+comment. The backend derives `category` from the wording
+(`ai.classify_category`). Staff can still filter by category.
 
 **AI values have exactly one entry point.** `PUT /db/feedback/<id>` ignores
 `sentiment` and `sentiment_score`; they can only be written through
 `PUT /db/feedback/<id>/analysis`, which logs an `ANALYSED` event by the
-`ai` actor. A customer editing their own review cannot forge the sentiment
-the staff board reads.
+`ai` actor. A customer editing their own review cannot set the sentiment the
+staff board reads.
 
 ---
 
@@ -85,8 +85,8 @@ Ollama's OpenAI-compatible endpoint.
 
 ```
 OLLAMA_BASE_URL=http://localhost:11434/v1
-OLLAMA_MODEL=qwen2.5:0.5b          # approved LLM from the registration form
-OLLAMA_REVIEW_MODEL=llama3.1:8b    # agentic loop review agent only
+OLLAMA_MODEL=llama3.2              # approved LLM from the registration form
+OLLAMA_REVIEW_MODEL=qwen2.5:0.5b   # agentic loop review agent only
 ```
 
 Request path: `frontend -> backend -> Ollama -> LLM -> backend -> frontend`.
@@ -96,12 +96,11 @@ of the browser.
 Three layers run in order:
 
 1. **Measure.** Deterministic Python computes rating distribution, issue-tag
-   frequencies, per-menu-item breakdowns and priority scores. *These numbers
-   are the prompt context* - a compact summary, never hundreds of raw rows.
+   frequencies, per-menu-item breakdowns and priority scores. These numbers
+   are the prompt context: a compact summary rather than hundreds of raw rows.
 2. **Ask.** The LLM writes the prose on top of those facts.
-3. **Validate.** The answer is checked back against the measured facts. The
-   model writes the wording; it does not get to contradict the numbers. Any
-   override is reported, not hidden.
+3. **Validate.** The answer is checked back against the measured facts. Any
+   override is reported on screen.
 
 Concretely, the answer is overridden when the model returns POSITIVE for a
 one-star review, when it names a menu item with no review evidence, or when
@@ -109,16 +108,14 @@ it wanders onto other items after being asked about one. A question about an
 item nobody has reviewed is answered without calling the model at all.
 
 If Ollama is unreachable every path falls back to a rule-based answer with
-the same shape, and the screen says which path ran. The demo never breaks -
-but a fallback is never presented as if the model had answered.
+the same shape, and the screen reports which path ran.
 
 ---
 
 ## Prompts
 
 `prompts/` holds every prompt as a `.txt` file with `{{PLACEHOLDER}}`
-substitution, so the wording is a reviewable artefact rather than a string
-buried in the source.
+substitution, so the wording can be reviewed without reading the source.
 
 ```
 prompts/service/    ask_system_prompt.txt        staff question, system
@@ -129,8 +126,8 @@ prompts/agentic/    implementation_*.txt         {{VALIDATION_EVIDENCE}}
                     review_*.txt                 {{IMPLEMENTATION_RECOMMENDATION}}
 ```
 
-An unfilled placeholder raises rather than being sent to the model as
-literal text - a stray `{{...}}` reads as an instruction.
+An unfilled placeholder raises, because a stray `{{...}}` reaching the model
+reads as an instruction.
 
 ---
 
@@ -147,8 +144,8 @@ python student-1/agentic_loop.py --no-ai      # deterministic checks only
 | Stage | What runs |
 |---|---|
 | OBSERVE | Data quality, live endpoints, NFR (19/20 reads under 500 ms), AI-Mode |
-| Implementation agent | `qwen2.5:0.5b` proposes two evidence-backed improvements |
-| Review agent | `llama3.1:8b` reviews that proposal - a second model, so the work is not reviewed by its own author |
+| Implementation agent | `llama3.2` proposes two evidence-backed improvements |
+| Review agent | `qwen2.5:0.5b` reviews that proposal, so a second model checks the first |
 | Human review | Accept / Partially Accept / Reject. The human decides |
 | ADAPT | The action that follows. A failed check outranks any agent advice |
 
@@ -189,14 +186,13 @@ pip install -r student-1/backend/requirements.txt
 ./run_local_s1.sh
 ```
 
-`.env` uses `127.0.0.1` rather than `localhost` deliberately: on Windows,
-resolving `localhost` tries IPv6 first and costs roughly two seconds per
-call.
+`.env` uses `127.0.0.1` instead of `localhost`. On Windows, resolving
+`localhost` tries IPv6 first and costs roughly two seconds per call.
 
 ### Tests
 
 ```bash
-cd student-1 && python -m pytest tests -v      # 43 tests, no containers needed
+cd student-1 && python -m pytest tests -v      # 47 tests, no containers needed
 python student-1/tests/smoke_database.py       # CRUD against a running service
 ```
 
@@ -212,7 +208,7 @@ same cookie by using the same `SECRET_KEY`.
 Identity is never taken from a URL or a form field, so a customer cannot
 reach another customer's review by changing a number in the address bar.
 `require_owner()` in the backend enforces the same rule server-side and
-returns 403, not 404 - the review exists, the caller just may not touch it.
+returns 403.
 
 ---
 
@@ -271,21 +267,23 @@ GET  /health
 
 ## Known issues and limitations
 
-- **`qwen2.5:0.5b` is a very small model.** It sometimes mislabels the
-  numbers it is given - calling a 2.00 average "high", or reporting a
-  mention count as a star rating. The measured tables and the validation
-  layer are correct; it is the wording that slips. A full `qwen2.5` (7B)
-  fixes it at the cost of a much slower cold start on a laptop.
-- **`llama3.1:8b` cold start is slow** on the development machine (several
-  minutes for the first token), so the agentic loop's review agent can time
-  out on its first run. Set `OLLAMA_REVIEW_MODEL=qwen2.5:0.5b` in `.env` to
-  run the loop quickly, at the cost of the two-model separation.
-- **Menu attribution is review-level, not sentence-level.** A review that
-  praises the flat white and complains about the grinder noise attaches both
-  tags to Flat White. Sentence-level attribution is Release 1 work.
+- **The local models are small.** They sometimes mislabel the numbers they
+  are given, such as calling a 2.00 average "high". The measured tables and
+  the validation layer stay correct; the wording is what slips. A larger
+  model fixes it, at the cost of a much slower cold start.
+- **AI-Mode is slow on a machine without a GPU.** A staff question takes 45
+  to 75 seconds on the development laptop. The page shows a waiting panel
+  for the duration.
+- **`llama3.1:8b` was tried as the review agent and dropped.** Its cold
+  start ran to minutes on the development machine and timed the agent out,
+  so `OLLAMA_REVIEW_MODEL` defaults to `qwen2.5:0.5b`.
+- **Menu attribution works on the whole review, not on each sentence.** A
+  review that praises the flat white and complains about the grinder noise
+  attaches both tags to Flat White. Sentence-level attribution is Release 1
+  work.
 - **AI-Mode is not exercised in CI.** A GitHub runner has no model, so the
-  workflow runs the agentic loop with `--no-ai`. Claiming otherwise would be
-  false evidence.
+  workflow runs the agentic loop with `--no-ai`. The LLM path is shown
+  locally and in the video instead.
 - **Team numbering is unresolved.** The approved registration form calls this
   feature Student 1; the original `docker-compose.yml` comments called it
   Student 1 and gave 8100 to Inventory. This feature follows the registration

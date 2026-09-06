@@ -1,30 +1,3 @@
-"""
-Student 1 (Hangyeol Yi) - Customer Feedback & Reviews
-FRONTEND MICROSERVICE  (container: student-1-frontend, port 5110)
-
-Two screens, one per audience:
-
-    /review    Customer - leave a star rating and a comment at the top,
-               manage your previous reviews (edit / delete) underneath.
-    /reviews   Staff    - ask the AI a question at the top, then every
-               customer review from the database.
-
-Rendered server-side with Jinja and driven by HTMX, so the browser only
-ever talks to this service. Every piece of data comes from my backend/API
-microservice over HTTP - this container holds no database of its own.
-
-It also serves the shared team assets (/shared/...) read-only, so the
-group stylesheet is reused rather than copied.
-
-SIGN-IN
-    The shared entry point (port 5100) signs the user in and stores the
-    identity in a Flask session cookie. Cookies are scoped to the host,
-    not the port, so this service reads that same cookie by using the
-    same SECRET_KEY. No second login, and no identity is ever taken from
-    the URL or a form field - a customer cannot edit someone else's
-    review by changing a number in the address bar.
-"""
-
 import os
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
@@ -47,17 +20,11 @@ SHARED_DIR = os.path.abspath(
     os.environ.get("SHARED_DIR", os.path.join(BASE_DIR, "..", "..", "shared"))
 )
 
-# Link back to the shared entry point. Resolved per request from the host
-# the BROWSER used - see inject_shared() - so the links work from any
-# device. Set SHARED_HOME_URL only to override that with a fixed address.
 SHARED_HOME_URL = os.environ.get("SHARED_HOME_URL")
 SHARED_PORT = os.environ.get("SHARED_PORT", "5100")
 
 OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.2")
 
-# The cafe's own timezone. Timestamps are stored in UTC and shown in this
-# zone, so a time on screen means what it meant to the customer standing
-# at the counter. Overridable for a cafe somewhere else.
 CAFE_TZ = ZoneInfo(os.environ.get("CAFE_TIMEZONE", "Australia/Sydney"))
 
 HTTP_TIMEOUT = float(os.environ.get("HTTP_TIMEOUT", 6))
@@ -73,14 +40,8 @@ STATUS_LABELS = {
 
 app = Flask(__name__)
 
-# Must match shared/frontend/app.py so the signed session cookie set at
-# login can be read here. Override in both places for a real deployment.
 app.secret_key = os.environ.get("SECRET_KEY", "temporary-secret-key")
 
-
-# =====================================================================
-# Backend helper
-# =====================================================================
 
 class BackendError(Exception):
     def __init__(self, message):
@@ -89,14 +50,7 @@ class BackendError(Exception):
 
 
 def call_backend(method, path, timeout=None, **kwargs):
-    """
-    Single place where this service talks to student-1-backend.
-
-    The browser's signed session cookie is forwarded with every call. The
-    backend verifies it with the same SECRET_KEY and takes the customer's
-    identity from there, so a caller cannot simply claim to be customer
-    102 in a JSON body - a body field is a wish, a signed cookie is proof.
-    """
+    """Single place this service talks to student-1-backend; forwards the signed session cookie."""
     kwargs.setdefault("cookies", request.cookies)
 
     try:
@@ -122,13 +76,7 @@ def call_backend(method, path, timeout=None, **kwargs):
 
 @app.context_processor
 def inject_shared():
-    """
-    Make the shared dashboard links available to every template.
-
-    Built from the host in the incoming request, not from "localhost", so
-    the links resolve wherever the page is opened from - the marker's
-    laptop, a phone on the same Wi-Fi, or another machine on the network.
-    """
+    """Make the shared dashboard links, built from the incoming request host, available to every template."""
     if SHARED_HOME_URL:
         base = SHARED_HOME_URL.rstrip("/")
     else:
@@ -155,27 +103,9 @@ def trigger(html, *events):
     return response
 
 
-# =====================================================================
-# Time display
-# =====================================================================
-
 @app.template_filter("cafe_time")
 def cafe_time(value):
-    """
-    Render a stored timestamp in the cafe's own local time.
-
-    Timestamps are STORED in UTC - SQLite's datetime('now') - because that
-    is the only clock that cannot drift between the three containers, and
-    because a stored local time silently breaks twice a year when the
-    clocks change.
-
-    They are DISPLAYED in Australia/Sydney, because that is when the thing
-    actually happened to the people reading it. Showing a review posted at
-    8am as "22:00 the previous day" makes the morning-rush complaints
-    impossible to find, which is exactly what staff come to this screen
-    for. zoneinfo applies AEST or AEDT for the date in question, so the
-    daylight-saving switch needs no code.
-    """
+    """Render a UTC timestamp in the cafe's local time (Australia/Sydney)."""
     if not value:
         return ""
 
@@ -186,13 +116,10 @@ def cafe_time(value):
         except ValueError:
             continue
     else:
-        # Unparseable: show it as stored rather than inventing a time.
         return value
 
     local = stamp.replace(tzinfo=timezone.utc).astimezone(CAFE_TZ)
 
-    # %-d / %-I are not portable to Windows, so the leading zeros are
-    # stripped by hand and the same output appears everywhere.
     return "%d %s %d, %d:%02d %s" % (
         local.day,
         local.strftime("%b"),
@@ -225,10 +152,6 @@ def current_staff():
     }
 
 
-# =====================================================================
-# Shared assets
-# =====================================================================
-
 @app.get("/shared/<path:filename>")
 def shared_assets(filename):
     """Serve the group stylesheet and icons read-only, straight from ./shared."""
@@ -252,10 +175,6 @@ def health():
         "backend": backend,
     }, 200 if status == "healthy" else 503
 
-
-# =====================================================================
-# Customer screen : leave a review, manage your own reviews
-# =====================================================================
 
 @app.get("/")
 def index():
@@ -340,14 +259,7 @@ def edit_form(feedback_id):
 
 @app.get("/review/<int:feedback_id>/confirm-delete")
 def confirm_delete(feedback_id):
-    """
-    HTMX: swap one review card for a delete confirmation.
-
-    Asked in the page rather than through hx-confirm, which relies on the
-    browser's confirm() dialog. Where that dialog is blocked, HTMX reads
-    the block as "no" and cancels the request silently, so Delete appears
-    to do nothing - the worst outcome for a destructive control.
-    """
+    """HTMX: swap one review card for a delete confirmation."""
     customer = current_customer()
     if customer is None:
         return render_template("partials/message.html", tone="error",
@@ -365,15 +277,7 @@ def confirm_delete(feedback_id):
 
 @app.get("/review/<int:feedback_id>/card")
 def review_card(feedback_id):
-    """
-    HTMX: cancel an edit or a delete - swap the form back for the card.
-
-    This checks ownership like every other route that takes a review id.
-    It is only ever reached by pressing Cancel, so the id "should" always
-    be the customer's own - but a route that trusts that assumption is a
-    route that returns any review to anyone who edits the URL, and the
-    read is as much of a leak as the write would be.
-    """
+    """HTMX: cancel an edit or a delete and swap the form back for the card."""
     customer = current_customer()
     if customer is None:
         return render_template("partials/message.html", tone="error",
@@ -435,17 +339,6 @@ def delete_review(feedback_id):
                            notice=notice, error=error)
 
 
-# =====================================================================
-# Staff screen : every review + AI analysis
-# =====================================================================
-
-# The staff board offers a search box, a date range and a sort order.
-#
-# It used to filter by Status, Category, Sentiment and Rating. Status
-# became meaningless once the status buttons went. Category is derived
-# from the wording, so filtering by it asked staff to guess how the
-# classifier had read a review. A search box answers more: staff arrive
-# looking for a particular review, or for what people said about one thing.
 SORT_ORDERS = ["newest", "oldest", "lowest", "highest"]
 
 
@@ -461,16 +354,7 @@ def staff_filters():
 
 
 def local_date_to_utc(value, end_of_day=False):
-    """
-    Turn a date the user picked - in the cafe's timezone - into the UTC
-    datetime the database stores.
-
-    This conversion is the whole reason the filter works. Timestamps are
-    stored in UTC; the date picker shows Sydney dates. Comparing a Sydney
-    date against a UTC column directly loses the first ten hours of every
-    day, so a review left at 8am would not appear when its own date was
-    selected.
-    """
+    """Turn a date picked in the cafe's timezone into the UTC datetime the database stores."""
     try:
         day = datetime.strptime(value, "%Y-%m-%d")
     except (TypeError, ValueError):
@@ -571,12 +455,7 @@ def staff_respond(feedback_id):
 
 @app.post("/reviews/ai/ask")
 def staff_ask():
-    """
-    HTMX: answer one free-text question a staff member typed.
-
-        browser -> student-1-frontend -> student-1-backend
-                -> Ollama -> LLM -> back again
-    """
+    """HTMX: answer one free-text question a staff member typed."""
     if current_staff() is None:
         return render_template("partials/message.html", tone="error",
                                message="Please sign in again."), 401

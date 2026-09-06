@@ -1,18 +1,8 @@
 {
   "_comment": [
-    "Menu vocabulary used to work out WHICH MENU ITEM a review is talking",
-    "about, so the staff screen can answer 'which items get complaints and",
-    "which get praise'.",
-    "",
-    "FALLBACK CACHE ONLY. The live source of menu names is the Menu API",
-    "(GET /api/menus), read through the Order service, and live names are",
-    "merged over this file at runtime. This copy exists so the analysis",
-    "still works when that service is not running, and every result is",
-    "tagged with menu_source so it is always visible which was used.",
-    "",
-    "'aliases' are the words customers actually type. Matching is",
-    "longest-alias-first, so 'vanilla latte' is never double counted as a",
-    "plain 'latte'."
+    "Fallback menu vocabulary. The live source is the Menu API, read through",
+    "the Order service; these names are used only when it is unavailable.",
+    "'aliases' are matched longest-first, so 'vanilla latte' is not also a 'latte'."
   ],
   "version": "2026-09-03",
   "items": [

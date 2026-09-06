@@ -1,37 +1,3 @@
-"""
-Student 1 (Hangyeol Yi) - Customer Feedback & Reviews
-Seed script for the database microservice.
-
-Release 0 requires every table to hold at least ten (10) records:
-
-    customer_feedback   30 reviews
-    store_logs          70+ audit entries (generated from the reviews below)
-
-The data is deliberately not uniform. It has to be a realistic input for
-AI-Mode, so it contains:
-  * the full 1-5 rating range, weighted the way real cafe reviews are
-    (mostly positive with a hard tail of complaints),
-  * repeated complaint themes - slow service at the morning peak and cold
-    food - so sentiment analysis has an actual pattern to find,
-  * half the rows carrying a rule-based verdict (ai_model = 'rules')
-    rather than an LLM one, so the AI-Mode demonstration has live work to
-    do rather than replaying stored text. No row is ever unlabelled - a
-    review with no sentiment is a review staff cannot triage.
-
-customer_id 1 is the seeded demo login (customer@test.com), so signing in
-as that account shows a populated "My Reviews" screen straight away.
-
-Every OTHER seeded customer is numbered from 101 up. The shared auth
-service issues ids from 1, so a real sign-up used to land on id 4 and
-inherit the seeded reviews of "customer 4" - able to read, edit and
-delete a stranger's review. Keeping the demo data above the range real
-accounts will reach makes that impossible.
-
-order_id / order_number reference the Order service's orders (A-1001 ..
-A-1012). They are stored as reference + snapshot only. This script never
-opens another service's database.
-"""
-
 import json
 import os
 import sqlite3
@@ -41,10 +7,6 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.environ.get("FEEDBACK_DB_PATH", os.path.join(BASE_DIR, "feedback.db"))
 SCHEMA_PATH = os.path.join(BASE_DIR, "schema.sql")
 
-# UTC, because the schema stamps submitted_at with SQLite's
-# datetime('now'), which is UTC. Seeding in local time made every new
-# review look ten hours older than the seed data on an Australian
-# machine.
 NOW = datetime.now(timezone.utc)
 
 
@@ -52,29 +14,8 @@ def hours_ago(hours):
     return (NOW - timedelta(hours=hours)).strftime("%Y-%m-%d %H:%M:%S")
 
 
-# ---------------------------------------------------------------------
-# customer_feedback
-#
-# (customer_id, customer_name, order_id, order_number, rating, title,
-#  comment, category, status, staff_response, sentiment, score,
-#  ai_summary, ai_issues, ai_model, hours_ago)
-#
-# sentiment/score/ai_* are None where the review has not been analysed yet.
-# ---------------------------------------------------------------------
 FEEDBACK = [
-    # =================================================================
-    # 30 reviews spread across roughly 45 days.
-    #
-    # With every review inside four days the "last 7 days" and "last 30
-    # days" filters returned identical lists, so neither could be tested.
-    #
-    # Menu coverage is deliberate: Flat White is praised across several
-    # reviews, Latte and Avocado Toast complained about, and a few items
-    # appear once so the low-confidence handling has something to mark.
-    # customer_id 1 is the demo login and has five reviews.
-    # =================================================================
 
-    # ---- older than 30 days: gives the date filters something to exclude
     (104, "Marcus Reid", None, None, 5,
      "Best croissant in the neighbourhood",
      "The croissant is genuinely the best I have had in Sydney and it was "
@@ -111,7 +52,6 @@ FEEDBACK = [
      "Adequate food, perceived as slightly overpriced.",
      ["price"], "qwen2.5:0.5b", 890),
 
-    # ---- 8 to 30 days ago
     (1, "Test Customer", 1, "A-1001", 5,
      "Best flat white in the area",
      "The flat white was perfectly extracted and the barista remembered my "
@@ -184,7 +124,6 @@ FEEDBACK = [
      "Burnt toastie, not raised at the counter.",
      ["food_quality"], "qwen2.5:0.5b", 200),
 
-    # ---- 2 to 7 days ago
     (1, "Test Customer", 4, "A-1004", 3,
      "Order cancelled without much explanation",
      "My order was cancelled at the counter and I only found out when I asked. "
@@ -247,7 +186,6 @@ FEEDBACK = [
      "FOOD", "SUBMITTED", None,
      None, None, None, None, None, 44),
 
-    # ---- last 24 hours
     (1, "Test Customer", 7, "A-1007", 5,
      "Staff went out of their way",
      "I left my laptop charger behind and the team put it aside and messaged me. "
@@ -320,19 +258,6 @@ FEEDBACK = [
 ]
 
 
-# ---------------------------------------------------------------------
-# store_logs
-#
-# seed() writes a CREATED and an ANALYSED row for every review. The
-# follow-up events (staff replies, status moves) are derived from the
-# review data rather than listed by hand - an earlier version hard-coded
-# feedback ids and attached entries to the wrong review.
-#
-# ORPHAN_LOGS describes reviews that no longer exist, which is why
-# store_logs has no ON DELETE CASCADE.
-#
-# (feedback_id, action, actor, actor_role, detail, hours_ago)
-# ---------------------------------------------------------------------
 ORPHAN_LOGS = [
     (1001, "CREATED", "customer:131", "CUSTOMER", "rating 2, category FOOD", 300),
     (1001, "ANALYSED", "ai", "AI", "NEGATIVE (-0.50) via rules", 299),
@@ -345,10 +270,6 @@ ORPHAN_LOGS = [
 ]
 
 
-# Lightweight copy of the rule-based analyser in backend/ai.py. The seed
-# script must not import the backend - the database service is deployed on
-# its own and has no access to it - so the rating anchor and the phrase
-# lists are duplicated here, deliberately and visibly.
 ISSUE_PHRASES = {
     "slow_service": ["wait", "waited", "slow", "queue", "late"],
     "cold_food": ["lukewarm", "cold food", "went cold"],
@@ -407,10 +328,6 @@ def seed():
 
         submitted_at = hours_ago(age)
 
-        # Rows seeded without an LLM verdict still get the rule-based one,
-        # exactly as a live submission does. Nothing in the staff board is
-        # ever unlabelled; what varies is WHICH analyser produced it, and
-        # that is recorded in ai_model.
         if not sentiment:
             sentiment, score, ai_issues, ai_summary, ai_model = (
                 rule_based_verdict(rating, title, comment)
@@ -452,9 +369,6 @@ def seed():
         log("ANALYSED", "ai", "AI",
             "%s (%.2f) via %s" % (sentiment, score, ai_model), analysed_at)
 
-        # Follow-up events are derived from the review's own state rather
-        # than listed by hand, so the audit trail cannot drift out of step
-        # with the data when a review is added or reordered.
         if status != "SUBMITTED":
             log("STATUS_CHANGED", "staff:1", "STAFF",
                 "SUBMITTED -> %s" % status, hours_ago(max(age - 2, 0)))
@@ -463,8 +377,6 @@ def seed():
             log("RESPONDED", "staff:1", "STAFF",
                 "staff response recorded", hours_ago(max(age - 3, 0)))
 
-    # Audit rows whose review no longer exists. These are what prove the
-    # no-cascade design: the record of a deletion outlives the deletion.
     for feedback_id, action, actor, actor_role, detail, age in ORPHAN_LOGS:
         conn.execute(
             "INSERT INTO store_logs (feedback_id, entity, action, actor, "
@@ -479,8 +391,6 @@ def seed():
         "SELECT COUNT(*) FROM customer_feedback"
     ).fetchone()[0]
     log_count = conn.execute("SELECT COUNT(*) FROM store_logs").fetchone()[0]
-    # Rows still carrying a rule-based verdict. These are what the staff
-    # board's "Re-check with <model>" button works through.
     rule_based = conn.execute(
         "SELECT COUNT(*) FROM customer_feedback WHERE ai_model = 'rules'"
     ).fetchone()[0]
