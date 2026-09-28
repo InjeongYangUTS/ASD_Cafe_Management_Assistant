@@ -126,3 +126,55 @@ def test_generate_response_connection_error():
     ):
         with pytest.raises(RuntimeError):
             generate_response("Test prompt")
+
+def test_query_success(client):
+    with patch(
+        "app.generate_response",
+        return_value="It manages menus, recipes and ingredients."
+    ) as mock_generate:
+
+        response = client.post(
+            "/query",
+            json={
+                "question": "What does the Menu and Recipe feature manage?"
+            }
+        )
+
+    data = response.get_json()
+
+    assert response.status_code == 200
+    assert data["status"] == "success"
+    assert "menus" in data["answer"]
+    assert "cafe_overview.txt" in data["sources"]
+    mock_generate.assert_called_once()
+
+
+def test_query_insufficient_context(client):
+    with patch("app.generate_response") as mock_generate:
+
+        response = client.post(
+            "/query",
+            json={
+                "question": "What is the capital of France?"
+            }
+        )
+
+    data = response.get_json()
+
+    assert response.status_code == 200
+    assert data["status"] == "insufficient_context"
+    assert data["answer"] is None
+    assert data["sources"] == []
+
+    # Ollama should not be called when retrieval finds nothing.
+    mock_generate.assert_not_called()
+
+
+def test_query_missing_question(client):
+    response = client.post(
+        "/query",
+        json={}
+    )
+
+    assert response.status_code == 400
+    assert "error" in response.get_json()
