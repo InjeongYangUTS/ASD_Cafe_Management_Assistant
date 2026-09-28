@@ -2,7 +2,7 @@ from flask import Flask, jsonify
 from config import RAG_HOST, RAG_PORT
 from flask import Flask, jsonify, request
 from config import RAG_HOST, RAG_PORT
-from retriever import retrieve
+from retriever import retrieve, classify_confidence
 from llm import generate_response
 
 app = Flask(__name__)
@@ -44,29 +44,34 @@ def query():
 
     question = question.strip()
     results = retrieve(question)
+    confidence = classify_confidence(results)
 
     # Do not generate an answer without retrieved context.
-    if not results:
+    if confidence == "insufficient":
         return jsonify({
             "question": question,
             "answer": None,
             "sources": [],
+            "confidence": "insufficient",
             "status": "insufficient_context"
         }), 200
 
+    # Include source identifiers so the LLM can reference them.
     context = "\n\n".join(
-        result["content"]
-        for result in results
+        f"[{index}] Source: {result['source']}\n"
+        f"{result['content']}"
+        for index, result in enumerate(results, start=1)
     )
 
     prompt = f"""
 You are a Cafe Management Assistant.
 
-Answer the user's question using only the context below.
-Do not invent information or use outside knowledge.
+Answer the question using only the supplied context.
+Do not use outside knowledge or invent information.
 
-If the context does not contain enough information,
-reply exactly: Insufficient context.
+If the context does not contain enough information
+to answer the question, reply exactly:
+Insufficient context.
 
 Context:
 {context}
@@ -90,18 +95,25 @@ Answer:
             "question": question,
             "answer": None,
             "sources": [],
+            "confidence": "insufficient",
             "status": "insufficient_context"
         }), 200
 
-    sources = sorted({
-        result["source"]
-        for result in results
-    })
+    sources = [
+        {
+            "id": index,
+            "document": result["source"],
+            "excerpt": result["content"],
+            "coverage": result["coverage"]
+        }
+        for index, result in enumerate(results, start=1)
+    ]
 
     return jsonify({
         "question": question,
         "answer": answer,
         "sources": sources,
+        "confidence": confidence,
         "status": "success"
     }), 200
 

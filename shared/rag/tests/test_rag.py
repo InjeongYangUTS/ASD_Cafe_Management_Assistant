@@ -145,7 +145,12 @@ def test_query_success(client):
     assert response.status_code == 200
     assert data["status"] == "success"
     assert "menus" in data["answer"]
-    assert "cafe_overview.txt" in data["sources"]
+    assert any(source["document"] == "cafe_overview.txt" for source in data["sources"])
+    assert data["confidence"] == "high"
+    assert len(data["sources"]) == 1
+    assert data["sources"][0]["id"] == 1
+    assert data["sources"][0]["coverage"] == 0.75
+    assert "ingredients" in data["sources"][0]["excerpt"]
     mock_generate.assert_called_once()
 
 
@@ -178,3 +183,48 @@ def test_query_missing_question(client):
 
     assert response.status_code == 400
     assert "error" in response.get_json()
+
+def test_query_llm_insufficient_context(client):
+    with patch(
+        "app.generate_response",
+        return_value="Insufficient context."
+    ):
+        response = client.post(
+            "/query",
+            json={
+                "question": "What does the Menu and Recipe feature manage?"
+            }
+        )
+
+    data = response.get_json()
+
+    assert response.status_code == 200
+    assert data["status"] == "insufficient_context"
+    assert data["answer"] is None
+    assert data["sources"] == []
+    assert data["confidence"] == "insufficient"
+
+
+def test_query_ollama_error(client):
+    with patch(
+        "app.generate_response",
+        side_effect=RuntimeError("Ollama unavailable")
+    ):
+        response = client.post(
+            "/query",
+            json={
+                "question": "What does the Menu and Recipe feature manage?"
+            }
+        )
+
+    assert response.status_code == 503
+    assert "error" in response.get_json()
+
+
+def test_confidence_categories():
+    from retriever import classify_confidence
+
+    assert classify_confidence([]) == "insufficient"
+    assert classify_confidence([{"coverage": 0.8}]) == "high"
+    assert classify_confidence([{"coverage": 0.6}]) == "medium"
+    assert classify_confidence([{"coverage": 0.3}]) == "low"
