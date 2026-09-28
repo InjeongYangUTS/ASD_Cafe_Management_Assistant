@@ -17,15 +17,17 @@ def tokenize(text):
     return words - STOP_WORDS
 
 def load_documents():
-    """Load text documents from the knowledge directory."""
+    """Load text documents from all knowledge subdirectories."""
     documents = []
 
-    for file_path in sorted(KNOWLEDGE_DIR.glob("*.txt")):
+    for file_path in sorted(KNOWLEDGE_DIR.rglob("*.txt")):
         content = file_path.read_text(encoding="utf-8").strip()
 
         if content:
             documents.append({
-                "source": file_path.name,
+                "source": file_path.relative_to(
+                    KNOWLEDGE_DIR
+                ).as_posix(),
                 "content": content
             })
 

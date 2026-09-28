@@ -228,3 +228,23 @@ def test_confidence_categories():
     assert classify_confidence([{"coverage": 0.8}]) == "high"
     assert classify_confidence([{"coverage": 0.6}]) == "medium"
     assert classify_confidence([{"coverage": 0.3}]) == "low"
+
+def test_load_nested_documents(tmp_path, monkeypatch):
+    import retriever
+
+    student_dir = tmp_path / "student-2"
+    student_dir.mkdir()
+
+    document = student_dir / "menu_recipes.txt"
+    document.write_text(
+        "The Menu and Recipe feature manages cafe menus.",
+        encoding="utf-8"
+    )
+
+    monkeypatch.setattr(retriever, "KNOWLEDGE_DIR", tmp_path)
+
+    documents = retriever.load_documents()
+
+    assert len(documents) == 1
+    assert documents[0]["source"] == "student-2/menu_recipes.txt"
+    assert "cafe menus" in documents[0]["content"]
