@@ -1,0 +1,11 @@
+The Cafe Management Assistant is a microservices-based application.
+
+The Menu and Recipe feature manages cafe menus, recipes, ingredients and ingredient costs.
+
+The Inventory and Restocking feature manages inventory and stock replenishment.
+
+The Order and Kitchen feature manages customer orders and kitchen operations.
+
+The Payment and Billing feature manages payments and billing.
+
+The Customer Feedback and Reviews feature manages customer feedback and reviews.
