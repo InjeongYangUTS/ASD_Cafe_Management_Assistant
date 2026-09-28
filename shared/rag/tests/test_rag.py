@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+from unittest.mock import patch, Mock
 
 import pytest
 
@@ -8,6 +9,7 @@ sys.path.insert(0, str(RAG_DIR))
 
 from app import app
 from retriever import load_documents, split_documents, retrieve
+from llm import generate_response
 
 
 @pytest.fixture
@@ -86,3 +88,41 @@ def test_retrieve_missing_question(client):
     )
 
     assert response.status_code == 400
+
+def test_generate_response():
+    mock_response = Mock()
+    mock_response.json.return_value = {
+        "response": "Ollama connection successful"
+    }
+
+    with patch("llm.requests.post", return_value=mock_response):
+        result = generate_response("Test prompt")
+
+    assert result == "Ollama connection successful"
+
+
+def test_generate_response_empty_prompt():
+    with pytest.raises(ValueError):
+        generate_response("   ")
+
+
+def test_generate_response_empty_answer():
+    mock_response = Mock()
+    mock_response.json.return_value = {
+        "response": ""
+    }
+
+    with patch("llm.requests.post", return_value=mock_response):
+        with pytest.raises(RuntimeError):
+            generate_response("Test prompt")
+
+
+def test_generate_response_connection_error():
+    import requests
+
+    with patch(
+        "llm.requests.post",
+        side_effect=requests.ConnectionError("Connection refused")
+    ):
+        with pytest.raises(RuntimeError):
+            generate_response("Test prompt")
