@@ -1,6 +1,6 @@
 import os
 
-RAG_HOST = os.getenv("RAG_HOST", "127.0.0.1")
+RAG_HOST = os.getenv("RAG_HOST", "0.0.0.0")
 RAG_PORT = int(os.getenv("RAG_PORT", "5600"))
 
 OLLAMA_URL = os.getenv(

@@ -25,7 +25,7 @@ The server uses the following environment variables:
 
 | Variable | Default |
 |---|---|
-| RAG_HOST | 127.0.0.1 |
+| RAG_HOST | 0.0.0.0 |
 | RAG_PORT | 5600 |
 | OLLAMA_URL | http://127.0.0.1:11434 |
 | OLLAMA_MODEL | qwen2.5:0.5b |
@@ -44,6 +44,34 @@ python3 shared/rag/app.py
 The RAG server runs at:
 
 http://127.0.0.1:5600
+
+## Docker Connectivity
+
+The shared RAG server runs locally, outside Docker Compose.
+
+By default, it listens on `0.0.0.0:5600` to allow connections
+from containerised feature backends.
+
+Use the following addresses:
+
+- From the host machine: `http://127.0.0.1:5600`
+- From Docker Desktop containers: `http://host.docker.internal:5600`
+
+The RAG server must be running before feature backends can
+send requests to it.
+
+Docker connectivity can be tested using:
+
+```bash
+docker run --rm curlimages/curl:latest \
+  -i http://host.docker.internal:5600/health
+```
+
+A successful response returns HTTP 200 and the shared RAG
+service status.
+
+The server is intended for trusted local development and
+should not be exposed to untrusted networks.
 
 ## Knowledge Directory
 
