@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>AI Knowledge Assistant | Cafe Management Assistant</title>
+
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+
+    <main class="dashboard-container">
+
+        <header class="dashboard-header">
+            <h1>AI Knowledge Assistant</h1>
+            <p>
+                Ask questions using the shared cafe knowledge base.
+            </p>
+        </header>
+
+        <section class="rag-section">
+
+            <form id="rag-form">
+
+                <label for="rag-question">
+                    Your question
+                </label>
+
+                <textarea
+                    id="rag-question"
+                    name="question"
+                    rows="4"
+                    placeholder="What does the Menu and Recipe feature manage?"
+                    required
+                ></textarea>
+
+                <button type="submit" id="rag-submit">
+                    Ask Assistant
+                </button>
+
+            </form>
+
+            <div id="rag-result" aria-live="polite"></div>
+
+        </section>
+
+        <p class="back-link">
+            <a href="/staff">
+                ← Back to Menu & Recipe Management
+            </a>
+        </p>
+
+    </main>
+
+    <script>
+        const form = document.getElementById("rag-form");
+        const questionInput = document.getElementById("rag-question");
+        const submitButton = document.getElementById("rag-submit");
+        const result = document.getElementById("rag-result");
+
+        form.addEventListener("submit", async (event) => {
+            event.preventDefault();
+
+            const question = questionInput.value.trim();
+
+            if (!question) {
+                return;
+            }
+
+            submitButton.disabled = true;
+            result.textContent = "Generating answer...";
+
+            try {
+                const response = await fetch("/api/rag/query", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ question })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    result.textContent =
+                        data.error || "Unable to generate an answer.";
+                    return;
+                }
+
+                if (data.status === "insufficient_context") {
+                    result.textContent =
+                        "Insufficient context to answer this question.";
+                    return;
+                }
+
+                result.replaceChildren();
+
+                const answerHeading = document.createElement("h2");
+                answerHeading.textContent = "Answer";
+
+                const answer = document.createElement("p");
+                answer.textContent = data.answer || "No answer available.";
+
+                result.append(answerHeading, answer);
+
+                if (data.confidence) {
+                    const confidence = document.createElement("p");
+                    confidence.textContent =
+                        `Retrieval confidence: ${data.confidence}`;
+
+                    result.appendChild(confidence);
+                }
+
+                if (Array.isArray(data.sources) && data.sources.length) {
+                    const sourcesHeading = document.createElement("h3");
+                    sourcesHeading.textContent = "Sources";
+                    result.appendChild(sourcesHeading);
+
+                    const sourceList = document.createElement("ul");
+
+                    for (const source of data.sources) {
+                        const item = document.createElement("li");
+
+                        item.textContent =
+                            `${source.document}: ${source.excerpt}`;
+
+                        sourceList.appendChild(item);
+                    }
+
+                    result.appendChild(sourceList);
+                }
+
+            } catch (error) {
+                result.textContent =
+                    "Unable to connect to the AI assistant.";
+
+            } finally {
+                submitButton.disabled = false;
+            }
+        });
+    </script>
+
+</body>
+
+</html>

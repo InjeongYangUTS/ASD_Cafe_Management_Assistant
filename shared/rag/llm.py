@@ -45,3 +45,31 @@ def generate_response(prompt):
         raise RuntimeError(
             f"Failed to communicate with Ollama: {error}"
         ) from error
+
+import re
+
+
+def is_grounded(answer, results):
+    """Conservatively check whether an answer uses source-supported text."""
+
+    if not isinstance(answer, str) or not answer.strip():
+        return False
+
+    if not results:
+        return False
+
+    source_text = " ".join(
+        result["content"] for result in results
+    )
+
+    def normalize(text):
+        return re.sub(
+            r"\s+",
+            " ",
+            text.lower()
+        ).strip(" .,!?:;")
+
+    normalized_answer = normalize(answer)
+    normalized_source = normalize(source_text)
+
+    return normalized_answer in normalized_source

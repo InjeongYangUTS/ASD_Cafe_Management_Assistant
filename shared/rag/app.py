@@ -3,7 +3,7 @@ from config import RAG_HOST, RAG_PORT
 from flask import Flask, jsonify, request
 from config import RAG_HOST, RAG_PORT
 from retriever import retrieve, classify_confidence
-from llm import generate_response
+from llm import generate_response, is_grounded
 
 app = Flask(__name__)
 
@@ -98,6 +98,11 @@ Answer:
             "confidence": "insufficient",
             "status": "insufficient_context"
         }), 200
+
+    # Reject generated answers that cannot be verified
+    # against the retrieved source text.
+    if not is_grounded(answer, results):
+        answer = results[0]["content"]
 
     sources = [
         {
