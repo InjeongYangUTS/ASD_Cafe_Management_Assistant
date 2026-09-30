@@ -55,3 +55,16 @@ def mcp_test():
         timeout = 30,
     )
     return jsonify(result)
+
+@dashboard_bp.post("/api/rag/query")
+def rag_query():
+    body = request.get_json(silent=True) or {}
+    
+    result = call_backend(
+        "POST",
+        "/api/rag/query",
+        timeout=30,
+        json=body,
+    )
+    
+    return jsonify(result)
