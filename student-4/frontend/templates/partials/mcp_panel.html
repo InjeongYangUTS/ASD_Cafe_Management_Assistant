@@ -1,0 +1,91 @@
+{% if error %}
+
+<div class="s4-alert error"><strong>MCP call failed</strong>{{ error }}</div>
+
+{% elif not result.available %}
+
+<div class="s4-alert warn">
+    <strong>Shared MCP server unavailable</strong>
+    {{ result.reason }}
+</div>
+
+{% elif not result.ok %}
+
+<div class="s4-alert warn">
+    <strong>The tool refused the call</strong>
+    {{ result.reason }}
+</div>
+
+<p class="s4-muted" style="margin-top: 10px;">
+    Tools advertised: {{ result.tools|join(", ") }}
+</p>
+
+{% else %}
+
+<p class="s4-ai-head">
+    <span class="s4-mode-tag ollama">MCP · {{ result.tool }}</span>
+    <span class="s4-chip inline">{{ result.transport }}</span>
+    <span class="s4-chip inline">{{ result.elapsed_ms }} ms</span>
+    <span class="s4-chip inline">{{ result.row_count }} row{{ "" if result.row_count == 1 else "s" }}</span>
+</p>
+
+{% if result.tool_description %}
+<p class="s4-muted" style="margin: 0 0 14px;">{{ result.tool_description }}</p>
+{% endif %}
+
+{% if result.arguments %}
+<p class="s4-muted" style="margin: 0 0 14px;">
+    Arguments:
+    {% for key, value in result.arguments.items() %}
+    <code>{{ key }}={{ value }}</code>{{ ", " if not loop.last }}
+    {% endfor %}
+</p>
+{% endif %}
+
+{% if result.rows %}
+<div class="s4-mcp-table-wrap">
+    <table class="s4-mcp-table">
+        <thead>
+            <tr>
+                {% for column in result.columns %}
+                <th>{{ column|replace("_", " ")|title }}</th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in result.rows %}
+            <tr>
+                {% for column in result.columns %}
+                <td>{{ row.get(column, "—") }}</td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<p class="s4-empty">The tool returned no rows.</p>
+{% endif %}
+
+{% if result.cross_check %}
+<div class="s4-ai-section">
+    <h5>Checked against the service that owns the data</h5>
+    {% if result.cross_check.checked %}
+    <p class="{{ 's4-muted' if result.cross_check.agrees else 's4-warn-text' }}">
+        {{ result.cross_check.note }}{{ "." if result.cross_check.agrees
+           else " — these disagree, so the tool is not reading the same source." }}
+    </p>
+    {% else %}
+    <p class="s4-muted">{{ result.cross_check.note }}</p>
+    {% endif %}
+</div>
+{% endif %}
+
+<div class="s4-ai-section">
+    <details class="s4-details">
+        <summary>Show the raw tool result</summary>
+        <pre class="s4-prompt">{{ result.raw|tojson(indent=2) }}</pre>
+    </details>
+</div>
+
+{% endif %}

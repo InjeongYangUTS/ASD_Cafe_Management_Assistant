@@ -39,6 +39,105 @@
 
 </section>
 
+<div class="s4-ai-pair">
+
+    <!-- ============ shared MCP server ============ -->
+    <section class="s4-panel blue">
+
+        <h3>Shared MCP Server</h3>
+        <p class="s4-panel-sub">
+            Tools this system exposes to a model, called over HTTP.
+            <span class="s4-chip inline">{{ mcp_url }}</span>
+            <span class="s4-chip inline">not containerised</span>
+        </p>
+
+        <div class="s4-tool-strip"
+             hx-get="/ui/ai/mcp/tools"
+             hx-trigger="load"
+             hx-swap="innerHTML">
+            <span class="s4-chip inline">loading tools…</span>
+        </div>
+
+        <form hx-post="/ui/ai/mcp"
+              hx-target="#s4-mcp"
+              hx-swap="innerHTML"
+              hx-indicator="#s4-mcp-loading"
+              style="margin-top: 16px;">
+
+            <div class="s4-field">
+                <label for="mcp-order-id">Order id (optional)</label>
+                <input type="number" id="mcp-order-id" name="order_id"
+                       min="1" placeholder="leave blank for every order">
+            </div>
+
+            <button class="s4-btn blue" type="submit">Call the tool</button>
+
+            <span id="s4-mcp-loading" class="htmx-indicator s4-muted"
+                  style="margin-left: 10px;">
+                calling…
+            </span>
+        </form>
+
+        <div id="s4-mcp" style="margin-top: 18px;">
+            <p class="s4-muted">
+                The result comes back as structured data, not prose — the same
+                rows a model would be handed.
+            </p>
+        </div>
+
+    </section>
+
+    <!-- ============ shared RAG server ============ -->
+    <section class="s4-panel yellow">
+
+        <h3>Shared RAG Server</h3>
+        <p class="s4-panel-sub">
+            Answers drawn only from the shared knowledge base, with the text
+            behind every claim.
+            <span class="s4-chip inline">{{ rag_url }}</span>
+            <span class="s4-chip inline">not containerised</span>
+        </p>
+
+        <form hx-post="/ui/ai/rag"
+              hx-target="#s4-rag"
+              hx-swap="innerHTML"
+              hx-indicator="#s4-rag-loading">
+
+            <div class="s4-field">
+                <label for="rag-question">Ask the assistant</label>
+                <input type="text" id="rag-question" name="question"
+                       placeholder="What does the Order and Kitchen feature manage?"
+                       autocomplete="off">
+            </div>
+
+            <button class="s4-btn yellow" type="submit">Ask</button>
+
+            <span id="s4-rag-loading" class="htmx-indicator s4-muted"
+                  style="margin-left: 10px;">
+                retrieving, then asking the model…
+            </span>
+        </form>
+
+        <div class="s4-suggestions">
+            {% for suggestion in rag_suggestions %}
+            <button type="button" class="s4-suggestion"
+                    onclick="document.getElementById('rag-question').value = this.textContent.trim();">
+                {{ suggestion }}
+            </button>
+            {% endfor %}
+        </div>
+
+        <div id="s4-rag" style="margin-top: 18px;">
+            <p class="s4-muted">
+                A question the knowledge base does not cover is refused rather
+                than answered — the last suggestion above shows that.
+            </p>
+        </div>
+
+    </section>
+
+</div>
+
 <div id="s4-board"
      hx-get="/ui/kitchen/board"
      hx-trigger="load, every 15s, boardChanged from:body"

@@ -44,6 +44,21 @@ SHARED_PORT = os.environ.get("SHARED_PORT", "5100")
 
 OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.2")
 
+# Release 1 - shown on the Kitchen screen so a viewer can see which
+# addresses these panels are really talking to. Both servers run on the
+# host and are not containerised.
+MCP_URL = os.environ.get("MCP_URL", "http://localhost:5700")
+RAG_URL = os.environ.get("RAG_URL", "http://localhost:5600")
+
+# Starting questions for the RAG panel. The last one is deliberately
+# unanswerable, so the insufficient-context state can be demonstrated.
+RAG_SUGGESTIONS = [
+    "What does the Order and Kitchen feature manage?",
+    "What does the Inventory and Restocking feature manage?",
+    "Which feature manages payments and billing?",
+    "What is the cafe's refund policy for oat milk?",
+]
+
 HTTP_TIMEOUT = float(os.environ.get("HTTP_TIMEOUT", 5))
 AI_HTTP_TIMEOUT = float(os.environ.get("AI_HTTP_TIMEOUT", 60))
 
@@ -291,6 +306,9 @@ def kitchen():
         "kitchen.html",
         active="kitchen",
         ollama_model=OLLAMA_MODEL,
+        mcp_url=MCP_URL,
+        rag_url=RAG_URL,
+        rag_suggestions=RAG_SUGGESTIONS,
     )
 
 
@@ -527,6 +545,74 @@ def ui_ai_analyse():
         metrics=result["metrics"],
         analysis=result["analysis"],
     )
+
+
+# =====================================================================
+# HTMX partials - the two shared AI services (Release 1)
+#
+# Neither panel talks to the MCP or RAG server directly. This service has
+# exactly one outbound address, student-4-backend, and that is where the
+# calls to the shared servers are made. Both panels are staff-only.
+# =====================================================================
+
+@app.post("/ui/ai/mcp")
+@staff_only_partial
+def ui_ai_mcp():
+    """Call a tool on the shared MCP server and render its structured result."""
+    tool = (request.form.get("tool") or "").strip() or None
+
+    arguments = {}
+    order_id = (request.form.get("order_id") or "").strip()
+    if order_id:
+        try:
+            arguments["order_id"] = int(order_id)
+        except ValueError:
+            return render_template(
+                "partials/mcp_panel.html",
+                error="Order id must be a number.")
+
+    try:
+        result = call_backend(
+            "POST", "/api/ai/mcp", timeout=AI_HTTP_TIMEOUT,
+            json={"tool": tool, "arguments": arguments})
+    except BackendError as exc:
+        return render_template("partials/mcp_panel.html", error=exc.message)
+
+    return render_template("partials/mcp_panel.html", result=result)
+
+
+@app.get("/ui/ai/mcp/tools")
+@staff_only_partial
+def ui_ai_mcp_tools():
+    """The tool catalogue, loaded when the Kitchen screen opens."""
+    try:
+        catalogue = call_backend("GET", "/api/ai/mcp")
+    except BackendError as exc:
+        return render_template("partials/mcp_tools.html", error=exc.message)
+
+    return render_template("partials/mcp_tools.html", catalogue=catalogue)
+
+
+@app.post("/ui/ai/rag")
+@staff_only_partial
+def ui_ai_rag():
+    """Ask the shared RAG server a question and render the grounded answer."""
+    question = (request.form.get("question") or "").strip()
+
+    if not question:
+        return render_template(
+            "partials/rag_panel.html",
+            error="Type a question first.")
+
+    try:
+        result = call_backend(
+            "POST", "/api/ai/rag", timeout=AI_HTTP_TIMEOUT,
+            json={"question": question})
+    except BackendError as exc:
+        return render_template("partials/rag_panel.html", error=exc.message)
+
+    return render_template("partials/rag_panel.html",
+                           result=result, question=question)
 
 
 # =====================================================================

@@ -297,6 +297,7 @@ services:
       OLLAMA_URL: http://ollama:11434/api/generate
       OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2}
       LOG_DIRECTORY: /app/logs
+      MCP_SERVER_URL: http://host.docker.internal:5700/mcp 
     volumes:
       - ./student-3/logs:/app/logs
     depends_on:

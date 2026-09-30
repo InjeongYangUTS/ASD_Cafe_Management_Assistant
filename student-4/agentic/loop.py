@@ -1,11 +1,25 @@
 """
 Student 4 (Stella Kwon) - Order & Kitchen Management
-Agentic AI review loop :  PLAN -> ACT -> OBSERVE -> ADAPT
+SHARED AGENTIC LOOP  :  PLAN -> ACT -> OBSERVE -> ADAPT
 
-Reviews my slice of the Release 0 system across the four areas named in the
-assignment brief - the database, the implementation, the microservices
-architecture and the DevOps pipeline - and keeps iterating until the checks
-pass or the iteration budget runs out.
+Release 0 shipped this loop as a review of one student's slice of the
+system. Release 1 extends it into the team's shared agentic loop: the
+same Plan/Act/Observe/Adapt engine now drives three independent probe
+packs, selected with --mode.
+
+    --mode review   the Release 0 review of my three services
+                    areas: database, implementation, architecture, devops
+    --mode mcp      validation of the shared MCP server
+                    areas: availability, protocol, invocation, resilience
+    --mode rag      validation of the shared RAG server
+                    areas: availability, retrieval, grounding, resilience
+    --mode all      all three, one after another, each with its own log
+
+The engine itself knows nothing about MCP or RAG. A mode contributes a
+list of Probe objects and the four area names they are tagged with, and
+the loop plans, runs, observes and adapts over whatever it is given.
+That is why adding the two Release 1 modes did not require changing
+plan(), act(), observe() or adapt().
 
     PLAN     decide which probes to run this iteration, and why
     ACT      run those probes against the live services and the repository
@@ -14,13 +28,21 @@ pass or the iteration budget runs out.
              focus for the next iteration; fall back to a deterministic
              rule when Ollama is not available
 
+The loop, the MCP server and the RAG server all run on the host and are
+deliberately NOT containerised, which is why the addresses below default
+to localhost rather than Docker service names. Two probes enforce that:
+mcp_not_containerised and rag_not_containerised fail if either server
+reappears in docker-compose.yml.
+
 Every iteration is appended to agentic/logs/ as both a readable Markdown
-report and a machine-readable JSONL record.
+report and a machine-readable JSONL record, named for the mode that
+produced it.
 
 Usage
-    python agentic/loop.py                       # against localhost
-    python agentic/loop.py --max-iterations 3
-    python agentic/loop.py --backend-url http://localhost:8400
+    python agentic/loop.py                              # review, localhost
+    python agentic/loop.py --mode rag
+    python agentic/loop.py --mode mcp --mcp-url http://localhost:5700
+    python agentic/loop.py --mode all --max-iterations 2
 """
 
 import argparse
@@ -36,16 +58,45 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REPO_ROOT = os.path.dirname(BASE_DIR)
 LOG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
 
-AREAS = ["database", "implementation", "architecture", "devops"]
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-SYSTEM_PROMPT = (
-    "You are a software engineering reviewer for a university microservices "
-    "project. You are given the results of automated checks on one student's "
-    "services. Reply with two short sections: FINDING (what the results mean, "
-    "at most two sentences) and NEXT (which of database, implementation, "
-    "architecture, devops the next iteration should focus on, and why, in one "
-    "sentence). Be direct and do not invent checks that were not run."
-)
+REVIEW_AREAS = ["database", "implementation", "architecture", "devops"]
+MCP_AREAS = ["availability", "protocol", "invocation", "resilience"]
+RAG_AREAS = ["availability", "retrieval", "grounding", "resilience"]
+
+SYSTEM_PROMPTS = {
+    "review": (
+        "You are a software engineering reviewer for a university "
+        "microservices project. You are given the results of automated "
+        "checks on one student's services. Reply with two short sections: "
+        "FINDING (what the results mean, at most two sentences) and NEXT "
+        "(which of database, implementation, architecture, devops the next "
+        "iteration should focus on, and why, in one sentence). Be direct "
+        "and do not invent checks that were not run."
+    ),
+    "mcp": (
+        "You are reviewing a Model Context Protocol server that exposes a "
+        "cafe management system's data to an LLM as callable tools. You are "
+        "given the results of automated contract checks against that "
+        "server. Reply with two short sections: FINDING (what the results "
+        "mean for whether a model could safely use these tools, at most two "
+        "sentences) and NEXT (which of availability, protocol, invocation, "
+        "resilience the next iteration should focus on, and why, in one "
+        "sentence). Be direct and do not invent checks that were not run."
+    ),
+    "rag": (
+        "You are reviewing a retrieval-augmented generation server for a "
+        "cafe management system. It retrieves text chunks from a knowledge "
+        "base and answers questions only from what it retrieved. You are "
+        "given the results of automated checks on its retrieval, its "
+        "citations and its refusal behaviour. Reply with two short "
+        "sections: FINDING (what the results mean for whether its answers "
+        "can be trusted, at most two sentences) and NEXT (which of "
+        "availability, retrieval, grounding, resilience the next iteration "
+        "should focus on, and why, in one sentence). Be direct and do not "
+        "invent checks that were not run."
+    ),
+}
 
 
 # =====================================================================
@@ -383,6 +434,37 @@ def build_probes(db_url, backend_url, frontend_url):
 
 
 # =====================================================================
+# MODE REGISTRY
+# =====================================================================
+
+def build_mode(mode, args):
+    """Return (probes, areas) for one mode.
+
+    This is the only function that knows what the three modes are. The
+    Plan/Act/Observe/Adapt engine below is deliberately mode-agnostic:
+    it is handed a list of probes and a list of area names and works
+    the same way whichever mode produced them.
+    """
+    if mode == "review":
+        return (build_probes(args.db_url, args.backend_url,
+                             args.frontend_url),
+                REVIEW_AREAS)
+
+    if mode == "mcp":
+        from probes_mcp import build_mcp_probes
+        return (build_mcp_probes(args.mcp_url, args.backend_url,
+                                 ok, fail, Probe),
+                MCP_AREAS)
+
+    if mode == "rag":
+        from probes_rag import build_rag_probes
+        return (build_rag_probes(args.rag_url, ok, fail, Probe),
+                RAG_AREAS)
+
+    raise ValueError("unknown mode %r" % mode)
+
+
+# =====================================================================
 # The loop
 # =====================================================================
 
@@ -430,12 +512,12 @@ def act(selected):
     return results
 
 
-def observe(results):
+def observe(results, areas):
     """OBSERVE - summarise what the probes found."""
     failed = [r for r in results if not r["passed"]]
 
     by_area = {}
-    for area in AREAS:
+    for area in areas:
         area_results = [r for r in results if r["area"] == area]
         if area_results:
             by_area[area] = {
@@ -452,7 +534,7 @@ def observe(results):
     }
 
 
-def adapt(observation, ollama_url, model):
+def adapt(observation, areas, mode, ollama_url, model):
     """ADAPT - decide the next focus, with the LLM if it is available."""
     if observation["failed"] == 0:
         return {
@@ -475,7 +557,7 @@ def adapt(observation, ollama_url, model):
     )
 
     prompt_lines = [
-        "AUTOMATED REVIEW RESULTS",
+        "AUTOMATED %s VALIDATION RESULTS" % mode.upper(),
         "",
         "Passed: %d of %d" % (observation["passed"], observation["total"]),
         "",
@@ -496,7 +578,8 @@ def adapt(observation, ollama_url, model):
     try:
         response = requests.post(
             ollama_url.rstrip("/") + "/api/generate",
-            json={"model": model, "prompt": prompt, "system": SYSTEM_PROMPT,
+            json={"model": model, "prompt": prompt,
+                  "system": SYSTEM_PROMPTS[mode],
                   "stream": False, "options": {"temperature": 0.1}},
             timeout=60,
         )
@@ -509,32 +592,44 @@ def adapt(observation, ollama_url, model):
         return {"next_focus": worst, "reasoning": rule_reasoning,
                 "source": "rule (Ollama unavailable)", "prompt": prompt}
 
+    # The model may name an area that was never probed, so its answer is
+    # only accepted when it matches one of this mode's own areas.
     chosen = worst
-    for area in AREAS:
+    for area in areas:
         if re.search(r"NEXT.*%s" % area, reply, re.S | re.I):
             chosen = area
             break
 
-    return {"next_focus": chosen, "reasoning": reply, "source": "ollama:%s" % model,
-            "prompt": prompt}
+    return {"next_focus": chosen, "reasoning": reply,
+            "source": "ollama:%s" % model, "prompt": prompt}
 
 
 # =====================================================================
 # Logging
 # =====================================================================
 
-def write_logs(run_id, records):
+MODE_TITLES = {
+    "review": "Release 0 review - my three services",
+    "mcp": "Shared MCP server validation",
+    "rag": "Shared RAG server validation",
+}
+
+
+def write_logs(run_id, mode, records):
     os.makedirs(LOG_DIR, exist_ok=True)
 
-    jsonl_path = os.path.join(LOG_DIR, "loop-%s.jsonl" % run_id)
+    stem = "loop-%s-%s" % (mode, run_id)
+
+    jsonl_path = os.path.join(LOG_DIR, stem + ".jsonl")
     with open(jsonl_path, "w", encoding="utf-8") as handle:
         for record in records:
             handle.write(json.dumps(record) + "\n")
 
-    md_path = os.path.join(LOG_DIR, "loop-%s.md" % run_id)
+    md_path = os.path.join(LOG_DIR, stem + ".md")
     with open(md_path, "w", encoding="utf-8") as handle:
-        handle.write("# Agentic loop run %s\n\n" % run_id)
+        handle.write("# Agentic loop run %s - mode `%s`\n\n" % (run_id, mode))
         handle.write("Student 4 (Stella Kwon) - Order & Kitchen Management\n\n")
+        handle.write("%s\n\n" % MODE_TITLES.get(mode, mode))
 
         for record in records:
             handle.write("## Iteration %d\n\n" % record["iteration"])
@@ -549,7 +644,7 @@ def write_logs(run_id, records):
                 handle.write("| %s | %s | %s | %s |\n" % (
                     result["area"], result["description"],
                     "PASS" if result["passed"] else "FAIL",
-                    result["evidence"].replace("|", "/"),
+                    str(result["evidence"]).replace("|", "/"),
                 ))
 
             handle.write("\n**OBSERVE** - %d/%d passed\n\n"
@@ -565,31 +660,26 @@ def write_logs(run_id, records):
 
 
 # =====================================================================
-# Entry point
+# One mode, start to finish
 # =====================================================================
 
-def main():
-    parser = argparse.ArgumentParser(description="Student 4 agentic review loop")
-    parser.add_argument("--db-url",
-                        default=os.environ.get("S4_DB_URL", "http://localhost:7400"))
-    parser.add_argument("--backend-url",
-                        default=os.environ.get("S4_BACKEND_URL", "http://localhost:8400"))
-    parser.add_argument("--frontend-url",
-                        default=os.environ.get("S4_FRONTEND_URL", "http://localhost:5400"))
-    parser.add_argument("--ollama-url",
-                        default=os.environ.get("OLLAMA_URL", "http://localhost:11434"))
-    parser.add_argument("--model",
-                        default=os.environ.get("OLLAMA_MODEL", "llama3.2"))
-    parser.add_argument("--max-iterations", type=int, default=3)
-    args = parser.parse_args()
+def run_mode(mode, args):
+    """Run the full loop for a single mode. Returns the exit code."""
 
     run_id = datetime.now().strftime("%Y%m%d-%H%M%S")
-    probes = build_probes(args.db_url, args.backend_url, args.frontend_url)
+
+    try:
+        probes, areas = build_mode(mode, args)
+    except Exception as exc:                        # noqa: BLE001
+        print("[%s] could not build the probe pack: %s: %s"
+              % (mode, type(exc).__name__, exc))
+        return 1
 
     print("=" * 72)
-    print(" AGENTIC REVIEW LOOP - Student 4 - Order & Kitchen Management")
-    print(" run %s | model %s | up to %d iterations"
-          % (run_id, args.model, args.max_iterations))
+    print(" AGENTIC LOOP - mode '%s' - %s" % (mode, MODE_TITLES.get(mode, "")))
+    print(" Student 4 - Stella Kwon - Order & Kitchen Management")
+    print(" run %s | model %s | %d probe(s) | up to %d iterations"
+          % (run_id, args.model, len(probes), args.max_iterations))
     print("=" * 72)
 
     records = []
@@ -615,17 +705,18 @@ def main():
             if not result["passed"]:
                 print("                                -> %s" % result["evidence"])
 
-        observation = observe(results)
+        observation = observe(results, areas)
         print("[OBSERVE] %d/%d passed" % (observation["passed"], observation["total"]))
         for area, counts in observation["by_area"].items():
             print("          %-15s %d/%d" % (area, counts["passed"], counts["total"]))
 
-        adaptation = adapt(observation, args.ollama_url, args.model)
+        adaptation = adapt(observation, areas, mode, args.ollama_url, args.model)
         print("[ADAPT]   (%s) %s" % (adaptation["source"],
                                      adaptation["reasoning"].replace("\n", " ")))
 
         records.append({
             "iteration": iteration,
+            "mode": mode,
             "timestamp": datetime.now().isoformat(timespec="seconds"),
             "plan": {"rationale": rationale,
                      "probes": [p.key for p in selected]},
@@ -644,16 +735,69 @@ def main():
         focus = adaptation["next_focus"]
         print("[LOOP]    next iteration focuses on '%s'" % focus)
 
-    md_path, jsonl_path = write_logs(run_id, records)
+    md_path, jsonl_path = write_logs(run_id, mode, records)
 
     final = records[-1]["observation"]
     print("\n" + "=" * 72)
-    print(" FINAL: %d/%d probes passing" % (final["passed"], final["total"]))
+    print(" %s FINAL: %d/%d probes passing"
+          % (mode.upper(), final["passed"], final["total"]))
     print(" log:   %s" % os.path.relpath(md_path, REPO_ROOT))
     print("        %s" % os.path.relpath(jsonl_path, REPO_ROOT))
     print("=" * 72)
 
     return 0 if final["failed"] == 0 else 1
+
+
+# =====================================================================
+# Entry point
+# =====================================================================
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Student 4 shared agentic loop - review, MCP and RAG "
+                    "validation modes")
+    parser.add_argument("--mode", choices=["review", "mcp", "rag", "all"],
+                        default=os.environ.get("LOOP_MODE", "review"),
+                        help="which probe pack to run (default: review)")
+
+    parser.add_argument("--db-url",
+                        default=os.environ.get("S4_DB_URL", "http://localhost:7400"))
+    parser.add_argument("--backend-url",
+                        default=os.environ.get("S4_BACKEND_URL", "http://localhost:8400"))
+    parser.add_argument("--frontend-url",
+                        default=os.environ.get("S4_FRONTEND_URL", "http://localhost:5400"))
+
+    # Both shared AI services run on the host, not in Compose.
+    parser.add_argument("--mcp-url",
+                        default=os.environ.get("MCP_URL", "http://localhost:5700"),
+                        help="shared MCP server, non-containerised")
+    parser.add_argument("--rag-url",
+                        default=os.environ.get("RAG_URL", "http://localhost:5600"),
+                        help="shared RAG server, non-containerised")
+
+    parser.add_argument("--ollama-url",
+                        default=os.environ.get("OLLAMA_URL", "http://localhost:11434"))
+    parser.add_argument("--model",
+                        default=os.environ.get("OLLAMA_MODEL", "llama3.2"))
+    parser.add_argument("--max-iterations", type=int, default=3)
+    args = parser.parse_args()
+
+    modes = ["review", "mcp", "rag"] if args.mode == "all" else [args.mode]
+
+    codes = {}
+    for mode in modes:
+        codes[mode] = run_mode(mode, args)
+        if len(modes) > 1:
+            print("")
+
+    if len(modes) > 1:
+        print("=" * 72)
+        print(" SHARED AGENTIC LOOP SUMMARY")
+        for mode, code in codes.items():
+            print("   %-8s %s" % (mode, "PASS" if code == 0 else "FAIL"))
+        print("=" * 72)
+
+    return 0 if all(code == 0 for code in codes.values()) else 1
 
 
 if __name__ == "__main__":
