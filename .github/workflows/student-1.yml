@@ -4,14 +4,22 @@ on:
   push:
     paths:
       - "student-1/**"
+      - "shared/rag/knowledge/student-1/**"
       - "docker-compose.yml"
       - ".github/workflows/student-1.yml"
   pull_request:
     paths:
       - "student-1/**"
+      - "shared/rag/knowledge/student-1/**"
       - "docker-compose.yml"
       - ".github/workflows/student-1.yml"
   workflow_dispatch:
+
+# Release 1: the MCP and RAG integration stays in the code, but the shared
+# servers are not started in CI, so both modes are disabled here.
+env:
+  MCP_ENABLED: "false"
+  RAG_ENABLED: "false"
 
 jobs:
 
@@ -166,6 +174,21 @@ jobs:
         run: python student-1/tests/smoke_database.py
         env:
           DB_URL: http://localhost:7100
+
+      - name: MCP and RAG routes present, shared servers absent in CI
+        run: |
+          set -e
+          # 403 = disabled by MCP_ENABLED/RAG_ENABLED, 503 = server not reachable.
+          # Either proves the route exists and fails safely without inventing a result.
+          mcp=$(curl -sS -o /tmp/mcp.json -w "%{http_code}" http://localhost:8100/api/ai/mcp)
+          rag=$(curl -sS -o /tmp/rag.json -w "%{http_code}" -X POST http://localhost:8100/api/ai/rag \
+                -H "Content-Type: application/json" \
+                -d '{"question":"How is review sentiment classified?"}')
+          cat /tmp/mcp.json /tmp/rag.json
+          echo "MCP -> $mcp, RAG -> $rag"
+          case "$mcp" in 403|503) ;; *) echo "FAIL MCP route"; exit 1 ;; esac
+          case "$rag" in 403|503) ;; *) echo "FAIL RAG route"; exit 1 ;; esac
+          curl -sS -o /dev/null -w "frontend /reviews -> %{http_code}\n" http://localhost:5110/reviews
 
       - name: Show logs
         if: failure()
