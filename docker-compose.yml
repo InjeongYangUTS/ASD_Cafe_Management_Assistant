@@ -243,6 +243,9 @@ services:
       - "5201:5201"
     environment:
       DATABASE_SERVICE_URL: http://student2-database:5202
+      RAG_SERVICE_URL: http://host.docker.internal:5600
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       - student2-database
     networks:
