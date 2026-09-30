@@ -1,4 +1,4 @@
-from mcp.server import MCPServer
+from mcp.server.mcpserver import MCPServer
 
 from tools.student3_tools import register_student3_tools 
 
@@ -8,4 +8,8 @@ mcp = MCPServer("Cafe Management Assistant MCP")
 register_student3_tools(mcp)
 
 if __name__ == "__main__" :
-    mcp.run() 
+    mcp.run(
+        transport = "streamable-http",
+        host = "0.0.0.0",
+        port = 5700
+    ) 
