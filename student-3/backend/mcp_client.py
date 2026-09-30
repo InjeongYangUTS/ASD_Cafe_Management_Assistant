@@ -8,7 +8,7 @@ from mcp.client.stdio import stdio_client
 
 MCP_SERVER_PATH = os.getenv(
     "MCP_SERVER_PATH",
-    "ai-service/mcp-server/server.py"
+    "ai-services/mcp-server/server.py"
 )
 
 async def _call_mcp_tool(tool_name, arguments = None):
