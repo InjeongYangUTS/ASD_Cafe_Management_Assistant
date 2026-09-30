@@ -27,7 +27,11 @@
                             <tr>
                                 {% for column in result.columns %}
                                     {% set value = row.get(column) %}
-                                    <td>{{ value | tojson if value is mapping or (value is iterable and value is not string) else value }}</td>
+                                    {% if column.endswith('_at') %}
+                                        <td>{{ value | cafe_time }}</td>
+                                    {% else %}
+                                        <td>{{ value | tojson if value is mapping or (value is iterable and value is not string) else value }}</td>
+                                    {% endif %}
                                 {% endfor %}
                             </tr>
                         {% endfor %}

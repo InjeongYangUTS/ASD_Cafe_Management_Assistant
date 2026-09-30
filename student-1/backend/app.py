@@ -24,7 +24,9 @@ menu = MenuClient()
 
 llm = LLMClient()
 
-mcp = MCPClient()
+MCP_TOOLS = ["get_menu_item_feedback", "get_top_issues", "get_reviews_needing_reply"]
+
+mcp = MCPClient(allowed_tools=MCP_TOOLS)
 rag = RAGClient()
 
 AI_BATCH_LIMIT = int(os.environ.get("AI_BATCH_LIMIT", 5))

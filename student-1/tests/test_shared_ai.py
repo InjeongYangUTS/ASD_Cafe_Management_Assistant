@@ -58,6 +58,15 @@ def test_fastmcp_result_wrapper_is_unwrapped():
     assert rows == [{"id": 1}]
 
 
+def test_shared_server_envelope_is_unwrapped():
+    _columns, rows = to_rows({"success": True, "items": [{"id": 1}, {"id": 2}], "count": 2})
+    assert rows == [{"id": 1}, {"id": 2}]
+
+    columns, rows = to_rows({"success": True, "item": {"id": 14, "name": "Avocado"}})
+    assert columns == ["field", "value"]
+    assert {"field": "name", "value": "Avocado"} in rows
+
+
 # RAG
 
 def test_rag_disabled_is_reported(monkeypatch):
@@ -207,6 +216,30 @@ def test_mcp_tool_error_is_reported(monkeypatch):
 
     assert result["ok"] is False
     assert "limit must be positive" in result["error"]
+
+
+def test_only_this_features_tools_are_listed_or_callable(monkeypatch):
+    monkeypatch.setenv("MCP_ENABLED", "true")
+    monkeypatch.setattr(MCPClient, "_rpc", fake_rpc(
+        [{"name": "get_review_summary"}, {"name": "get_low_stock_items"}]))
+    client = MCPClient(allowed_tools=["get_review_summary"])
+
+    assert [tool["name"] for tool in client.list_tools()["tools"]] == ["get_review_summary"]
+    assert client.call("get_low_stock_items")["status"] == "not_registered"
+
+
+def test_mcp_success_false_payload_is_a_tool_error(monkeypatch):
+    """The shared server's tools report failure as {"success": false, "error": ...}."""
+    monkeypatch.setenv("MCP_ENABLED", "true")
+    call_result = {"structuredContent": {"success": False, "error": "Inventory item not found."},
+                   "isError": False}
+    monkeypatch.setattr(MCPClient, "_rpc",
+                        fake_rpc([{"name": "get_inventory_item"}], call_result))
+
+    result = MCPClient().call("get_inventory_item", {"item_id": 99999})
+
+    assert result["status"] == "tool_error"
+    assert result["error"] == "Inventory item not found."
 
 
 # Backend routes

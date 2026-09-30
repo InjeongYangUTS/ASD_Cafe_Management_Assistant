@@ -67,8 +67,11 @@ def validate_arguments(schema, arguments):
 
 def to_rows(payload):
     """Flatten a tool result into (columns, rows) for a table."""
-    if isinstance(payload, dict) and set(payload) == {"result"}:
-        payload = payload["result"]
+    if isinstance(payload, dict):
+        payload = {key: value for key, value in payload.items()
+                   if key not in ("success", "count", "total")}
+        if len(payload) == 1:
+            payload = next(iter(payload.values()))
 
     if isinstance(payload, list):
         rows = [item if isinstance(item, dict) else {"value": item} for item in payload]
@@ -95,9 +98,10 @@ def to_rows(payload):
 
 class MCPClient:
 
-    def __init__(self, base_url=MCP_URL, timeout=MCP_TIMEOUT):
+    def __init__(self, base_url=MCP_URL, timeout=MCP_TIMEOUT, allowed_tools=None):
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
+        self.allowed_tools = set(allowed_tools or [])
 
     @property
     def enabled(self):
@@ -153,7 +157,8 @@ class MCPClient:
         tools = [{"name": tool.get("name"),
                   "description": tool.get("description") or "",
                   "input_schema": tool.get("inputSchema") or {}}
-                 for tool in (result or {}).get("tools", [])]
+                 for tool in (result or {}).get("tools", [])
+                 if not self.allowed_tools or tool.get("name") in self.allowed_tools]
 
         return {"available": True, "status": "success", "reason": None,
                 "server": self.base_url, "count": len(tools), "tools": tools}
@@ -176,7 +181,8 @@ class MCPClient:
 
         tool = next((t for t in catalogue["tools"] if t["name"] == tool_name), None)
         if tool is None:
-            return fail("not_registered", "'%s' is not a registered MCP tool." % tool_name)
+            return fail("not_registered",
+                        "'%s' is not a registered MCP tool for this feature." % tool_name)
 
         problems = validate_arguments(tool["input_schema"], arguments)
         if problems:
@@ -203,6 +209,8 @@ class MCPClient:
 
         if result.get("isError"):
             return fail("tool_error", "\n".join(texts) or "The tool reported an error.")
+        if isinstance(payload, dict) and payload.get("success") is False:
+            return fail("tool_error", payload.get("error") or "The tool reported an error.")
 
         columns, rows = to_rows(payload)
         outcome.update({"ok": True, "status": "success", "result": payload,
