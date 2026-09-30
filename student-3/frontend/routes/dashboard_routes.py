@@ -46,3 +46,12 @@ def inventory_dashboard():
 def ai_restock_recommendation():
     body = request.get_json(silent=True) or {}
     return jsonify(call_backend("POST", "/api/ai/restock-recommendation", timeout=120, json=body))
+
+@dashboard_bp.get("/api/mcp/test")
+def mcp_test():
+    result = call_backend(
+        "GET",
+        "/api/mcp/test",
+        timeout = 30,
+    )
+    return jsonify(result)

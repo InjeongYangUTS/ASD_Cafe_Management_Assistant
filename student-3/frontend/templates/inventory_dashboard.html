@@ -331,6 +331,54 @@
     </div>
 
 
+    <!-- STUDENT 3 MCP STOCK CHECK -->
+
+    <section class="management-section">
+
+        <div class="section-heading">
+            <h2>Stock Check</h2>
+            <p>Check current stock through the shared MCP server.</p>
+        </div>
+
+        <div class="ask-button-row">
+            <button
+                type="button"
+                id="mcp-check-button"
+                class="ask-ai-button"
+                data-url="{{ url_for('dashboard.mcp_test')}}"
+            >
+                Check Stock
+            </button>
+        </div>
+
+        <p id="mcp-status" role="status" aria-live="polite">
+            Click Check Stock to retrieve low-stock items.
+        </p>
+
+        <div class="table-wrapper">
+            <table class="management-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Quantity</th>
+                        <th>Minimum Stock</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+
+                <tbody id="mcp-stock-items">
+                    <tr>
+                        <td colspan="5" class="empty-message">
+                            No stock check performed yet.
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+    </section>
+
 
     <!-- =========================================================
          RECENT RESTOCK ORDERS
@@ -415,7 +463,11 @@
     </section>
 
 
+
+
 </main>
+
+<script src="{{ url_for('static', filename='js/inventory_dashboard.js')}}"></script>
 
 </body>
 

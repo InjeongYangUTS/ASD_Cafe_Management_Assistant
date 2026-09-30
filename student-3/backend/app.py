@@ -281,6 +281,8 @@ def test_mcp():
         return jsonify(result)
         
     except Exception as exc:
+        app.logger.exception("Student 3 MCP call failed")
+        
         return jsonify({
             "success": False, 
             "error": str(exc)
