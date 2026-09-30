@@ -40,27 +40,37 @@ ISSUE_RULES = [
 ]
 
 PRAISE_RULES = [
-    ("coffee_quality", ["best coffee", "great coffee", "well made",
-                        "perfectly extracted", "flat white", "good coffee"]),
+    ("coffee_quality", ["best coffee", "great coffee", "good coffee", "nice coffee",
+                        "great latte", "good latte", "well made", "perfectly extracted"]),
     ("food_quality", ["delicious", "excellent", "best i have had", "tasty",
                       "fresh", "still warm", "lovely"]),
-    ("staff_friendliness", ["friendly", "kind", "remembered", "helpful",
+    ("staff_friendliness", ["friendly", "kind", "remembered", "helpful", "polite",
                             "went out of their way", "never rush"]),
+    ("service_speed", ["quick", "fast", "efficient"]),
+    ("cleanliness", ["clean", "spotless", "tidy"]),
     ("atmosphere", ["nice spot", "good wifi", "comfortable", "cosy", "cozy"]),
-    ("consistency", ["consistent", "never drops", "always", "regular"]),
+    ("consistency", ["consistent", "never drops"]),
 ]
 
 POSITIVE_WORDS = [
     "great", "excellent", "best", "lovely", "delicious", "perfect", "friendly",
     "amazing", "good", "enjoyed", "recommend", "fresh", "helpful", "warm",
-    "consistent", "quick", "fast", "well made",
+    "consistent", "quick", "fast", "well made", "love", "loved", "awesome",
+    "fantastic", "wonderful", "nice", "tasty", "happy", "cosy", "cozy",
+    "clean", "polite", "beautiful", "pleasant",
 ]
 
 NEGATIVE_WORDS = [
     "slow", "cold", "wrong", "rude", "dirty", "expensive", "bad", "worst",
     "terrible", "disappointing", "late", "mistake", "never again", "ignored",
-    "poor", "unacceptable", "bland", "stale",
+    "poor", "unacceptable", "bland", "stale", "awful", "horrible",
+    "overpriced", "burnt", "soggy", "noisy", "disgusting",
 ]
+
+NEGATIONS = {"not", "no", "never", "isn't", "wasn't", "weren't", "don't",
+             "didn't", "doesn't", "hardly"}
+
+WORD_WEIGHT = 0.15
 
 SENTIMENTS = ["POSITIVE", "NEUTRAL", "NEGATIVE"]
 
@@ -86,18 +96,33 @@ def _parse_time(value):
     return None
 
 
+def _matches(text, phrase):
+    """Whole-word matches only, so 'latte' is not 'late' and 'breakfast' is not 'fast'."""
+    return list(re.finditer(r"\b%s\b" % re.escape(phrase), text))
+
+
+def _negated(text, position):
+    """True when one of the three words before position, in the same clause, is a negation."""
+    clause = re.split(r"[.,;!?]", text[:position])[-1]
+    return bool(NEGATIONS & set(re.findall(r"[\w']+", clause)[-3:]))
+
+
+def _mentions(text, phrases):
+    """True when any phrase appears and is not negated ('not friendly' is not praise)."""
+    return any(not _negated(text, match.start())
+               for phrase in phrases for match in _matches(text, phrase))
+
+
 def detect_issues(text):
     """Return the issue tags present in one review. Deterministic."""
     lowered = (text or "").lower()
-    return [tag for tag, _weight, phrases in ISSUE_RULES
-            if any(phrase in lowered for phrase in phrases)]
+    return [tag for tag, _weight, phrases in ISSUE_RULES if _mentions(lowered, phrases)]
 
 
 def detect_praise(text):
     """Return the praise tags present in one review. Deterministic."""
     lowered = (text or "").lower()
-    return [tag for tag, phrases in PRAISE_RULES
-            if any(phrase in lowered for phrase in phrases)]
+    return [tag for tag, phrases in PRAISE_RULES if _mentions(lowered, phrases)]
 
 
 def issue_weight(tag):
@@ -172,11 +197,17 @@ def measure_review(review):
 
     score = (rating - 3) / 2.0
 
-    positive_hits = [word for word in POSITIVE_WORDS if word in lowered]
-    negative_hits = [word for word in NEGATIVE_WORDS if word in lowered]
+    positive_hits, negative_hits = [], []
+    for words, same, flipped in ((POSITIVE_WORDS, positive_hits, negative_hits),
+                                 (NEGATIVE_WORDS, negative_hits, positive_hits)):
+        for word in words:
+            for match in _matches(lowered, word):
+                if _negated(lowered, match.start()):
+                    flipped.append("not " + word)
+                else:
+                    same.append(word)
 
-    score += 0.08 * len(positive_hits)
-    score -= 0.08 * len(negative_hits)
+    score += WORD_WEIGHT * (len(positive_hits) - len(negative_hits))
     score = max(-1.0, min(1.0, score))
 
     if score >= 0.25:

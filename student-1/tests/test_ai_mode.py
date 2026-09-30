@@ -54,6 +54,40 @@ def test_allergen_handling_outranks_a_noisy_grinder():
     assert ai.issue_weight("allergen_handling") > ai.issue_weight("noise")
 
 
+@pytest.mark.parametrize("rating, comment, expected", [
+    (3, "Friendly staff, tasty food and a nice cosy spot.", "POSITIVE"),
+    (3, "Really happy with the service, will recommend to friends.", "POSITIVE"),
+    (3, "Not bad at all, actually really good.", "POSITIVE"),
+    (4, "Best latte in town, never had a bad one.", "POSITIVE"),
+    (4, "Good coffee but the service was a bit slow.", "POSITIVE"),
+    (3, "Good coffee, dirty table.", "NEUTRAL"),
+    (3, "It was okay, nothing special.", "NEUTRAL"),
+    (3, "The coffee was not good and the staff were rude.", "NEGATIVE"),
+    (3, "Wasn't great, the toast was cold and bland.", "NEGATIVE"),
+    (3, "My order came late and it was wrong.", "NEGATIVE"),
+])
+def test_sentiment_benchmark(rating, comment, expected):
+    assert ai.measure_review({"rating": rating, "comment": comment})["sentiment"] == expected
+
+
+def test_words_match_whole_words_only():
+    """'latte' must not count as 'late', nor 'breakfast' as 'fast'."""
+    measured = ai.measure_review({"rating": 3, "comment": "A latte with breakfast."})
+    assert measured["positive_terms"] == [] and measured["negative_terms"] == []
+    assert ai.detect_issues("I ordered a latte") == []
+
+
+def test_negation_flips_the_word():
+    measured = ai.measure_review({"rating": 3, "comment": "The staff were not friendly."})
+    assert measured["negative_terms"] == ["not friendly"]
+    assert measured["praise"] == []
+
+
+def test_praise_names_what_went_well():
+    praise = ai.detect_praise("Quick service, a spotless table and a great latte.")
+    assert praise == ["coffee_quality", "service_speed", "cleanliness"]
+
+
 # Menu attribution
 
 def test_specific_item_is_not_double_counted_as_the_generic_one(menu_vocabulary):

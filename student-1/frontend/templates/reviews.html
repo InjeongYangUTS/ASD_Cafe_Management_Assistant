@@ -19,33 +19,21 @@
     <div class="s1-message error">{{ error }}</div>
 {% endif %}
 
+{% set by_status = summary.by_status or {} %}
+{% set by_sentiment = summary.by_sentiment or {} %}
 <div class="s1-stats">
-
-    <div class="s1-stat">
-        <div class="value">{{ summary.review_count or 0 }}</div>
-        <div class="label">Total reviews</div>
-    </div>
-
-    <div class="s1-stat">
-        <div class="value">{{ '%.2f'|format(summary.average_rating or 0) }}</div>
-        <div class="label">Average rating</div>
-    </div>
-
-    <div class="s1-stat">
-        <div class="value">{{ summary.by_status.get('SUBMITTED', 0) if summary.by_status else 0 }}</div>
-        <div class="label">Waiting for a reply</div>
-    </div>
-
-    <div class="s1-stat">
-        <div class="value">{{ summary.by_sentiment.get('NEGATIVE', 0) if summary.by_sentiment else 0 }}</div>
-        <div class="label">Negative sentiment</div>
-    </div>
-
-    <div class="s1-stat">
-        <div class="value">{{ summary.unanalysed_count or 0 }}</div>
-        <div class="label">Awaiting AI review</div>
-    </div>
-
+    {% for value, label in [
+        (summary.review_count or 0, 'Total reviews'),
+        ('%.2f'|format(summary.average_rating or 0), 'Average rating'),
+        (by_status.get('SUBMITTED', 0), 'Waiting for a reply'),
+        (by_sentiment.get('POSITIVE', 0), 'Positive'),
+        (by_sentiment.get('NEGATIVE', 0), 'Negative'),
+    ] %}
+        <div class="s1-stat">
+            <div class="value">{{ value }}</div>
+            <div class="label">{{ label }}</div>
+        </div>
+    {% endfor %}
 </div>
 
 
@@ -108,8 +96,8 @@
                     hx-target="#ai-answer"
                     hx-swap="innerHTML"
                     hx-indicator="#ai-waiting"
-                    hx-disabled-elt="this">Re-check with {{ ollama_model }}
-                ({{ summary.unanalysed_count or 0 }})</button>
+                    hx-disabled-elt="this">Re-check {{ summary.unanalysed_count or 0 }}
+                rule-based reviews with {{ ollama_model }}</button>
         </p>
 
     </div>
@@ -186,8 +174,8 @@
 
     <h2>All customer reviews</h2>
     <p class="s1-hint">
-        Every review in the feedback database. Each one is labelled with a
-        sentiment and a category worked out from what the customer wrote.
+        Each review is labelled with a sentiment and a category from what the
+        customer wrote. Filter by sentiment to find reviews that need a reply.
     </p>
 
     <form class="s1-filters"
@@ -226,6 +214,16 @@
         </div>
 
         <div class="s1-field">
+            <label for="filter-sentiment">Sentiment</label>
+            <select id="filter-sentiment" name="sentiment">
+                <option value="">All</option>
+                {% for value in ['POSITIVE', 'NEUTRAL', 'NEGATIVE'] %}
+                    <option value="{{ value }}" {{ 'selected' if filters.sentiment == value }}>{{ value|title }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="s1-field">
             <label for="filter-clear">&nbsp;</label>
             <button type="button" id="filter-clear" class="s1-button ghost"
                     hx-get="/reviews/list"
@@ -238,6 +236,7 @@
                         form.querySelector('#filter-from').value = '';
                         form.querySelector('#filter-to').value = '';
                         form.querySelector('#filter-sort').value = 'newest';
+                        form.querySelector('#filter-sentiment').value = '';
                     ">Clear</button>
         </div>
 

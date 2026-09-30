@@ -103,7 +103,7 @@ def health():
 
 @app.get("/api/feedback")
 def list_feedback():
-    return jsonify(db.list_feedback(
+    result = db.list_feedback(
         customer_id=request.args.get("customer_id"),
         status=request.args.get("status"),
         sentiment=request.args.get("sentiment"),
@@ -118,7 +118,13 @@ def list_feedback():
         search=request.args.get("search"),
         sort=request.args.get("sort"),
         limit=request.args.get("limit", 100),
-    ))
+    )
+
+    for review in result["feedback"]:
+        review["ai_praise"] = ai.detect_praise(
+            "%s %s" % (review.get("title") or "", review.get("comment") or ""))
+
+    return jsonify(result)
 
 
 @app.post("/api/feedback")
@@ -156,21 +162,22 @@ def create_feedback():
     }
 
 
-    created = db.create_feedback(payload)
+    return jsonify(rule_analysis(db.create_feedback(payload))), 201
 
+
+def rule_analysis(review):
+    """Store the rule-based verdict for a new or edited review; keeps the review if that fails."""
     try:
-        measured = ai.measure_review(created)
-        created = db.save_analysis(created["id"], {
+        measured = ai.measure_review(review)
+        return db.save_analysis(review["id"], {
             "sentiment": measured["sentiment"],
             "sentiment_score": measured["sentiment_score"],
-            "ai_summary": ai.fallback_summary(created, measured),
+            "ai_summary": ai.fallback_summary(review, measured),
             "ai_issues": measured["issues"],
             "ai_model": ai.RULES_MODEL,
         })
     except ServiceError:
-        pass
-
-    return jsonify(created), 201
+        return review
 
 
 @app.get("/api/feedback/<int:feedback_id>")
@@ -211,7 +218,12 @@ def update_feedback(feedback_id):
     updates["actor"] = "customer:%s" % review["customer_id"]
     updates["actor_role"] = "CUSTOMER"
 
-    return jsonify(db.update_feedback(feedback_id, updates))
+    updated = db.update_feedback(feedback_id, updates)
+
+    if {"rating", "title", "comment"} & set(updates):
+        updated = rule_analysis(updated)
+
+    return jsonify(updated)
 
 
 @app.delete("/api/feedback/<int:feedback_id>")

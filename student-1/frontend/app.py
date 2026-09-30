@@ -215,149 +215,106 @@ def review_page():
     )
 
 
+def signin_again():
+    return render_template("partials/message.html", tone="error",
+                           message="Please sign in again."), 401
+
+
+def owned_review(feedback_id):
+    """(review, None) for the signed-in customer's own review, else (None, error response)."""
+    customer = current_customer()
+    if customer is None:
+        return None, signin_again()
+
+    review = call_backend("GET", "/api/feedback/%d" % feedback_id)
+
+    if int(review["customer_id"]) != int(customer["id"]):
+        return None, (render_template("partials/message.html", tone="error",
+                                      message="That review belongs to another customer."), 403)
+
+    return review, None
+
+
+def my_reviews_partial(customer, notice=None, error=None):
+    return render_template("partials/my_reviews.html", customer=customer,
+                           reviews=my_reviews(customer), notice=notice, error=error)
+
+
+def change_review(method, path, payload, done, *events):
+    """Send one customer change to the backend and re-render the customer's list."""
+    customer = current_customer()
+    if customer is None:
+        return signin_again()
+
+    try:
+        call_backend(method, path, json=dict(payload, customer_id=customer["id"]))
+    except BackendError as exc:
+        return my_reviews_partial(customer, error=exc.message)
+
+    return trigger(my_reviews_partial(customer, notice=done), *events)
+
+
+def review_form():
+    return {field: request.form.get(field) for field in ("rating", "title", "comment")}
+
+
 @app.post("/review")
 def submit_review():
     """HTMX: create a review, then re-render the customer's own list."""
     customer = current_customer()
-    if customer is None:
-        return render_template("partials/message.html", tone="error",
-                               message="Your session has expired. "
-                                       "Please sign in again."), 401
-
-    try:
-        call_backend("POST", "/api/feedback", json={
-            "customer_id": customer["id"],
-            "customer_name": customer["name"],
-            "rating": request.form.get("rating"),
-            "title": request.form.get("title"),
-            "comment": request.form.get("comment"),
-        })
-    except BackendError as exc:
-        return render_template("partials/my_reviews.html",
-                               customer=customer,
-                               reviews=my_reviews(customer),
-                               error=exc.message)
-
-    return trigger(
-        render_template("partials/my_reviews.html",
-                        customer=customer,
-                        reviews=my_reviews(customer),
-                        notice="Thank you - your review has been posted."),
-        "review-saved",
-    )
+    payload = dict(review_form(), customer_name=customer["name"] if customer else None)
+    return change_review("POST", "/api/feedback", payload,
+                         "Thank you - your review has been posted.", "review-saved")
 
 
 @app.get("/review/<int:feedback_id>/edit")
 def edit_form(feedback_id):
     """HTMX: swap one review card for an inline edit form."""
-    customer = current_customer()
-    if customer is None:
-        return render_template("partials/message.html", tone="error",
-                               message="Please sign in again."), 401
-
-    review = call_backend("GET", "/api/feedback/%d" % feedback_id)
-
-    if int(review["customer_id"]) != int(customer["id"]):
-        return render_template("partials/message.html", tone="error",
-                               message="That review belongs to "
-                                       "another customer."), 403
-
-    return render_template("partials/review_edit.html", review=review)
+    review, denied = owned_review(feedback_id)
+    return denied or render_template("partials/review_edit.html", review=review)
 
 
 @app.get("/review/<int:feedback_id>/confirm-delete")
 def confirm_delete(feedback_id):
     """HTMX: swap one review card for a delete confirmation."""
-    customer = current_customer()
-    if customer is None:
-        return render_template("partials/message.html", tone="error",
-                               message="Please sign in again."), 401
-
-    review = call_backend("GET", "/api/feedback/%d" % feedback_id)
-
-    if int(review["customer_id"]) != int(customer["id"]):
-        return render_template("partials/message.html", tone="error",
-                               message="That review belongs to "
-                                       "another customer."), 403
-
-    return render_template("partials/review_delete_confirm.html", review=review)
+    review, denied = owned_review(feedback_id)
+    return denied or render_template("partials/review_delete_confirm.html", review=review)
 
 
 @app.get("/review/<int:feedback_id>/card")
 def review_card(feedback_id):
     """HTMX: cancel an edit or a delete and swap the form back for the card."""
-    customer = current_customer()
-    if customer is None:
-        return render_template("partials/message.html", tone="error",
-                               message="Please sign in again."), 401
-
-    review = call_backend("GET", "/api/feedback/%d" % feedback_id)
-
-    if int(review["customer_id"]) != int(customer["id"]):
-        return render_template("partials/message.html", tone="error",
-                               message="That review belongs to "
-                                       "another customer."), 403
-
-    return render_template("partials/review_card.html",
-                           review=review, customer=customer)
+    review, denied = owned_review(feedback_id)
+    return denied or render_template("partials/review_card.html",
+                                     review=review, customer=current_customer())
 
 
 @app.post("/review/<int:feedback_id>/update")
 def update_review(feedback_id):
-    customer = current_customer()
-    if customer is None:
-        return render_template("partials/message.html", tone="error",
-                               message="Please sign in again."), 401
-
-    try:
-        call_backend("PUT", "/api/feedback/%d" % feedback_id, json={
-            "customer_id": customer["id"],
-            "rating": request.form.get("rating"),
-            "title": request.form.get("title"),
-            "comment": request.form.get("comment"),
-        })
-        notice = "Your review has been updated."
-        error = None
-    except BackendError as exc:
-        notice, error = None, exc.message
-
-    return render_template("partials/my_reviews.html",
-                           customer=customer,
-                           reviews=my_reviews(customer),
-                           notice=notice, error=error)
+    return change_review("PUT", "/api/feedback/%d" % feedback_id, review_form(),
+                         "Your review has been updated.")
 
 
 @app.post("/review/<int:feedback_id>/delete")
 def delete_review(feedback_id):
-    customer = current_customer()
-    if customer is None:
-        return render_template("partials/message.html", tone="error",
-                               message="Please sign in again."), 401
-
-    try:
-        call_backend("DELETE", "/api/feedback/%d" % feedback_id,
-                     json={"customer_id": customer["id"]})
-        notice, error = "Your review has been deleted.", None
-    except BackendError as exc:
-        notice, error = None, exc.message
-
-    return render_template("partials/my_reviews.html",
-                           customer=customer,
-                           reviews=my_reviews(customer),
-                           notice=notice, error=error)
+    return change_review("DELETE", "/api/feedback/%d" % feedback_id, {},
+                         "Your review has been deleted.")
 
 
 SORT_ORDERS = ["newest", "oldest", "lowest", "highest"]
+SENTIMENTS = ["POSITIVE", "NEUTRAL", "NEGATIVE"]
 
 
 def staff_filters():
     sort = request.values.get("sort") or "newest"
+    sentiment = (request.values.get("sentiment") or "").upper()
 
     return {
         "search": (request.values.get("search") or "").strip()[:100],
         "date_from": (request.values.get("date_from") or "").strip(),
         "date_to": (request.values.get("date_to") or "").strip(),
         "sort": sort if sort in SORT_ORDERS else "newest",
+        "sentiment": sentiment if sentiment in SENTIMENTS else "",
     }
 
 
@@ -379,8 +336,9 @@ def local_date_to_utc(value, end_of_day=False):
 def staff_reviews(filters):
     params = {"limit": 200, "sort": filters["sort"]}
 
-    if filters["search"]:
-        params["search"] = filters["search"]
+    for key in ("search", "sentiment"):
+        if filters[key]:
+            params[key] = filters[key]
 
     start = local_date_to_utc(filters["date_from"])
     if start:
@@ -439,8 +397,7 @@ def staff_list():
 def staff_respond(feedback_id):
     staff = current_staff()
     if staff is None:
-        return render_template("partials/message.html", tone="error",
-                               message="Please sign in again."), 401
+        return signin_again()
 
     filters = staff_filters()
     error = None
@@ -465,8 +422,7 @@ def staff_respond(feedback_id):
 def staff_ask():
     """HTMX: answer one free-text question a staff member typed."""
     if current_staff() is None:
-        return render_template("partials/message.html", tone="error",
-                               message="Please sign in again."), 401
+        return signin_again()
 
     question = (request.form.get("question") or "").strip()
 
@@ -488,8 +444,7 @@ def staff_ask():
 def staff_analyse_pending():
     """HTMX: run AI-Mode over the reviews that have never been analysed."""
     if current_staff() is None:
-        return render_template("partials/message.html", tone="error",
-                               message="Please sign in again."), 401
+        return signin_again()
 
     try:
         result = call_backend("POST", "/api/ai/analyse-pending",
@@ -507,8 +462,7 @@ def staff_analyse_pending():
 def staff_mcp_tools():
     """HTMX: the tool picker for the shared MCP server."""
     if current_staff() is None:
-        return render_template("partials/message.html", tone="error",
-                               message="Please sign in again."), 401
+        return signin_again()
 
     try:
         catalogue = call_backend("GET", "/api/ai/mcp")
@@ -522,8 +476,7 @@ def staff_mcp_tools():
 def staff_mcp_call():
     """HTMX: run one MCP tool and show its structured result."""
     if current_staff() is None:
-        return render_template("partials/message.html", tone="error",
-                               message="Please sign in again."), 401
+        return signin_again()
 
     raw = (request.form.get("arguments") or "").strip() or "{}"
     try:
@@ -547,8 +500,7 @@ def staff_mcp_call():
 def staff_rag():
     """HTMX: grounded answer from the shared RAG server."""
     if current_staff() is None:
-        return render_template("partials/message.html", tone="error",
-                               message="Please sign in again."), 401
+        return signin_again()
 
     question = (request.form.get("question") or "").strip()
 
