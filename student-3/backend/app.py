@@ -4,7 +4,7 @@ from urllib.parse import urlencode
 
 from flask import Flask, jsonify, request
 
-from agentic_inventory import run_agentic_loop
+from agentic_inventory import run_agentic_workflow
 from database_client import DatabaseError, call_database
 from recipes import build_requirements
 
@@ -267,7 +267,7 @@ def ai_restock_recommendation():
         return error("A question is required.")
     inventory = call_database("GET", "/db/dashboard")["low_stock_items"]
     try:
-        return jsonify(run_agentic_loop(inventory, question, save_log=True))
+        return jsonify(run_agentic_workflow(inventory, question, save_log=True))
     except RuntimeError as exc:
         return error(str(exc), 503)
 
@@ -278,10 +278,7 @@ def test_mcp():
             "get_low_stock_items"
         )
         
-        return jsonify({
-            "success": True, 
-            "result": str(result)
-        })
+        return jsonify(result)
         
     except Exception as exc:
         return jsonify({

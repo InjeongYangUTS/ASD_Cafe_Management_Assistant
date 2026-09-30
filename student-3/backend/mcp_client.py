@@ -1,4 +1,5 @@
 import asyncio 
+import json 
 import os
 import sys 
 
@@ -18,17 +19,38 @@ async def _call_mcp_tool(tool_name, arguments = None):
     
     async with stdio_client(server_params) as (read, write):
         async with ClientSession(read, write) as session:
-            
-            # Connect to MCP server
             await session.initialize()
             
-            # Call MCP tool
             result = await session.call_tool(
                 tool_name,
                 arguments = arguments or {}
             )
             
-            return result 
+            if result.isError:
+                error_messages = [
+                    item.text 
+                    for item in result.content 
+                    if hasattr(item, "text")
+                ]
+                
+                raise RuntimeError(
+                    " ".join(error_messages)
+                    or "MCP tool call failed."
+                ) 
+                
+            if result.structuredContent is not None:
+                return result.structuredContent
+            
+            for item in result.content:
+                if hasattr(item, "text"):
+                    try:
+                        return json.loads(item.text)
+                    except json.JSONDecodeError:
+                        continue
+                    
+            raise RuntimeError(
+                "MCP tool returned no valid JSON result."
+            )
         
 def call_mcp_tool(tool_name, arguments = None):
     return asyncio.run(
