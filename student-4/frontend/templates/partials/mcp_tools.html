@@ -1,0 +1,18 @@
+{% if error %}
+
+<span class="s4-chip inline down">MCP: {{ error }}</span>
+
+{% elif not catalogue.available %}
+
+<span class="s4-chip inline down">MCP server down</span>
+
+{% else %}
+
+<span class="s4-chip inline up">
+    MCP: {{ catalogue.count }} tool{{ "" if catalogue.count == 1 else "s" }}
+</span>
+{% for tool in catalogue.tools %}
+<span class="s4-chip inline">{{ tool.name if tool.name is defined else tool }}</span>
+{% endfor %}
+
+{% endif %}

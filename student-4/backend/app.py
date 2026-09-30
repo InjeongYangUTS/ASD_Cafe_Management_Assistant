@@ -27,6 +27,10 @@ Endpoints
 
     GET    /api/kitchen/queue
     POST   /api/ai/kitchen-analysis
+
+    GET    /api/ai/mcp          shared MCP server - tool catalogue
+    POST   /api/ai/mcp          shared MCP server - structured tool result
+    POST   /api/ai/rag          shared RAG server - grounded answer
 """
 
 import os
@@ -35,6 +39,7 @@ from datetime import datetime
 from flask import Flask, jsonify, request
 
 import ai
+from ai_services import McpClient, RagClient
 from clients import (
     DatabaseClient,
     InventoryClient,
@@ -49,6 +54,12 @@ db = DatabaseClient()
 menu = MenuClient()
 inventory = InventoryClient()
 ollama = OllamaClient()
+
+# Release 1 - the two shared AI services. Both run on the host and are
+# deliberately not containerised, so docker-compose.yml points MCP_URL and
+# RAG_URL at host.docker.internal rather than a Compose service name.
+mcp = McpClient()
+rag = RagClient()
 
 # Allowed status transitions for an order.
 TRANSITIONS = {
@@ -98,6 +109,8 @@ def health():
             "menu_service_student_2": menu.health(),
             "inventory_service_student_3": inventory.health(),
             "ollama": ollama.health(),
+            "mcp": mcp.health(),
+            "rag": rag.health(),
         },
     }
 
@@ -425,6 +438,104 @@ def kitchen_analysis():
 def kitchen_analysis_get():
     """Convenience alias so the endpoint can be demonstrated from a browser."""
     return kitchen_analysis()
+
+
+# =====================================================================
+# Release 1 - the two shared AI services
+#
+# Both are reached the same way every other dependency in this feature is
+# reached: over HTTP, from this backend only, with the frontend calling
+# nothing but this service. Neither endpoint fails the request when its
+# server is down - it returns the outage as data so the screen can show
+# what happened.
+# =====================================================================
+
+@app.get("/api/ai/mcp")
+def mcp_tools():
+    """The tool catalogue the shared MCP server advertises."""
+    tools, reason = mcp.list_tools()
+
+    return jsonify({
+        "server": mcp.base_url,
+        "transport": mcp.transport,
+        "containerised": False,
+        "available": reason is None,
+        "reason": reason,
+        "count": len(tools),
+        "tools": tools,
+    })
+
+
+@app.post("/api/ai/mcp")
+def mcp_call():
+    """
+    Call a tool on the shared MCP server and return its structured result.
+
+    The result is deliberately NOT prose. It carries the tool that was
+    called, the arguments it was given, the columns and rows it returned,
+    and the raw payload - so the screen can render a table and the reader
+    can see exactly what the model would have been handed.
+
+    It also carries a cross-check: the same question is put to my own
+    database, and the two row counts are compared. A tool that is up and
+    well-formed but disagreeing with the service that owns the data is the
+    failure nothing else catches.
+    """
+    body = request.get_json(silent=True) or {}
+    tool_name = body.get("tool")
+    arguments = body.get("arguments") or {}
+
+    if not isinstance(arguments, dict):
+        return bad_request("arguments must be an object")
+
+    result = mcp.call(tool_name, arguments)
+
+    if result.get("ok"):
+        try:
+            mine = db.list_orders(limit=100)
+            my_count = len(mine.get("orders", []))
+            result["cross_check"] = {
+                "checked": True,
+                "my_order_count": my_count,
+                "tool_row_count": result["row_count"],
+                "agrees": result["row_count"] <= my_count,
+                "note": ("the tool returned %d row(s); student-4-database "
+                         "holds %d order(s)"
+                         % (result["row_count"], my_count)),
+            }
+        except ServiceError as exc:
+            result["cross_check"] = {
+                "checked": False,
+                "note": "could not read my own database to compare: %s"
+                        % exc.message,
+            }
+
+    return jsonify(result)
+
+
+@app.post("/api/ai/rag")
+def rag_query():
+    """
+    Ask the shared RAG server a question and return its grounded answer.
+
+    Three outcomes, all HTTP 200, because none of them is an error in this
+    service:
+
+        success               answer + citations + confidence category
+        insufficient_context  nothing retrieved, so nothing answered
+        unavailable           the RAG server or its model is down
+
+    Every claim on screen is backed by the excerpt it came from, which the
+    RAG server returns alongside the answer. This service adds no wording
+    of its own.
+    """
+    body = request.get_json(silent=True) or {}
+    question = body.get("question")
+
+    if not isinstance(question, str) or not question.strip():
+        return bad_request("a non-empty question is required")
+
+    return jsonify(rag.ask(question))
 
 
 @app.errorhandler(404)

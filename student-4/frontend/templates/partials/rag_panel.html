@@ -1,0 +1,80 @@
+{% if error %}
+
+<div class="s4-alert error"><strong>Could not ask the question</strong>{{ error }}</div>
+
+{% elif result.status == "unavailable" %}
+
+<div class="s4-alert warn">
+    <strong>Shared RAG server unavailable</strong>
+    {{ result.reason }}
+</div>
+
+{% elif result.status == "insufficient_context" %}
+
+<p class="s4-ai-head">
+    <span class="s4-confidence insufficient">Not enough context</span>
+    <span class="s4-chip inline">{{ result.elapsed_ms }} ms</span>
+</p>
+
+<div class="s4-alert info">
+    <strong>No answer given</strong>
+    Nothing in the shared knowledge base covers this question, so the
+    assistant did not answer it. The model was never asked — this is the
+    retrieval step refusing, not the model failing.
+</div>
+
+<p class="s4-muted" style="margin-top: 12px;">
+    Asked: “{{ result.question }}”
+</p>
+
+{% elif result.status == "invalid" %}
+
+<div class="s4-alert warn"><strong>Nothing to ask</strong>{{ result.reason }}</div>
+
+{% else %}
+
+<p class="s4-ai-head">
+    <span class="s4-confidence {{ result.confidence }}">
+        {{ result.confidence_label }}
+    </span>
+    <span class="s4-chip inline">
+        {{ result.source_count }} source{{ "" if result.source_count == 1 else "s" }}
+    </span>
+    <span class="s4-chip inline">{{ result.elapsed_ms }} ms</span>
+</p>
+
+<p class="s4-muted" style="margin: 0 0 14px;">Asked: “{{ result.question }}”</p>
+
+<div class="s4-rag-answer">
+    {{ result.answer }}
+</div>
+
+<div class="s4-ai-section">
+    <h5>Where this came from</h5>
+
+    {% if result.sources %}
+    <ol class="s4-sources">
+        {% for source in result.sources %}
+        <li>
+            <div class="s4-source-head">
+                <span class="s4-source-doc">{{ source.document }}</span>
+                {% if source.coverage_percent is not none %}
+                <span class="s4-chip inline">{{ source.coverage_percent }}% keyword match</span>
+                {% endif %}
+            </div>
+            <blockquote class="s4-source-text">{{ source.excerpt }}</blockquote>
+        </li>
+        {% endfor %}
+    </ol>
+
+    <p class="s4-muted" style="margin-top: 10px;">
+        Every sentence above is drawn from these excerpts. Nothing outside
+        them was used, and the confidence category is the keyword coverage
+        of the best-matching excerpt, not the model's own opinion.
+    </p>
+    {% else %}
+    <p class="s4-muted">No sources were returned.</p>
+    {% endif %}
+</div>
+
+{% endif %}
