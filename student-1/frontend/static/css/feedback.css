@@ -706,6 +706,56 @@ details.s1-raw pre {
     border-color: var(--s1-text);
 }
 
+.s1-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+
+    margin-top: 14px;
+    padding-bottom: 12px;
+
+    border-bottom: 2px solid var(--s1-line);
+}
+
+.s1-tab {
+    padding: 8px 18px;
+
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--s1-muted);
+
+    background-color: var(--s1-white);
+
+    border: 2px solid var(--s1-line);
+    border-radius: 999px;
+    cursor: pointer;
+}
+
+.s1-tab:hover {
+    color: var(--s1-text);
+}
+
+.s1-tab.active {
+    color: var(--s1-text);
+    background-color: var(--s1-blue);
+    border-color: var(--s1-blue-strong);
+}
+
+.s1-ask select {
+    flex: 0 1 260px;
+    padding: 14px 18px;
+
+    font-family: inherit;
+    font-size: 15px;
+    color: var(--s1-text);
+
+    background-color: var(--s1-white);
+
+    border: 2px solid var(--s1-blue-strong);
+    border-radius: 999px;
+}
+
 
 .s1-reply {
     display: flex;

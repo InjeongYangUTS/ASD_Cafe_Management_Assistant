@@ -52,53 +52,134 @@
 <div class="s1-card s1-ai">
 
     <div class="s1-section-title">
-        <h2>Ask the AI about these reviews</h2>
-        <span class="s1-ai-source">
+        <h2>AI Assistant</h2>
+        <span class="s1-ai-source" id="ai-tab-source">
             AI-Mode &middot; Ollama &middot; {{ ollama_model }}
         </span>
     </div>
 
-    <form class="s1-ask"
-          hx-post="/reviews/ai/ask"
-          hx-target="#ai-answer"
-          hx-swap="innerHTML"
-          hx-indicator="#ai-waiting"
-          hx-disabled-elt="find button">
-
-        <input type="text" name="question" required maxlength="300"
-               placeholder="e.g. Which menu items do customers complain about?">
-
-        <button type="submit" class="s1-button">Ask</button>
-    </form>
-
-    <p class="s1-hint" style="margin:10px 0 0;">
-        Answers come from the reviews in the database only.
-    </p>
-
-    <div id="ai-waiting" class="s1-waiting htmx-indicator">
-        <div class="s1-waiting-dots" aria-hidden="true">
-            <span></span><span></span><span></span>
-        </div>
-        <div>
-            <strong>Asking {{ ollama_model }}&hellip;</strong>
-            <span>Brewing an answer from every review.
-                  This can take a minute.</span>
-        </div>
+    <div class="s1-tabs" role="tablist" aria-label="AI Assistant">
+        <button type="button" class="s1-tab active" role="tab" aria-selected="true"
+                data-pane="pane-reviews"
+                data-source="AI-Mode &middot; Ollama &middot; {{ ollama_model }}">Reviews</button>
+        <button type="button" class="s1-tab" role="tab" aria-selected="false"
+                data-pane="pane-rag"
+                data-source="RAG &middot; Shared RAG server">Knowledge base</button>
+        <button type="button" class="s1-tab" role="tab" aria-selected="false"
+                data-pane="pane-mcp"
+                data-source="MCP &middot; Shared MCP server">Tools</button>
     </div>
 
-    <div id="ai-answer"></div>
+    <div id="pane-reviews" class="s1-tab-pane" role="tabpanel">
 
-    <p style="margin:14px 0 0;">
-        <button class="s1-button ghost small"
-                hx-post="/reviews/ai/analyse-pending"
-                hx-target="#ai-answer"
-                hx-swap="innerHTML"
-                hx-indicator="#ai-waiting"
-                hx-disabled-elt="this">Re-check with {{ ollama_model }}
-            ({{ summary.unanalysed_count or 0 }})</button>
-    </p>
+        <form class="s1-ask"
+              hx-post="/reviews/ai/ask"
+              hx-target="#ai-answer"
+              hx-swap="innerHTML"
+              hx-indicator="#ai-waiting"
+              hx-disabled-elt="find button">
+
+            <input type="text" name="question" required maxlength="300"
+                   placeholder="e.g. Which menu items do customers complain about?">
+
+            <button type="submit" class="s1-button">Ask</button>
+        </form>
+
+        <p class="s1-hint" style="margin:10px 0 0;">
+            Answers come from the reviews in the database only.
+        </p>
+
+        <div id="ai-waiting" class="s1-waiting htmx-indicator">
+            <div class="s1-waiting-dots" aria-hidden="true">
+                <span></span><span></span><span></span>
+            </div>
+            <div>
+                <strong>Asking {{ ollama_model }}&hellip;</strong>
+                <span>Brewing an answer from every review.
+                      This can take a minute.</span>
+            </div>
+        </div>
+
+        <div id="ai-answer"></div>
+
+        <p style="margin:14px 0 0;">
+            <button class="s1-button ghost small"
+                    hx-post="/reviews/ai/analyse-pending"
+                    hx-target="#ai-answer"
+                    hx-swap="innerHTML"
+                    hx-indicator="#ai-waiting"
+                    hx-disabled-elt="this">Re-check with {{ ollama_model }}
+                ({{ summary.unanalysed_count or 0 }})</button>
+        </p>
+
+    </div>
+
+    <div id="pane-rag" class="s1-tab-pane" role="tabpanel" hidden>
+
+        <form class="s1-ask"
+              hx-post="/reviews/ai/rag"
+              hx-target="#rag-answer"
+              hx-swap="innerHTML"
+              hx-indicator="#rag-waiting"
+              hx-disabled-elt="find button">
+
+            <input type="text" name="question" required maxlength="300"
+                   placeholder="e.g. How is review sentiment classified?">
+
+            <button type="submit" class="s1-button">Ask</button>
+        </form>
+
+        <p class="s1-hint" style="margin:10px 0 0;">
+            Answers use only the retrieved project documents, with sources and a
+            confidence category.
+        </p>
+
+        <div id="rag-waiting" class="s1-waiting htmx-indicator">
+            <div class="s1-waiting-dots" aria-hidden="true">
+                <span></span><span></span><span></span>
+            </div>
+            <div><strong>Searching the knowledge base&hellip;</strong></div>
+        </div>
+
+        <div id="rag-answer"></div>
+
+    </div>
+
+    <div id="pane-mcp" class="s1-tab-pane" role="tabpanel" hidden>
+
+        <div id="mcp-tools"
+             hx-get="/reviews/ai/mcp/tools"
+             hx-trigger="load"
+             hx-swap="innerHTML">
+            <p class="s1-hint">Loading tools&hellip;</p>
+        </div>
+
+        <div id="mcp-waiting" class="s1-waiting htmx-indicator">
+            <div class="s1-waiting-dots" aria-hidden="true">
+                <span></span><span></span><span></span>
+            </div>
+            <div><strong>Running the tool&hellip;</strong></div>
+        </div>
+
+        <div id="mcp-result"></div>
+
+    </div>
 
 </div>
+
+<script>
+    document.querySelectorAll(".s1-tab").forEach(function (tab) {
+        tab.addEventListener("click", function () {
+            document.querySelectorAll(".s1-tab").forEach(function (other) {
+                var active = other === tab;
+                other.classList.toggle("active", active);
+                other.setAttribute("aria-selected", active);
+                document.getElementById(other.dataset.pane).hidden = !active;
+            });
+            document.getElementById("ai-tab-source").innerHTML = tab.dataset.source;
+        });
+    });
+</script>
 
 
 <div class="s1-card">

@@ -1,0 +1,46 @@
+{% if error %}
+    <div class="s1-message {{ tone or 'error' }}" style="margin:14px 0 0;">{{ error }}</div>
+{% elif result.status == 'insufficient_context' %}
+    <div class="s1-ai-block" style="margin-top:14px;">
+        <h4>{{ result.question }}</h4>
+        <p><strong>Insufficient context.</strong>
+           The knowledge base does not contain enough evidence to answer
+           this question, so no answer was generated.</p>
+        <p class="s1-meta" style="margin:0;">
+            Confidence: <span class="s1-tag">insufficient</span>
+            &middot; Retrieved 0 chunks
+            &middot; <strong>Needs staff review</strong>
+        </p>
+    </div>
+{% else %}
+    <div class="s1-ai-block" style="margin-top:14px;">
+
+        <h4>{{ result.question }}</h4>
+
+        <p>{{ result.answer }}</p>
+
+        <p class="s1-meta" style="margin:0 0 8px;">
+            Confidence: <span class="s1-tag">{{ result.confidence }}</span>
+            &middot; Retrieved {{ result.sources | length }} chunk(s)
+            {% if result.needs_review %}&middot; <strong>Needs staff review</strong>{% endif %}
+        </p>
+
+        {% if result.sources %}
+            <p class="s1-meta" style="margin:0;"><strong>Sources</strong></p>
+            <ul>
+                {% for source in result.sources %}
+                    <li>
+                        [{{ source.id }}] <strong>{{ source.document }}</strong>
+                        (coverage {{ source.coverage }})
+                        <br><span class="s1-meta">&ldquo;{{ source.excerpt }}&rdquo;</span>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+
+        <p class="s1-ai-source" style="margin:8px 0 0;">
+            Grounded answer from the shared RAG server ({{ result.server }}).
+        </p>
+
+    </div>
+{% endif %}

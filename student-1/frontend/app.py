@@ -1,3 +1,4 @@
+import json
 import os
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
@@ -44,9 +45,15 @@ app.secret_key = os.environ.get("SECRET_KEY", "temporary-secret-key")
 
 
 class BackendError(Exception):
-    def __init__(self, message):
+    def __init__(self, message, status_code=None):
         super().__init__(message)
         self.message = message
+        self.status_code = status_code
+
+    @property
+    def tone(self):
+        """Disabled or unreachable shared services are a notice, not a failure."""
+        return "info" if self.status_code in (403, 503) else "error"
 
 
 def call_backend(method, path, timeout=None, **kwargs):
@@ -69,7 +76,8 @@ def call_backend(method, path, timeout=None, **kwargs):
         raise BackendError("The feedback service returned an unreadable response.")
 
     if response.status_code >= 400:
-        raise BackendError(data.get("error") or "Request failed.")
+        raise BackendError(data.get("error") or data.get("reason") or "Request failed.",
+                           response.status_code)
 
     return data
 
@@ -493,6 +501,70 @@ def staff_analyse_pending():
         render_template("partials/ai_batch.html", result=result),
         "reviews-changed",
     )
+
+
+@app.get("/reviews/ai/mcp/tools")
+def staff_mcp_tools():
+    """HTMX: the tool picker for the shared MCP server."""
+    if current_staff() is None:
+        return render_template("partials/message.html", tone="error",
+                               message="Please sign in again."), 401
+
+    try:
+        catalogue = call_backend("GET", "/api/ai/mcp")
+    except BackendError as exc:
+        catalogue = {"available": False, "reason": exc.message, "tools": []}
+
+    return render_template("partials/mcp_tools.html", catalogue=catalogue)
+
+
+@app.post("/reviews/ai/mcp")
+def staff_mcp_call():
+    """HTMX: run one MCP tool and show its structured result."""
+    if current_staff() is None:
+        return render_template("partials/message.html", tone="error",
+                               message="Please sign in again."), 401
+
+    raw = (request.form.get("arguments") or "").strip() or "{}"
+    try:
+        arguments = json.loads(raw)
+    except ValueError:
+        return render_template("partials/mcp_result.html",
+                               error="Arguments must be valid JSON, e.g. {\"limit\": 5}.")
+
+    try:
+        result = call_backend("POST", "/api/ai/mcp", timeout=AI_HTTP_TIMEOUT,
+                              json={"tool": request.form.get("tool"),
+                                    "arguments": arguments})
+    except BackendError as exc:
+        return render_template("partials/mcp_result.html",
+                               error=exc.message, tone=exc.tone)
+
+    return render_template("partials/mcp_result.html", result=result)
+
+
+@app.post("/reviews/ai/rag")
+def staff_rag():
+    """HTMX: grounded answer from the shared RAG server."""
+    if current_staff() is None:
+        return render_template("partials/message.html", tone="error",
+                               message="Please sign in again."), 401
+
+    question = (request.form.get("question") or "").strip()
+
+    if not question:
+        return render_template("partials/rag_answer.html",
+                               error="Type a question first.")
+
+    try:
+        result = call_backend("POST", "/api/ai/rag",
+                              json={"question": question},
+                              timeout=AI_HTTP_TIMEOUT)
+    except BackendError as exc:
+        return render_template("partials/rag_answer.html",
+                               error=exc.message, tone=exc.tone)
+
+    return render_template("partials/rag_answer.html", result=result)
 
 
 @app.errorhandler(BackendError)

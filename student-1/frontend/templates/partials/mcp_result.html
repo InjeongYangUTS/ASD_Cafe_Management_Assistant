@@ -1,0 +1,46 @@
+{% if error %}
+    <div class="s1-message {{ tone or 'error' }}" style="margin:14px 0 0;">{{ error }}</div>
+{% elif not result.ok %}
+    <div class="s1-message error">
+        <strong>{{ result.tool or 'MCP' }}</strong>: {{ result.error }}
+    </div>
+{% else %}
+    <div class="s1-ai-block" style="margin-top:14px;">
+
+        <h4>{{ result.tool }}</h4>
+
+        <p class="s1-meta" style="margin:0 0 8px;">
+            Arguments: <code>{{ result.arguments | tojson }}</code>
+            &middot; {{ result.row_count }} row(s)
+        </p>
+
+        {% if result.rows %}
+            <div class="s1-table-wrap">
+                <table class="s1-table">
+                    <thead>
+                        <tr>
+                            {% for column in result.columns %}<th>{{ column }}</th>{% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in result.rows %}
+                            <tr>
+                                {% for column in result.columns %}
+                                    {% set value = row.get(column) %}
+                                    <td>{{ value | tojson if value is mapping or (value is iterable and value is not string) else value }}</td>
+                                {% endfor %}
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p>The tool returned no rows.</p>
+        {% endif %}
+
+        <p class="s1-ai-source" style="margin:8px 0 0;">
+            Structured result from the shared MCP server ({{ result.server }}).
+        </p>
+
+    </div>
+{% endif %}

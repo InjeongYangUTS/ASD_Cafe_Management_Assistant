@@ -1,8 +1,10 @@
 import os
+import time
 
 from flask import Flask, jsonify, request, session
 
 import ai
+from services import ai_audit
 from services.database_api import (
     DatabaseClient,
     MenuClient,
@@ -10,6 +12,7 @@ from services.database_api import (
     ServiceError,
 )
 from services.llm_client import LLMClient
+from services.shared_ai import MCPClient, RAGClient
 
 app = Flask(__name__)
 
@@ -20,6 +23,9 @@ orders = OrderClient()
 menu = MenuClient()
 
 llm = LLMClient()
+
+mcp = MCPClient()
+rag = RAGClient()
 
 AI_BATCH_LIMIT = int(os.environ.get("AI_BATCH_LIMIT", 5))
 
@@ -82,6 +88,8 @@ def health():
         dependencies["order_service"] = orders.health()
         dependencies["menu_service"] = menu.health()
         dependencies["ollama"] = llm.health()
+        dependencies["mcp_server"] = {"enabled": mcp.enabled, "url": mcp.base_url}
+        dependencies["rag_server"] = {"enabled": rag.enabled, "url": rag.base_url}
 
     return jsonify({
         "service": "student-1-backend",
@@ -364,6 +372,68 @@ def ask():
     result.pop("metrics", None)
 
     return jsonify(result)
+
+
+AI_STATUS_CODES = {
+    "success": 200,
+    "insufficient_context": 200,
+    "tool_error": 200,
+    "rejected": 400,
+    "disabled": 403,
+    "not_registered": 404,
+    "unavailable": 503,
+}
+
+
+def ai_response(payload):
+    return jsonify(payload), AI_STATUS_CODES.get(payload.get("status"), 200)
+
+
+@app.get("/api/ai/mcp")
+def mcp_tools():
+    """Tools registered on the shared MCP server."""
+    return ai_response(mcp.list_tools())
+
+
+@app.post("/api/ai/mcp")
+def mcp_call():
+    """Run one registered MCP tool and return its structured result."""
+    body = request.get_json(silent=True) or {}
+    arguments = body.get("arguments") or {}
+
+    if not isinstance(arguments, dict):
+        return bad_request("arguments must be a JSON object")
+
+    started = time.monotonic()
+    result = mcp.call(body.get("tool"), arguments)
+    ai_audit.record("mcp", body.get("tool"), arguments, result, started)
+
+    return ai_response(result)
+
+
+@app.post("/api/ai/rag")
+def rag_query():
+    """Grounded answer from the shared RAG server, with sources and confidence."""
+    body = request.get_json(silent=True) or {}
+    question = str(body.get("question") or "").strip()
+
+    if not question:
+        return bad_request("Type a question first.")
+    if len(question) > 300:
+        return bad_request("Please keep the question under 300 characters.")
+
+    started = time.monotonic()
+    result = rag.ask(question)
+    ai_audit.record("rag", "query", {"question": question}, result, started)
+
+    return ai_response(result)
+
+
+@app.get("/api/ai/audit")
+def ai_audit_log():
+    """Most recent MCP and RAG invocations, newest first."""
+    limit = min(int(request.args.get("limit", 20)), 200)
+    return jsonify({"entries": ai_audit.recent(limit)})
 
 
 @app.errorhandler(404)

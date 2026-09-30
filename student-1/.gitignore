@@ -9,3 +9,6 @@ __pycache__/
 *.pyc
 .venv/
 .pytest_cache/
+
+# MCP/RAG audit log written by the backend at runtime
+backend/logs/
