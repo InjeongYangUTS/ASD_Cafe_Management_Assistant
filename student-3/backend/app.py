@@ -4,10 +4,11 @@ from urllib.parse import urlencode
 
 from flask import Flask, jsonify, request
 
-from agentic_inventory import run_agentic_loop
+from agentic_inventory import run_agentic_workflow
 from database_client import DatabaseError, call_database
 from recipes import build_requirements
 
+from mcp_client import call_mcp_tool 
 
 ALLOWED_RESTOCK_STATUSES = {"Pending", "Ordered", "Delivered", "Cancelled"}
 ALLOWED_SUPPLIER_STATUSES = {"Active", "Inactive"}
@@ -266,10 +267,24 @@ def ai_restock_recommendation():
         return error("A question is required.")
     inventory = call_database("GET", "/db/dashboard")["low_stock_items"]
     try:
-        return jsonify(run_agentic_loop(inventory, question, save_log=True))
+        return jsonify(run_agentic_workflow(inventory, question, save_log=True))
     except RuntimeError as exc:
         return error(str(exc), 503)
 
+@app.get("/api/mcp/test")
+def test_mcp():
+    try: 
+        result = call_mcp_tool(
+            "get_low_stock_items"
+        )
+        
+        return jsonify(result)
+        
+    except Exception as exc:
+        return jsonify({
+            "success": False, 
+            "error": str(exc)
+        }), 503
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.getenv("PORT", "8300")), debug=False)
