@@ -213,6 +213,8 @@ services:
       MCP_URL: http://host.docker.internal:5700
       RAG_URL: http://host.docker.internal:5600
       RAG_SERVICE_URL: http://host.docker.internal:5600
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       - student2-database
     networks:
@@ -267,7 +269,7 @@ services:
       OLLAMA_URL: http://host.docker.internal:11434/api/generate
       OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2}
       LOG_DIRECTORY: /app/logs
-      MCP_SERVER_URL: http://host.docker.internal:5700/mcp 
+      MCP_SERVER_URL: http://host.docker.internal:5700/mcp
       MCP_URL: http://host.docker.internal:5700
       RAG_URL: http://host.docker.internal:5600
     extra_hosts:
