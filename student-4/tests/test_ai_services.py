@@ -96,6 +96,197 @@ ORDER_ROWS = [
 
 
 # =====================================================================
+# McpClient - the streamable-http transport
+#
+# This is what the team's server actually runs:
+#   MCPServer.run(transport="streamable-http", port=5700)
+#
+# It is not plain JSON-RPC. It needs an Accept header naming
+# text/event-stream, an `initialize` handshake that returns a session id,
+# a `notifications/initialized` follow-up, and it frames every reply as
+# Server-Sent Events whose payload is nested twice. The first version of
+# this client knew none of that and could not reach the server at all.
+# =====================================================================
+
+SSE_TOOLS = (
+    'event: message\n'
+    'data: {"jsonrpc":"2.0","id":2,"result":{"tools":'
+    '[{"name":"get_orders","description":"List orders.",'
+    '"inputSchema":{"type":"object","properties":{}}}]}}\n'
+)
+
+
+def _sse(payload):
+    return "event: message\ndata: " + __import__("json").dumps(payload) + "\n"
+
+
+class StreamableServer:
+    """A minimal stand-in for the MCP SDK's streamable-http endpoint."""
+
+    SESSION = "abc123session"
+
+    def __init__(self, tool_payload=None, is_error=False):
+        self.tool_payload = tool_payload if tool_payload is not None else {
+            "success": True,
+            "orders": ORDER_ROWS,
+            "count": len(ORDER_ROWS),
+        }
+        self.is_error = is_error
+        self.saw_initialized = False
+        self.headers_seen = []
+
+    def post(self, url, **kwargs):
+        import json as _json
+        path = "/" + url.split("//", 1)[-1].split("/", 1)[1]
+        body = kwargs.get("json") or {}
+        headers = kwargs.get("headers") or {}
+        self.headers_seen.append(headers)
+
+        if path != "/mcp":
+            return FakeResponse(404, {"error": "not found"})
+
+        # The SDK rejects a request that does not accept event-stream.
+        if "text/event-stream" not in headers.get("Accept", ""):
+            return FakeResponse(406, {"error": "Not Acceptable"})
+
+        method = body.get("method")
+
+        if method == "initialize":
+            r = FakeResponse(200, {})
+            r.text = _sse({"jsonrpc": "2.0", "id": 1,
+                           "result": {"protocolVersion": "2025-06-18"}})
+            r.headers = {"mcp-session-id": self.SESSION}
+            return r
+
+        # Everything after the handshake must carry the session id.
+        if headers.get("Mcp-Session-Id") != self.SESSION:
+            return FakeResponse(400, {"error": "Missing session ID"})
+
+        if method == "notifications/initialized":
+            self.saw_initialized = True
+            return FakeResponse(202, {})
+
+        if method == "tools/list":
+            r = FakeResponse(200, {})
+            r.text = SSE_TOOLS
+            r.headers = {}
+            return r
+
+        if method == "tools/call":
+            r = FakeResponse(200, {})
+            r.text = _sse({"jsonrpc": "2.0", "id": body.get("id"), "result": {
+                "content": [{"type": "text",
+                             "text": _json.dumps(self.tool_payload)}],
+                "isError": self.is_error}})
+            r.headers = {}
+            return r
+
+        return FakeResponse(400, {"error": "bad method"})
+
+
+def _use_streamable(ai_services, monkeypatch, server):
+    class Sess:
+        post = staticmethod(server.post)
+    monkeypatch.setattr(ai_services.requests, "Session", lambda: Sess())
+    monkeypatch.setattr(ai_services.requests, "get",
+                        lambda *a, **k: FakeResponse(404, {}))
+    monkeypatch.setattr(ai_services.requests, "post",
+                        lambda *a, **k: FakeResponse(404, {}))
+
+
+def test_mcp_speaks_streamable_http(ai_services, monkeypatch):
+    server = StreamableServer()
+    _use_streamable(ai_services, monkeypatch, server)
+
+    result = ai_services.McpClient("http://mcp.test").call()
+
+    assert result["ok"] is True
+    assert "streamable-http" in result["transport"]
+    assert result["tool"] == "get_orders"
+    assert result["row_count"] == 2
+
+
+def test_mcp_completes_the_handshake_before_listing(ai_services, monkeypatch):
+    server = StreamableServer()
+    _use_streamable(ai_services, monkeypatch, server)
+
+    ai_services.McpClient("http://mcp.test").call()
+
+    assert server.saw_initialized, "notifications/initialized was never sent"
+    assert any("text/event-stream" in h.get("Accept", "")
+               for h in server.headers_seen)
+    assert any(h.get("Mcp-Session-Id") == server.SESSION
+               for h in server.headers_seen)
+
+
+def test_mcp_unwraps_the_doubly_nested_payload(ai_services, monkeypatch):
+    """result.content[0].text is itself a JSON document."""
+    server = StreamableServer()
+    _use_streamable(ai_services, monkeypatch, server)
+
+    result = ai_services.McpClient("http://mcp.test").call()
+
+    assert result["rows"][0]["order_number"] == "A-1001"
+    assert result["raw"]["success"] is True
+
+
+def test_mcp_reads_a_tool_level_failure(ai_services, monkeypatch):
+    """isError stays False while the tool's own payload says it failed."""
+    server = StreamableServer(tool_payload={
+        "success": False, "error": "order 99999 not found"})
+    _use_streamable(ai_services, monkeypatch, server)
+
+    result = ai_services.McpClient("http://mcp.test").call()
+
+    assert result["available"] is True
+    assert result["ok"] is False
+    assert "99999" in result["reason"]
+
+
+def test_mcp_reads_an_is_error_result(ai_services, monkeypatch):
+    server = StreamableServer(tool_payload={"any": "thing"}, is_error=True)
+    _use_streamable(ai_services, monkeypatch, server)
+
+    result = ai_services.McpClient("http://mcp.test").call()
+
+    assert result["ok"] is False
+
+
+def test_mcp_nested_lists_do_not_become_table_columns(ai_services, monkeypatch):
+    server = StreamableServer(tool_payload={"success": True, "orders": [
+        {"id": 1, "order_number": "A-1001",
+         "items": [{"id": 9, "name": "Latte"}]}]})
+    _use_streamable(ai_services, monkeypatch, server)
+
+    result = ai_services.McpClient("http://mcp.test").call()
+
+    assert "items" not in result["columns"]
+    assert "order_number" in result["columns"]
+    assert result["raw"]["orders"][0]["items"], "raw keeps the full structure"
+
+
+def test_mcp_picks_my_tool_not_a_lookalike(ai_services, monkeypatch):
+    """Student 3's get_restock_orders also contains the word 'order'."""
+    recorder = Recorder({
+        "/tools": FakeResponse(200, {"tools": [
+            {"name": "get_restock_orders", "description": "Student 3.",
+             "inputSchema": {"type": "object"}},
+            {"name": "get_inventory_items", "description": "Student 3.",
+             "inputSchema": {"type": "object"}},
+            {"name": "get_orders", "description": "Student 4.",
+             "inputSchema": {"type": "object"}},
+        ]}),
+        "/invoke": FakeResponse(200, {"data": ORDER_ROWS}),
+    })
+    monkeypatch.setattr(ai_services.requests, "get", recorder.get)
+    monkeypatch.setattr(ai_services.requests, "post", recorder.post)
+
+    result = ai_services.McpClient("http://mcp.test").call()
+
+    assert result["tool"] == "get_orders"
+
+
+# =====================================================================
 # McpClient - transport discovery
 # =====================================================================
 
