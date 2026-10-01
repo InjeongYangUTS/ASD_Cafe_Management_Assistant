@@ -414,6 +414,27 @@
 
         </section>
 
+        <section id="aiReviewCard" class="card records">
+    <h2>AI Payment Operations Review</h2>
+
+    <p>
+        Analyse anonymised payment and refund statistics using the
+        local Ollama model. Customer, order and payment identifiers
+        are not sent to the model.
+    </p>
+
+    <p>
+        <strong>AI Mode:</strong>
+        Ollama · qwen2.5:0.5b
+    </p>
+
+    <button id="analysePaymentsButton" onclick="analysePayments()">
+        Analyse Payment Operations
+    </button>
+
+    <div id="aiReviewMessage" class="message"></div>
+</section>
+
         <section id="paymentRecords" class="card records">
 
             <h2>Payment Records</h2>
@@ -655,6 +676,56 @@
                 }
             });
 
+            async function analysePayments() {
+    const button = document.getElementById("analysePaymentsButton");
+    const resultElement = document.getElementById("aiReviewMessage");
+
+    button.disabled = true;
+    button.textContent = "Analysing...";
+    resultElement.textContent =
+        "Reviewing anonymous payment and refund statistics.";
+    resultElement.className = "message success";
+
+    try {
+        const response = await fetch(
+            `${API_URL}/api/ai/payment-review`,
+            { method: "POST" }
+        );
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                result.error || "AI payment review failed"
+            );
+        }
+
+        const statistics = result.statistics;
+
+        resultElement.textContent =
+            `Model: ${result.model}\n\n` +
+            `Completed payments: ${statistics.completed_payments}\n` +
+            `Partially refunded: ${statistics.partially_refunded_payments}\n` +
+            `Fully refunded: ${statistics.fully_refunded_payments}\n` +
+            `Completed refunds: ${statistics.completed_refunds}\n` +
+            `Total paid: $${Number(statistics.total_paid).toFixed(2)}\n` +
+            `Total refunded: $${Number(statistics.total_refunded).toFixed(2)}\n\n` +
+            `Verified finding: ${result.operational_finding}\n\n` +
+            `AI recommendation: ${result.recommendation}\n\n` +
+            `Privacy check: ${result.privacy}`;
+
+        resultElement.className = "message success";
+
+    } catch (error) {
+        resultElement.textContent = error.message;
+        resultElement.className = "message error";
+
+    } finally {
+        button.disabled = false;
+        button.textContent = "Analyse Payment Operations";
+    }
+}
+
         function configureCustomerPayment() {
             if (!CUSTOMER_MODE) {
                 return;
@@ -687,6 +758,7 @@
 
             document.getElementById("refundCard").hidden = true;
             document.getElementById("paymentRecords").hidden = true;
+            document.getElementById("aiReviewCard").hidden = true;
             document.getElementById("refreshPaymentsButton").hidden = true;
 
             const backLink = document.getElementById("backDashboardLink");
