@@ -21,6 +21,7 @@ what happened instead of a stack trace.
     rag = RagClient()
 """
 
+import json
 import os
 import time
 
@@ -32,8 +33,27 @@ RAG_URL = os.environ.get("RAG_URL", "http://localhost:5600")
 MCP_TIMEOUT = float(os.environ.get("MCP_TIMEOUT", 15))
 RAG_TIMEOUT = float(os.environ.get("RAG_TIMEOUT", 120))
 
-# Tool names worth showing on the Order & Kitchen screens.
+# Which advertised tool belongs to Order & Kitchen.
+#
+# The shared server puts every feature's tools in one flat namespace, so
+# a substring match is not enough: Student 3's "get_restock_orders"
+# contains "order". Exact names are tried first, then a hint match that
+# skips the other four features' vocabulary.
+ORDER_TOOL_NAMES = (
+    "get_orders",
+    "get_order",
+    "get_kitchen_queue",
+    "get_order_status",
+)
+
 ORDER_TOOL_HINTS = ("order", "kitchen", "queue")
+
+OTHER_FEATURE_WORDS = (
+    "inventory", "restock", "supplier", "stock",
+    "menu", "recipe", "ingredient",
+    "payment", "billing", "invoice", "refund",
+    "review", "feedback", "rating",
+)
 
 
 # =====================================================================
@@ -59,16 +79,32 @@ class McpClient:
     def __init__(self, base_url=MCP_URL, timeout=MCP_TIMEOUT):
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
-        self._style = None          # "jsonrpc" | "rest"
+        self._style = None      # "streamable" | "jsonrpc" | "rest"
         self._endpoint = None
+        self._session_id = None
         self._tools = None
+        self._http = requests.Session()
+        self._next_id = 10
 
     # -- transport ----------------------------------------------------
+
+    SSE_HEADERS = {
+        "Content-Type": "application/json",
+        # The MCP SDK refuses the request without both of these.
+        "Accept": "application/json, text/event-stream",
+    }
 
     def _discover(self):
         """Return the transport name, or None if the server is unreachable."""
         if self._style:
             return self._style
+
+        for path in ("/mcp", "/"):
+            tools = self._try_streamable(path)
+            if tools is not None:
+                self._style, self._endpoint, self._tools = (
+                    "streamable", path, tools)
+                return self._style
 
         for path in ("/mcp", "/"):
             tools = self._try_jsonrpc(path)
@@ -81,6 +117,74 @@ class McpClient:
             self._style, self._endpoint, self._tools = "rest", "/invoke", tools
             return self._style
 
+        return None
+
+    # -- streamable-http (the official MCP SDK) -----------------------
+
+    @staticmethod
+    def _parse_sse(text):
+        """Pull the JSON payload out of an SSE frame, or plain JSON."""
+        for line in text.splitlines():
+            if line.startswith("data:"):
+                try:
+                    return json.loads(line[5:].strip())
+                except ValueError:
+                    return None
+        try:
+            return json.loads(text)
+        except ValueError:
+            return None
+
+    def _headers(self):
+        headers = dict(self.SSE_HEADERS)
+        if self._session_id:
+            headers["Mcp-Session-Id"] = self._session_id
+        return headers
+
+    def _rpc(self, path, payload, timeout=None):
+        return self._http.post(self.base_url + path, headers=self._headers(),
+                               json=payload, timeout=timeout or self.timeout)
+
+    def _try_streamable(self, path):
+        """Handshake, then list the tools.
+
+        The SDK will not serve anything until `initialize` has returned a
+        session id and `notifications/initialized` has been sent, and it
+        frames every reply as Server-Sent Events.
+        """
+        try:
+            response = self._rpc(path, {
+                "jsonrpc": "2.0", "id": 1, "method": "initialize",
+                "params": {
+                    "protocolVersion": "2025-06-18",
+                    "capabilities": {},
+                    "clientInfo": {"name": "student-4-backend",
+                                   "version": "1.0"},
+                }})
+        except requests.RequestException:
+            return None
+
+        session_id = response.headers.get("mcp-session-id")
+        if response.status_code >= 300 or not session_id:
+            return None
+
+        self._session_id = session_id
+
+        try:
+            self._rpc(path, {"jsonrpc": "2.0",
+                             "method": "notifications/initialized"})
+            listing = self._rpc(path, {"jsonrpc": "2.0", "id": 2,
+                                       "method": "tools/list", "params": {}})
+            body = self._parse_sse(listing.text)
+        except requests.RequestException:
+            self._session_id = None
+            return None
+
+        result = (body or {}).get("result")
+        if isinstance(result, dict) and isinstance(result.get("tools"), list):
+            return result["tools"]
+
+        self._session_id = None
         return None
 
     def _try_jsonrpc(self, path):
@@ -117,6 +221,8 @@ class McpClient:
 
     @property
     def transport(self):
+        if self._style == "streamable":
+            return "streamable-http (MCP SDK) at POST %s" % self._endpoint
         if self._style == "jsonrpc":
             return "JSON-RPC 2.0 at POST %s" % self._endpoint
         if self._style == "rest":
@@ -141,7 +247,18 @@ class McpClient:
         if "result" in body:                          # JSON-RPC
             inner = body["result"]
             if isinstance(inner, dict) and "content" in inner:
-                return inner["content"]
+                # streamable-http nests it twice: result.content[0].text
+                # is itself a JSON document. A tool that returns prose is
+                # left as the string it is.
+                content = inner["content"]
+                if isinstance(content, list) and content:
+                    first = content[0]
+                    if isinstance(first, dict) and "text" in first:
+                        try:
+                            return json.loads(first["text"])
+                        except (ValueError, TypeError):
+                            return first["text"]
+                return content
             return inner
         for key in ("data", "output", "content"):
             if key in body:
@@ -182,11 +299,22 @@ class McpClient:
         return self._tools or [], None
 
     def pick_order_tool(self):
-        for tool in (self._tools or []):
-            if any(hint in self._name_of(tool).lower()
-                   for hint in ORDER_TOOL_HINTS):
+        """The Order & Kitchen tool, not another feature's that reads alike."""
+        tools = self._tools or []
+        by_name = {self._name_of(t).lower(): t for t in tools}
+
+        for wanted in ORDER_TOOL_NAMES:
+            if wanted in by_name:
+                return by_name[wanted]
+
+        for tool in tools:
+            name = self._name_of(tool).lower()
+            if any(word in name for word in OTHER_FEATURE_WORDS):
+                continue
+            if any(hint in name for hint in ORDER_TOOL_HINTS):
                 return tool
-        return (self._tools or [None])[0]
+
+        return tools[0] if tools else None
 
     def call(self, tool_name=None, arguments=None):
         """
@@ -222,11 +350,22 @@ class McpClient:
         started = time.time()
 
         try:
-            if self._style == "jsonrpc":
+            if self._style == "streamable":
+                self._next_id += 1
+                response = self._rpc(self._endpoint, {
+                    "jsonrpc": "2.0", "id": self._next_id,
+                    "method": "tools/call",
+                    "params": {"name": name, "arguments": arguments}})
+                body = self._parse_sse(response.text)
+                if body is None:
+                    return self._unavailable(
+                        "the MCP server returned something that is not JSON")
+            elif self._style == "jsonrpc":
                 response = requests.post(
                     self.base_url + self._endpoint, timeout=self.timeout,
                     json={"jsonrpc": "2.0", "id": 2, "method": "tools/call",
                           "params": {"name": name, "arguments": arguments}})
+                body = response.json()
             else:
                 response = requests.post(
                     self.base_url + "/invoke", timeout=self.timeout,
@@ -235,7 +374,7 @@ class McpClient:
                     response = requests.post(
                         self.base_url + "/tools/" + name,
                         timeout=self.timeout, json=arguments)
-            body = response.json()
+                body = response.json()
         except requests.RequestException as exc:
             return self._unavailable("the tool call failed: %s" % exc)
         except ValueError:
@@ -244,9 +383,12 @@ class McpClient:
 
         elapsed_ms = int((time.time() - started) * 1000)
 
-        if response.status_code >= 400 or (isinstance(body, dict)
-                                           and "error" in body):
-            detail = body.get("error") if isinstance(body, dict) else body
+        # A failed call can report itself at three levels, and all three
+        # have to be read or a failure looks like an empty success:
+        #   HTTP status, the JSON-RPC result's isError, and the tool's own
+        #   {"success": false, "error": ...} payload.
+        detail = self._failure_reason(response.status_code, body)
+        if detail:
             return {
                 "available": True,
                 "ok": False,
@@ -263,11 +405,23 @@ class McpClient:
 
         payload = self._unwrap(body)
         rows = self._rows(payload)
+
+        # Only scalar fields become table columns. A real tool result
+        # carries nested lists - an order's line items, for instance -
+        # and putting one in a cell renders as unreadable Python. The
+        # full structure is still available under "raw".
         columns = []
         for row in rows:
-            for key in row:
+            for key, value in row.items():
+                if isinstance(value, (dict, list)):
+                    continue
                 if key not in columns:
                     columns.append(key)
+
+        # A column that is empty in every row tells the reader nothing,
+        # so it is dropped rather than printed as a stack of "None".
+        columns = [c for c in columns
+                   if any(row.get(c) not in (None, "") for row in rows)]
 
         description = ""
         if isinstance(chosen, dict):
@@ -288,6 +442,35 @@ class McpClient:
             "rows": rows[:25],
             "raw": payload,
         }
+
+    @classmethod
+    def _failure_reason(cls, status, body):
+        """A readable reason, or None when the call actually succeeded.
+
+        The body's own message is preferred over the status code: a
+        server that answers 400 with {"error": "order_id must be an
+        integer"} has told the user something useful, and collapsing
+        that to "HTTP 400" throws it away.
+        """
+        if isinstance(body, dict):
+            if "error" in body:
+                return str(body["error"])[:200]
+
+            result = body.get("result")
+            payload = cls._unwrap(body)
+
+            if isinstance(payload, dict) and payload.get("success") is False:
+                return str(payload.get("error",
+                                       "the tool reported a failure"))[:200]
+
+            if isinstance(result, dict) and result.get("isError"):
+                content = result.get("content") or [{}]
+                return str(content[0].get("text", result))[:200]
+
+        if status >= 400:
+            return "HTTP %d" % status
+
+        return None
 
     def health(self):
         # Discovery first: a server with no /health endpoint is still up if
