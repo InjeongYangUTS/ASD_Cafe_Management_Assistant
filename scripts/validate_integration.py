@@ -33,18 +33,21 @@ STUDENTS = {
         "mcp_tools": ["get_menu_item_feedback", "get_top_issues", "get_reviews_needing_reply"]},
     2: {"feature": "Menu & Recipe", "owner": "Ei Thandar",
         "health": "http://127.0.0.1:5201/api/menus",
-        "mcp": None, "rag": None, "mcp_tools": []},
+        "mcp": None,
+        "rag": ("http://127.0.0.1:5201/api/rag/query", "What does the Menu and Recipe feature manage?"),
+        "mcp_tools": ["get_menus", "get_menu", "get_menu_price", "get_ingredients",
+                      "get_ingredient", "get_recipes", "get_recipe", "get_recipe_ingredients"]},
     3: {"feature": "Inventory & Restocking", "owner": "Injeong Yang",
         "health": "http://127.0.0.1:8300/api/health",
         "mcp": ("GET", "http://127.0.0.1:8300/api/mcp/test", None),
-        "rag": None,
+        "rag": ("http://127.0.0.1:8300/api/rag/query", "What does the Inventory feature manage?"),
         "mcp_tools": ["get_inventory_items", "get_low_stock_items", "get_inventory_item",
                       "get_suppliers", "get_restock_orders"]},
     4: {"feature": "Order & Kitchen Management", "owner": "Stella Kwon",
         "health": "http://127.0.0.1:8400/api/health",
         "mcp": ("POST", "http://127.0.0.1:8400/api/ai/mcp", {}),
         "rag": ("http://127.0.0.1:8400/api/ai/rag", "What does the Order and Kitchen feature manage?"),
-        "mcp_tools": []},
+        "mcp_tools": ["get_orders", "get_order", "get_kitchen_queue", "get_order_status"]},
     5: {"feature": "Payment & Billing", "owner": "Ong Ath Vongnathi",
         "health": "http://127.0.0.1:8500/health",
         "mcp": None, "rag": None, "mcp_tools": []},
@@ -170,16 +173,21 @@ def check_student(report, number, spec, tools):
         report.add(section, "RAG insufficient context", "insufficient_context", "404, route not deployed", NOT_READY)
         return
     data = data if isinstance(data, dict) else {}
-    grounded = data.get("status") == "success" and data.get("sources") and data.get("confidence")
+    confidence = str(data.get("confidence") or "").lower()
+    answered = data.get("status") == "success" or (data.get("success") and not data.get("insufficient_context"))
+    grounded = answered and data.get("sources") and confidence not in ("", "insufficient", "unknown")
     report.add(section, "RAG grounded answer", "sources + confidence",
-               "%s, %s, %d sources in %dms" % (data.get("status", status), data.get("confidence"),
+               "%s, %s, %d sources in %dms" % (status, confidence or None,
                                                len(data.get("sources") or []), ms),
                PASS if grounded else FAIL)
 
     status, data, _, ms = http("POST", url, {"question": OUT_OF_SCOPE}, timeout=60)
-    got = data.get("status") if isinstance(data, dict) else status
-    report.add(section, "RAG insufficient context", "insufficient_context", "%s in %dms" % (got, ms),
-               PASS if got == "insufficient_context" else FAIL)
+    data = data if isinstance(data, dict) else {}
+    insufficient = (data.get("status") == "insufficient_context" or data.get("insufficient_context") is True
+                    or str(data.get("confidence") or "").lower() == "insufficient")
+    report.add(section, "RAG insufficient context", "insufficient_context",
+               "%s, %s in %dms" % (status, data.get("status") or data.get("confidence"), ms),
+               PASS if insufficient else FAIL)
 
 
 def save(report):
