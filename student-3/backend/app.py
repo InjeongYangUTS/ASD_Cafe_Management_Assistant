@@ -9,6 +9,7 @@ from database_client import DatabaseError, call_database
 from recipes import build_requirements
 
 from mcp_client import call_mcp_tool 
+from rag_client import query_rag 
 
 ALLOWED_RESTOCK_STATUSES = {"Pending", "Ordered", "Delivered", "Cancelled"}
 ALLOWED_SUPPLIER_STATUSES = {"Active", "Inactive"}
@@ -281,10 +282,43 @@ def test_mcp():
         return jsonify(result)
         
     except Exception as exc:
+        app.logger.exception("Student 3 MCP call failed")
+        
         return jsonify({
             "success": False, 
             "error": str(exc)
         }), 503
+
+@app.route("/api/rag/query", methods=["POST"])
+def rag_query():
+    try:
+        data = request.get_json() or {}
+        
+        question = data.get("question", "").strip()
+        
+        if not question:
+            return jsonify({
+                "error": "Question is required"
+            }), 400
+            
+        result = query_rag(question)
+            
+        return jsonify({
+            "success": True,
+            "answer": result.get("answer", ""),
+            "sources": result.get("sources", []),
+            "confidence": result.get("confidence", "UNKNOWN"),
+            "insufficient_context": result.get(
+                "insufficient_context",
+                False
+            )
+        })
+            
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.getenv("PORT", "8300")), debug=False)

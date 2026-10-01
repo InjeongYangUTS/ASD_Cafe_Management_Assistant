@@ -1,10 +1,13 @@
-from flask import Flask, render_template, redirect, session, request
+from flask import Flask, render_template, redirect, session, request, jsonify
+import os
 import requests
 
 app = Flask(__name__)
 
 # Must match the shared authentication service
 app.secret_key = "temporary-secret-key"
+
+STUDENT2_BACKEND = os.getenv("STUDENT2_BACKEND_URL", "http://student2-backend:5201")
 
 
 # -------------------------
@@ -124,6 +127,68 @@ def htmx_ai_price_recommendation():
                 Unable to connect to the AI service.
             </p>
         """
+
+# -------------------------
+# Staff - RAG Assistant
+# -------------------------
+
+@app.route("/rag")
+def rag_page():
+    if "staff_id" not in session:
+        return redirect(
+            "http://localhost:5100/shared/auth/staff_login.html"
+        )
+
+    return render_template("rag.html")
+
+
+@app.route("/api/rag/query", methods=["POST"])
+def frontend_rag_query():
+
+    if "staff_id" not in session:
+        return jsonify({
+            "error": "Unauthorized"
+        }), 401
+
+    data = request.get_json(silent=True)
+
+    if not isinstance(data, dict):
+        return jsonify({
+            "error": "A JSON request body is required"
+        }), 400
+
+    question = data.get("question")
+
+    if not isinstance(question, str) or not question.strip():
+        return jsonify({
+            "error": "Question is required"
+        }), 400
+
+    try:
+        response = requests.post(
+            f"{STUDENT2_BACKEND}/api/rag/query",
+            json={
+                "question": question.strip()
+            },
+            timeout=130
+        )
+
+        return jsonify(response.json()), response.status_code
+
+    except requests.Timeout:
+        return jsonify({
+            "error": "The AI assistant did not respond in time"
+        }), 504
+
+    except requests.RequestException:
+        return jsonify({
+            "error": "Unable to connect to the AI assistant"
+        }), 503
+
+    except ValueError:
+        return jsonify({
+            "error": "Invalid response from the AI assistant"
+        }), 502
 
 if __name__ == "__main__":
     app.run(

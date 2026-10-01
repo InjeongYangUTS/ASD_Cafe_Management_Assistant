@@ -1,0 +1,7 @@
+Student 3 manages the Inventory and Restocking feature. This feature allows staff to manage inventory items, stock quantities, minimum stock levels, categories, suppliers, and restock orders.
+
+Student 3 classifies inventory stock as OUT OF STOCK when quantity is zero, LOW when quantity is greater than zero and less than or equal to minimum stock, and OK when quantity is greater than minimum stock.
+
+Student 3 supplier management allows staff to add, view, edit, and delete supplier records.
+
+Student 3 restock order management allows staff to create, view, edit, and delete restock orders. Supported order statuses are Pending, Ordered, Delivered, and Cancelled.

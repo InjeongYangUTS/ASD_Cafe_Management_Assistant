@@ -41,6 +41,7 @@ will catch it. That probe calls the MCP tool and my own backend for the
 same order and compares them.
 """
 
+import json
 import os
 import re
 import time
@@ -51,28 +52,84 @@ from repo import REPO_ROOT, must_not_be_containerised
 
 AREAS = ["availability", "protocol", "invocation", "resilience"]
 
-# Tool names the loop will look for. The server may expose more; these
-# are the ones the Order & Kitchen feature needs in order to put an MCP
-# panel on its screens.
+# Which advertised tool belongs to Order & Kitchen.
+#
+# The shared server exposes every feature's tools in one flat namespace,
+# so a substring match is not enough: Student 3's "get_restock_orders"
+# contains "order" and was picked ahead of my own tools the first time
+# this ran against the real server. Exact names are tried first, in the
+# order listed, and the hint match that follows excludes the vocabulary
+# belonging to the other four features.
+ORDER_TOOL_NAMES = (
+    "get_orders",
+    "get_order",
+    "get_kitchen_queue",
+    "get_order_status",
+)
+
 ORDER_TOOL_HINTS = ("order", "kitchen", "queue")
+
+OTHER_FEATURE_WORDS = (
+    "inventory", "restock", "supplier", "stock",     # Student 3
+    "menu", "recipe", "ingredient",                  # Student 2
+    "payment", "billing", "invoice", "refund",       # Student 5
+    "review", "feedback", "rating",                  # Student 1
+)
 
 
 class McpTransport:
-    """Discovers and remembers how this MCP server actually speaks."""
+    """Discovers and remembers how this MCP server actually speaks.
+
+    Three shapes are tried, in this order:
+
+      1. streamable-http  POST /mcp   the official MCP Python SDK (mcp 2.x,
+                                      MCPServer.run(transport="streamable-http")).
+                                      JSON-RPC 2.0, but the response is
+                                      Server-Sent-Events framed and every
+                                      call after `initialize` has to carry
+                                      the Mcp-Session-Id header the server
+                                      issued. This is what Group 48's
+                                      server actually uses.
+      2. plain JSON-RPC   POST /mcp or /     a hand-written Flask server
+      3. REST             GET /tools + POST /invoke
+
+    Order matters. The first version of this class only knew shapes 2 and 3
+    and could not talk to the real server at all: a bare POST to /mcp with
+    no Accept header and no handshake was answered with a terminated
+    session, and /tools, /mcp/tools, /tools/list and /health were all 404.
+    Finding that was the point of running the loop against the real thing
+    rather than only against a stub.
+    """
+
+    SSE_HEADERS = {
+        "Content-Type": "application/json",
+        # The SDK refuses the request without both of these.
+        "Accept": "application/json, text/event-stream",
+    }
 
     def __init__(self, base_url, timeout=20):
         self.base = base_url.rstrip("/")
         self.timeout = timeout
-        self.style = None          # "jsonrpc" | "rest_path" | "rest_invoke"
+        self.style = None          # "streamable" | "jsonrpc" | "rest"
         self.endpoint = None
+        self.session_id = None
         self.error = None
         self._tools = None
+        self._http = requests.Session()
+        self._next_id = 10
 
     # -- discovery ----------------------------------------------------
 
     def discover(self):
         if self.style or self.error:
             return self.style
+
+        for path in ("/mcp", "/"):
+            tools = self._try_streamable(path)
+            if tools is not None:
+                self.style, self.endpoint, self._tools = (
+                    "streamable", path, tools)
+                return self.style
 
         for path in ("/mcp", "/"):
             tools = self._try_jsonrpc(path)
@@ -82,17 +139,92 @@ class McpTransport:
 
         tools = self._try_rest_list()
         if tools is not None:
-            self._tools = tools
-            # Decide between the two REST call shapes by looking at what
-            # the server advertises; default to /invoke, which is the
-            # shape most Flask MCP servers use.
-            self.style = "rest_invoke"
-            self.endpoint = "/invoke"
+            self.style, self.endpoint, self._tools = "rest", "/invoke", tools
             return self.style
 
-        self.error = ("no MCP transport answered at %s - tried JSON-RPC on "
-                      "/mcp and /, and REST on /tools" % self.base)
+        self.error = ("no MCP transport answered at %s - tried "
+                      "streamable-http and plain JSON-RPC on /mcp and /, "
+                      "and REST on /tools" % self.base)
         return None
+
+    # -- streamable-http ----------------------------------------------
+
+    @staticmethod
+    def _parse_sse(text):
+        """Pull the JSON payload out of an SSE frame.
+
+        A streamable-http reply looks like:
+
+            event: message
+            data: {"jsonrpc":"2.0","id":1,"result":{...}}
+
+        A server that answers with plain JSON instead is also accepted,
+        so this works either way.
+        """
+        for line in text.splitlines():
+            if line.startswith("data:"):
+                try:
+                    return json.loads(line[5:].strip())
+                except ValueError:
+                    return None
+        try:
+            return json.loads(text)
+        except ValueError:
+            return None
+
+    def _headers(self):
+        headers = dict(self.SSE_HEADERS)
+        if self.session_id:
+            headers["Mcp-Session-Id"] = self.session_id
+        return headers
+
+    def _rpc(self, path, payload, timeout=None):
+        return self._http.post(self.base + path, headers=self._headers(),
+                               json=payload, timeout=timeout or self.timeout)
+
+    def _try_streamable(self, path):
+        try:
+            response = self._rpc(path, {
+                "jsonrpc": "2.0", "id": 1, "method": "initialize",
+                "params": {
+                    "protocolVersion": "2025-06-18",
+                    "capabilities": {},
+                    "clientInfo": {"name": "student-4-agentic-loop",
+                                   "version": "1.0"},
+                }})
+        except requests.RequestException:
+            return None
+
+        session_id = response.headers.get("mcp-session-id")
+        if response.status_code >= 300 or not session_id:
+            return None
+
+        self.session_id = session_id
+
+        # The server will not serve anything else until this is sent.
+        try:
+            self._rpc(path, {"jsonrpc": "2.0",
+                             "method": "notifications/initialized"})
+        except requests.RequestException:
+            self.session_id = None
+            return None
+
+        try:
+            listing = self._rpc(path, {"jsonrpc": "2.0", "id": 2,
+                                       "method": "tools/list", "params": {}})
+            body = self._parse_sse(listing.text)
+        except requests.RequestException:
+            self.session_id = None
+            return None
+
+        result = (body or {}).get("result")
+        if isinstance(result, dict) and isinstance(result.get("tools"), list):
+            return result["tools"]
+
+        self.session_id = None
+        return None
+
+    # -- plain JSON-RPC and REST --------------------------------------
 
     def _try_jsonrpc(self, path):
         try:
@@ -128,9 +260,12 @@ class McpTransport:
     # -- operations ---------------------------------------------------
 
     def describe(self):
+        if self.style == "streamable":
+            return ("streamable-http (MCP SDK) at POST %s%s"
+                    % (self.base, self.endpoint))
         if self.style == "jsonrpc":
             return "JSON-RPC 2.0 at POST %s%s" % (self.base, self.endpoint)
-        if self.style:
+        if self.style == "rest":
             return "REST at %s (list GET /tools, call POST %s)" % (
                 self.base, self.endpoint)
         return self.error or "transport not discovered"
@@ -145,12 +280,23 @@ class McpTransport:
         """Invoke a tool. Returns (http_status, parsed_body)."""
         self.discover()
         timeout = timeout or self.timeout
+
+        if self.style == "streamable":
+            self._next_id += 1
+            response = self._rpc(self.endpoint, {
+                "jsonrpc": "2.0", "id": self._next_id, "method": "tools/call",
+                "params": {"name": name, "arguments": arguments},
+            }, timeout=timeout)
+            body = self._parse_sse(response.text)
+            return response.status_code, (body if body is not None
+                                          else {"_raw": response.text[:400]})
+
         if self.style == "jsonrpc":
             response = requests.post(
                 self.base + self.endpoint, timeout=timeout,
                 json={"jsonrpc": "2.0", "id": 2, "method": "tools/call",
                       "params": {"name": name, "arguments": arguments}})
-        elif self.style == "rest_invoke":
+        elif self.style == "rest":
             response = requests.post(
                 self.base + "/invoke", timeout=timeout,
                 json={"tool": name, "arguments": arguments})
@@ -160,6 +306,7 @@ class McpTransport:
                     json=arguments)
         else:
             raise RuntimeError(self.error or "no transport")
+
         try:
             return response.status_code, response.json()
         except ValueError:
@@ -167,14 +314,30 @@ class McpTransport:
 
     @staticmethod
     def payload_of(body):
-        """Pull the tool's own result out of whichever envelope it came in."""
+        """Pull the tool's own result out of whichever envelope it came in.
+
+        streamable-http nests it twice: the JSON-RPC result holds
+        content[0].text, and that text is itself a JSON document. A tool
+        that returns prose instead of JSON is left as the string it is,
+        so the probe that checks for structured data can still fail it.
+        """
         if not isinstance(body, dict):
             return body
-        if "result" in body:                 # JSON-RPC
+
+        if "result" in body:
             inner = body["result"]
             if isinstance(inner, dict) and "content" in inner:
-                return inner["content"]
+                content = inner["content"]
+                if isinstance(content, list) and content:
+                    first = content[0]
+                    if isinstance(first, dict) and "text" in first:
+                        try:
+                            return json.loads(first["text"])
+                        except (ValueError, TypeError):
+                            return first["text"]
+                return content
             return inner
+
         for key in ("data", "output", "content"):
             if key in body:
                 return body[key]
@@ -182,9 +345,43 @@ class McpTransport:
 
     @staticmethod
     def is_error(status, body):
+        """True when the call failed, at any of the three levels it can.
+
+        A streamable-http server answers HTTP 200 even for an unknown
+        tool - the failure is `isError` on the JSON-RPC result - and a
+        tool's own failure is `success: false` inside its payload. All
+        three have to be checked or a failed call reads as a successful
+        empty one.
+        """
         if status >= 400:
             return True
-        return isinstance(body, dict) and "error" in body
+        if not isinstance(body, dict):
+            return False
+        if "error" in body:
+            return True
+        result = body.get("result")
+        if isinstance(result, dict) and result.get("isError"):
+            return True
+        payload = McpTransport.payload_of(body)
+        if isinstance(payload, dict) and payload.get("success") is False:
+            return True
+        return False
+
+    @staticmethod
+    def error_text(body):
+        """A readable reason out of whichever level reported the failure."""
+        if not isinstance(body, dict):
+            return str(body)[:200]
+        if "error" in body:
+            return str(body["error"])[:200]
+        payload = McpTransport.payload_of(body)
+        if isinstance(payload, dict) and payload.get("error"):
+            return str(payload["error"])[:200]
+        result = body.get("result")
+        if isinstance(result, dict) and result.get("isError"):
+            content = result.get("content") or [{}]
+            return str(content[0].get("text", result))[:200]
+        return str(body)[:200]
 
 
 def _tool_name(tool):
@@ -206,10 +403,21 @@ def build_mcp_probes(mcp_url, backend_url, ok, fail, Probe):
             raise RuntimeError(transport.error)
 
     def find_order_tool():
-        for tool in transport.list_tools():
+        """The Order & Kitchen tool, not somebody else's that reads alike."""
+        tools = transport.list_tools()
+        by_name = {_tool_name(t).lower(): t for t in tools}
+
+        for wanted in ORDER_TOOL_NAMES:
+            if wanted in by_name:
+                return by_name[wanted]
+
+        for tool in tools:
             name = _tool_name(tool).lower()
+            if any(word in name for word in OTHER_FEATURE_WORDS):
+                continue
             if any(hint in name for hint in ORDER_TOOL_HINTS):
                 return tool
+
         return None
 
     # ---------------- availability ----------------
@@ -392,9 +600,8 @@ def build_mcp_probes(mcp_url, backend_url, ok, fail, Probe):
         if status >= 500:
             return fail("an unknown tool name crashed the server with HTTP "
                         "%d - it should be a refusal, not a fault" % status)
-        message = str(body)
-        return ok("refused with HTTP %d and a message rather than a crash: "
-                  "%s" % (status, message[:110]))
+        return ok("refused rather than crashed (HTTP %d): %s"
+                  % (status, transport.error_text(body)[:110]))
 
     def bad_arguments_are_refused_cleanly():
         require_transport()
