@@ -331,9 +331,12 @@ jobs:
           echo "they are not running here. My screens must still render,"
           echo "which the previous step just proved, and the backend must"
           echo "report both as unavailable rather than failing."
-          curl -s "$S4_BACKEND_URL/api/health" | python - <<'PY'
-          import json, sys
-          health = json.load(sys.stdin)
+          curl -fsS "$S4_BACKEND_URL/api/health" \
+          -o /tmp/student4-health.json
+          python - <<'PY'
+          import json
+          with open("/tmp/student4-health.json", encoding="utf-8") as response:
+              health = json.load(response)
           deps = health.get("dependencies", health)
           for name in ("mcp", "rag"):
               state = deps.get(name)
