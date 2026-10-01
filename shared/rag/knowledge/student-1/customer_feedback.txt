@@ -1,0 +1,19 @@
+The Customer Feedback and Reviews feature lets customers leave a star rating from 1 to 5 with a title and a comment. Customers can edit or delete their own reviews. Staff read every review on the staff review board, reply to customers, and track the review status.
+
+Review sentiment is classified as POSITIVE, NEUTRAL or NEGATIVE. The sentiment score starts from the star rating: (rating - 3) / 2, so a 5-star review starts at 1.0 and a 1-star review starts at -1.0. Each positive word such as great, friendly or delicious adds 0.08, and each negative word such as slow, cold or rude subtracts 0.08. The score is kept between -1.0 and 1.0.
+
+A review is POSITIVE sentiment when the score is 0.25 or higher, NEGATIVE sentiment when the score is -0.25 or lower, and NEUTRAL sentiment otherwise. A 2-star review with no other positive or negative words scores -0.5 and is classified as NEGATIVE.
+
+Review categories are FOOD, DRINK, SERVICE, CLEANLINESS, WAIT_TIME, PRICE and GENERAL. The category is worked out from the review wording. Slow service maps to WAIT_TIME, cold food and food quality map to FOOD, cold drinks map to DRINK, order mistakes, staff attitude, communication and allergen handling map to SERVICE, dirty tables map to CLEANLINESS, and price complaints map to PRICE. Noise and seating complaints use GENERAL.
+
+Review status moves through SUBMITTED, ACKNOWLEDGED, IN_REVIEW, RESOLVED and ARCHIVED. A new review starts as SUBMITTED. When staff publish their first reply to a SUBMITTED review, the status changes to ACKNOWLEDGED. An ARCHIVED review can no longer be edited by the customer.
+
+Only signed-in staff can reply to a review. Customers can only edit or delete their own reviews; the backend checks the signed session cookie and rejects changes to another customer's review with HTTP 403.
+
+Complaint issues have severity weights. Allergen handling has the highest weight at 1.6, followed by cleanliness at 1.4, order accuracy and staff attitude at 1.3, cold food at 1.2, cold drinks and food quality at 1.1, slow service at 1.0, communication at 0.9, price at 0.8, and noise and seating at 0.6. Higher weight complaints are prioritised for staff attention.
+
+AI-Mode uses a local Ollama language model to analyse reviews and answer staff questions about the reviews. Rule-based results are stored first, and staff can re-check pending reviews with the model. The model answer is validated against the measured figures such as the average rating and review counts.
+
+Every change to a review is written to the store_logs audit table with an action (CREATED, UPDATED, DELETED, ANALYSED, STATUS_CHANGED or RESPONDED), the actor and the actor role (CUSTOMER, STAFF, SYSTEM or AI).
+
+Other features read feedback figures through the Customer Feedback backend summary endpoint GET /api/summary, which returns the review count, average rating, rating distribution, status counts, sentiment counts and top issues. No other service reads the feedback database directly.

@@ -32,20 +32,22 @@
 
                 {% if review.sentiment %}
                     <div>
-                        <span class="s1-tag {{ review.sentiment|lower }}">
+                        <span class="s1-tag {{ review.sentiment|lower }}"
+                              title="Score {{ '%+.2f'|format(review.sentiment_score or 0) }}">
                             {{ review.sentiment|title }}
-                            {% if review.sentiment_score is not none %}
-                                ({{ '%+.2f'|format(review.sentiment_score) }})
-                            {% endif %}
                         </span>
+
+                        {% for praise in review.ai_praise %}
+                            <span class="s1-tag positive">{{ praise.replace('_', ' ') }}</span>
+                        {% endfor %}
 
                         {% for issue in review.ai_issues %}
                             <span class="s1-tag negative">{{ issue.replace('_', ' ') }}</span>
                         {% endfor %}
 
-                        {% if review.ai_model %}
-                            <span class="s1-tag ai">{{ review.ai_model }}</span>
-                        {% endif %}
+                        <span class="s1-meta">
+                            Checked by {{ review.ai_model or 'rules' }}
+                        </span>
                     </div>
 
                     {% if review.ai_summary %}

@@ -1,0 +1,39 @@
+{% if not catalogue.available %}
+    <div class="s1-message info" style="margin:14px 0 0;">
+        MCP unavailable: {{ catalogue.reason }}
+    </div>
+{% elif not catalogue.tools %}
+    <div class="s1-message info" style="margin:14px 0 0;">
+        The shared MCP server is running but has no registered tools yet.
+    </div>
+{% else %}
+    <form class="s1-ask"
+          hx-post="/reviews/ai/mcp"
+          hx-target="#mcp-result"
+          hx-swap="innerHTML"
+          hx-indicator="#mcp-waiting"
+          hx-disabled-elt="find button">
+
+        <select name="tool" required aria-label="MCP tool">
+            {% for tool in catalogue.tools %}
+                <option value="{{ tool.name }}" title="{{ tool.description }}">{{ tool.name }}</option>
+            {% endfor %}
+        </select>
+
+        <input type="text" name="arguments" maxlength="300"
+               placeholder='Arguments as JSON (optional), e.g. {"limit": 5}'>
+
+        <button type="submit" class="s1-button">Run tool</button>
+    </form>
+
+    <p class="s1-hint" style="margin:10px 0 0;">
+        {{ catalogue.count }} review tools available. They only read data, and
+        invalid inputs are blocked before a tool runs.
+    </p>
+
+    <ul class="s1-meta" style="margin:6px 0 0; padding-left:18px;">
+        {% for tool in catalogue.tools %}
+            <li><strong>{{ tool.name }}</strong>{% if tool.description %} &ndash; {{ tool.description }}{% endif %}</li>
+        {% endfor %}
+    </ul>
+{% endif %}
