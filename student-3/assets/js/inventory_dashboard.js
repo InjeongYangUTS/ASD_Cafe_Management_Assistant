@@ -165,7 +165,15 @@ document.addEventListener("DOMContentLoaded", () => {
                     const item =
                         document.createElement("li");
 
-                    item.textContent = source;
+                    if (source && typeof source === "object") {
+                        item.textContent = source.document || "Unknown source";
+
+                        if (source.excerpt) {
+                            item.title = source.excerpt;
+                        }
+                    } else {
+                        item.textContent = String(source);
+                    }
 
                     ragSources.appendChild(item);
 

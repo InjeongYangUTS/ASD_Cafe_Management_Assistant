@@ -2,43 +2,30 @@ import os
 import requests
 
 RAG_SERVER_URL = os.getenv(
-    "RAG_SERVER_URL",
-    "http://host.docker.internal:5800"
-)
+    "RAG_URL",
+    "http://host.docker.internal:5600"
+).rstrip("/")
 
 
 def query_rag(question):
-    """
-    Send a query to the shared RAG server.
-
-    Temporary mock mode is used until the shared RAG server
-    is available.
-    """
-
-    rag_enabled = os.getenv("RAG_ENABLED", "false").lower() == "true"
-
-    if not rag_enabled:
-        return {
-            "answer": (
-                "Mock grounded response for Student 3. "
-                "The shared RAG server is not connected yet."
-            ),
-            "sources": [
-                "Student 3 Inventory & Restocking documentation"
-            ],
-            "confidence": "LOW",
-            "insufficient_context": False
-        }
-
     response = requests.post(
         f"{RAG_SERVER_URL}/query",
-        json={
-            "query": question,
-            "student": "student-3"
-        },
-        timeout=30
+        json = {"question": question},
+        timeout = 150
     )
-
-    response.raise_for_status()
-
-    return response.json()
+    
+    data = response.json()
+    
+    if not response.ok:
+        raise RuntimeError(
+            data.get("error", "Shared RAG request failed.")
+        )
+        
+    return {
+        "answer": data.get("answer") or "",
+        "sources": data.get("sources", []),
+        "confidence": data.get("confidence", "UNKNOWN"),
+        "insufficient_context": (
+            data.get("status") == "insufficient_context"
+        )
+    }

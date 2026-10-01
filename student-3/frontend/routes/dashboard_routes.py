@@ -63,8 +63,8 @@ def rag_query():
     result = call_backend(
         "POST",
         "/api/rag/query",
-        timeout=30,
-        json=body,
+        timeout = 180,
+        json = body,
     )
     
     return jsonify(result)
