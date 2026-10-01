@@ -2,6 +2,7 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 import requests
 import os
+from mcp_client import call_mcp_tool
 
 app = Flask(__name__)
 CORS(app)
@@ -1223,6 +1224,412 @@ def rag_query():
             "error": "Invalid response from the RAG server"
         }), 502
 
+# =========================================================
+# SHARED MCP INTEGRATION
+# =========================================================
+
+@app.route("/api/mcp/query", methods=["POST"])
+def mcp_query():
+
+    data = request.get_json(silent=True)
+
+    if not isinstance(data, dict):
+        return jsonify({
+            "error": "Invalid request"
+        }), 400
+
+    question = data.get("question", "").strip()
+    question_lower = question.lower()
+
+    if not question:
+        return jsonify({
+            "error": "Question is required"
+        }), 400
+
+    try:
+
+        # -------------------------------------------------
+        # Load live Student 2 data through MCP
+        # -------------------------------------------------
+
+        menus_result = call_mcp_tool("get_menus")
+        recipes_result = call_mcp_tool("get_recipes")
+        ingredients_result = call_mcp_tool("get_ingredients")
+
+        menus = menus_result.get("menus", [])
+        recipes = recipes_result.get("recipes", [])
+        ingredients = ingredients_result.get("ingredients", [])
+
+        # -------------------------------------------------
+        # Counts
+        # -------------------------------------------------
+
+        if "how many" in question_lower:
+
+            if "recipe" in question_lower:
+                return jsonify({
+                    "status": "success",
+                    "source": "MCP",
+                    "tool": "get_recipes",
+                    "answer": (
+                        f"There are {len(recipes)} recipes "
+                        "in the live Menu & Recipe data."
+                    )
+                })
+
+            if "ingredient" in question_lower:
+                return jsonify({
+                    "status": "success",
+                    "source": "MCP",
+                    "tool": "get_ingredients",
+                    "answer": (
+                        f"There are {len(ingredients)} ingredients "
+                        "in the live Menu & Recipe data."
+                    )
+                })
+
+            if "menu" in question_lower:
+                return jsonify({
+                    "status": "success",
+                    "source": "MCP",
+                    "tool": "get_menus",
+                    "answer": (
+                        f"There are {len(menus)} menu items "
+                        "in the live Menu & Recipe data."
+                    )
+                })
+
+        # -------------------------------------------------
+        # Find matching menu / recipe / ingredient
+        # -------------------------------------------------
+
+        matching_menu = next(
+            (
+                menu for menu in menus
+                if str(menu.get("name", "")).lower() in question_lower
+                or str(menu.get("menu_name", "")).lower() in question_lower
+            ),
+            None
+        )
+
+        matching_recipe = next(
+            (
+                recipe for recipe in recipes
+                if str(recipe.get("menu_name", "")).lower() in question_lower
+                or str(recipe.get("name", "")).lower() in question_lower
+            ),
+            None
+        )
+
+        matching_ingredient = next(
+            (
+                ingredient for ingredient in ingredients
+                if str(ingredient.get("name", "")).lower() in question_lower
+                or str(ingredient.get("ingredient_name", "")).lower()
+                in question_lower
+            ),
+            None
+        )
+
+        # -------------------------------------------------
+        # Price of a menu item
+        # -------------------------------------------------
+
+        if (
+            ("price" in question_lower or "cost" in question_lower)
+            and matching_menu
+        ):
+            menu_id = matching_menu.get("menu_id")
+
+            result = call_mcp_tool(
+                "get_menu_price",
+                {"menu_id": menu_id}
+            )
+
+            price = result.get("price")
+
+            return jsonify({
+                "status": "success",
+                "source": "MCP",
+                "tool": "get_menu_price",
+                "answer": (
+                    f"Price information for "
+                    f"{matching_menu.get('name') or matching_menu.get('menu_name')}: "
+                    f"{format_mcp_value(price)}"
+                )
+            })
+
+        # -------------------------------------------------
+        # Ingredients assigned to a recipe
+        # -------------------------------------------------
+
+        if "ingredient" in question_lower and matching_recipe:
+
+            recipe_id = matching_recipe.get("recipe_id")
+
+            result = call_mcp_tool(
+                "get_recipe_ingredients",
+                {"recipe_id": recipe_id}
+            )
+
+            recipe_ingredients = result.get("ingredients", [])
+
+            return jsonify({
+                "status": "success",
+                "source": "MCP",
+                "tool": "get_recipe_ingredients",
+                "answer": (
+                    f"Ingredients for "
+                    f"{matching_recipe.get('name')}: "
+                    f"{format_mcp_list(recipe_ingredients)}"
+                )
+            })
+
+        # -------------------------------------------------
+        # Specific recipe
+        # -------------------------------------------------
+
+        if "recipe" in question_lower and matching_recipe:
+
+            recipe_id = matching_recipe.get("recipe_id")
+
+            result = call_mcp_tool(
+                "get_recipe",
+                {"recipe_id": recipe_id}
+            )
+
+            recipe = result.get("recipe", {})
+
+            return jsonify({
+                "status": "success",
+                "source": "MCP",
+                "tool": "get_recipe",
+                "answer": format_recipe(recipe)
+            })
+
+        # -------------------------------------------------
+        # Specific ingredient
+        # -------------------------------------------------
+
+        if matching_ingredient:
+
+            ingredient_id = matching_ingredient.get("ingredient_id")
+
+            result = call_mcp_tool(
+                "get_ingredient",
+                {"ingredient_id": ingredient_id}
+            )
+
+            ingredient = result.get("ingredient", {})
+
+            return jsonify({
+                "status": "success",
+                "source": "MCP",
+                "tool": "get_ingredient",
+                "answer": format_mcp_value(ingredient)
+            })
+
+        # -------------------------------------------------
+        # Specific menu item
+        # -------------------------------------------------
+
+        if matching_menu:
+
+            menu_id = matching_menu.get("menu_id")
+
+            result = call_mcp_tool(
+                "get_menu",
+                {"menu_id": menu_id}
+            )
+
+            menu = result.get("menu", {})
+
+            return jsonify({
+                "status": "success",
+                "source": "MCP",
+                "tool": "get_menu",
+                "answer": format_mcp_value(menu)
+            })
+
+        # -------------------------------------------------
+        # List recipes
+        # -------------------------------------------------
+
+        if "recipe" in question_lower:
+
+            names = [
+                recipe.get("name")
+                for recipe in recipes
+                if recipe.get("name")
+            ]
+
+            return jsonify({
+                "status": "success",
+                "source": "MCP",
+                "tool": "get_recipes",
+                "answer": (
+                    "Available recipes: "
+                    + ", ".join(names)
+                )
+            })
+
+        # -------------------------------------------------
+        # List ingredients
+        # -------------------------------------------------
+
+        if "ingredient" in question_lower:
+
+            names = [
+                ingredient.get("name")
+                or ingredient.get("ingredient_name")
+                for ingredient in ingredients
+            ]
+
+            names = [name for name in names if name]
+
+            return jsonify({
+                "status": "success",
+                "source": "MCP",
+                "tool": "get_ingredients",
+                "answer": (
+                    "Available ingredients: "
+                    + ", ".join(names)
+                )
+            })
+
+        # -------------------------------------------------
+        # List menu items
+        # -------------------------------------------------
+
+        if "menu" in question_lower:
+
+            names = [
+                menu.get("name")
+                or menu.get("menu_name")
+                for menu in menus
+            ]
+
+            names = [name for name in names if name]
+
+            return jsonify({
+                "status": "success",
+                "source": "MCP",
+                "tool": "get_menus",
+                "answer": (
+                    "Available menu items: "
+                    + ", ".join(names)
+                )
+            })
+
+        # -------------------------------------------------
+        # Unsupported live-data question
+        # -------------------------------------------------
+
+        return jsonify({
+            "status": "unsupported",
+            "source": "MCP",
+            "answer": (
+                "I can answer live questions about menus, prices, "
+                "recipes and ingredients."
+            )
+        })
+
+    except RuntimeError as error:
+        return jsonify({
+            "error": str(error)
+        }), 502
+
+    except Exception as error:
+        return jsonify({
+            "error": "Unable to connect to the MCP server",
+            "details": str(error)
+        }), 503
+
+
+def format_recipe(recipe):
+
+    name = (
+        recipe.get("name")
+        or recipe.get("menu_name")
+        or "Recipe"
+    )
+
+    instructions = recipe.get("instructions")
+
+    if instructions:
+        return f"{name}: {instructions}"
+
+    return format_mcp_value(recipe)
+
+
+def format_mcp_list(items):
+
+    if not items:
+        return "No data available."
+
+    formatted_items = []
+
+    for item in items:
+
+        if isinstance(item, dict):
+
+            name = (
+                item.get("ingredient_name")
+                or item.get("name")
+            )
+
+            quantity = (
+                item.get("quantity")
+                or item.get("amount")
+            )
+
+            unit = item.get("unit")
+
+            if name:
+                text = str(name)
+
+                if quantity:
+                    text += f" - {quantity}"
+
+                if unit:
+                    text += f" {unit}"
+
+                formatted_items.append(text)
+
+            else:
+                formatted_items.append(
+                    format_mcp_value(item)
+                )
+
+        else:
+            formatted_items.append(str(item))
+
+    return ", ".join(formatted_items)
+
+
+def format_mcp_value(value):
+
+    if isinstance(value, dict):
+
+        parts = []
+
+        for key, item in value.items():
+
+            if item is None:
+                continue
+
+            readable_key = key.replace("_", " ").title()
+
+            parts.append(
+                f"{readable_key}: {item}"
+            )
+
+        return ", ".join(parts)
+
+    if isinstance(value, list):
+        return format_mcp_list(value)
+
+    return str(value)
 
 # =========================================================
 # TEST / HEALTH ROUTE

@@ -17,33 +17,60 @@
         <header class="dashboard-header">
             <h1>AI Knowledge Assistant</h1>
             <p>
-                Ask questions using the shared cafe knowledge base.
+                Ask questions using the shared knowledge base or live cafe data.
             </p>
         </header>
 
         <section class="rag-section">
 
-            <form id="rag-form">
+            <form id="assistant-form">
 
-                <label for="rag-question">
+                <label>
+                    Information source
+                </label>
+
+                <div class="assistant-source-options">
+
+                    <label>
+                        <input
+                            type="radio"
+                            name="source"
+                            value="rag"
+                            checked
+                        >
+                        Knowledge Base (RAG)
+                    </label>
+
+                    <label>
+                        <input
+                            type="radio"
+                            name="source"
+                            value="mcp"
+                        >
+                        Live Cafe Data (MCP)
+                    </label>
+
+                </div>
+
+                <label for="assistant-question">
                     Your question
                 </label>
 
                 <textarea
-                    id="rag-question"
+                    id="assistant-question"
                     name="question"
                     rows="4"
                     placeholder="What does the Menu and Recipe feature manage?"
                     required
                 ></textarea>
 
-                <button type="submit" id="rag-submit">
+                <button type="submit" id="assistant-submit">
                     Ask Assistant
                 </button>
 
             </form>
 
-            <div id="rag-result" aria-live="polite"></div>
+            <div id="assistant-result" aria-live="polite"></div>
 
         </section>
 
@@ -55,16 +82,21 @@
 
     </main>
 
+
     <script>
-        const form = document.getElementById("rag-form");
-        const questionInput = document.getElementById("rag-question");
-        const submitButton = document.getElementById("rag-submit");
-        const result = document.getElementById("rag-result");
+        const form = document.getElementById("assistant-form");
+        const questionInput = document.getElementById("assistant-question");
+        const submitButton = document.getElementById("assistant-submit");
+        const result = document.getElementById("assistant-result");
 
         form.addEventListener("submit", async (event) => {
             event.preventDefault();
 
             const question = questionInput.value.trim();
+
+            const source = document.querySelector(
+                'input[name="source"]:checked'
+            ).value;
 
             if (!question) {
                 return;
@@ -74,73 +106,241 @@
             result.textContent = "Generating answer...";
 
             try {
-                const response = await fetch("/api/rag/query", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({ question })
-                });
 
-                const data = await response.json();
-
-                if (!response.ok) {
-                    result.textContent =
-                        data.error || "Unable to generate an answer.";
-                    return;
-                }
-
-                if (data.status === "insufficient_context") {
-                    result.textContent =
-                        "Insufficient context to answer this question.";
-                    return;
-                }
-
-                result.replaceChildren();
-
-                const answerHeading = document.createElement("h2");
-                answerHeading.textContent = "Answer";
-
-                const answer = document.createElement("p");
-                answer.textContent = data.answer || "No answer available.";
-
-                result.append(answerHeading, answer);
-
-                if (data.confidence) {
-                    const confidence = document.createElement("p");
-                    confidence.textContent =
-                        `Retrieval confidence: ${data.confidence}`;
-
-                    result.appendChild(confidence);
-                }
-
-                if (Array.isArray(data.sources) && data.sources.length) {
-                    const sourcesHeading = document.createElement("h3");
-                    sourcesHeading.textContent = "Sources";
-                    result.appendChild(sourcesHeading);
-
-                    const sourceList = document.createElement("ul");
-
-                    for (const source of data.sources) {
-                        const item = document.createElement("li");
-
-                        item.textContent =
-                            `${source.document}: ${source.excerpt}`;
-
-                        sourceList.appendChild(item);
-                    }
-
-                    result.appendChild(sourceList);
+                if (source === "rag") {
+                    await askRag(question);
+                } else {
+                    await askMcp(question);
                 }
 
             } catch (error) {
+
                 result.textContent =
                     "Unable to connect to the AI assistant.";
 
             } finally {
+
                 submitButton.disabled = false;
             }
         });
+
+
+        // =====================================================
+        // RAG
+        // =====================================================
+
+        async function askRag(question) {
+
+            const response = await fetch("/api/rag/query", {
+                method: "POST",
+
+                headers: {
+                    "Content-Type": "application/json"
+                },
+
+                body: JSON.stringify({
+                    question: question
+                })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                result.textContent =
+                    data.error ||
+                    "Unable to generate an answer.";
+
+                return;
+            }
+
+            if (data.status === "insufficient_context") {
+                result.replaceChildren();
+
+                const sourceLabel =
+                    document.createElement("p");
+
+                sourceLabel.textContent =
+                    "Response source: RAG";
+
+                const answerHeading =
+                    document.createElement("h2");
+
+                answerHeading.textContent = "Answer";
+
+                const answer =
+                    document.createElement("p");
+
+                answer.textContent =
+                    "Insufficient context to answer this question.";
+
+                result.append(
+                    sourceLabel,
+                    answerHeading,
+                    answer
+                );
+
+                return;
+            }
+
+            result.replaceChildren();
+
+
+            const sourceLabel =
+                document.createElement("p");
+
+            sourceLabel.textContent =
+                "Response source: RAG";
+
+
+            const answerHeading =
+                document.createElement("h2");
+
+            answerHeading.textContent =
+                "Answer";
+
+
+            const answer =
+                document.createElement("p");
+
+            answer.textContent =
+                data.answer ||
+                "No answer available.";
+
+
+            result.append(
+                sourceLabel,
+                answerHeading,
+                answer
+            );
+
+
+            if (data.confidence) {
+
+                const confidence =
+                    document.createElement("p");
+
+                confidence.textContent =
+                    `Retrieval confidence: ${data.confidence}`;
+
+                result.appendChild(confidence);
+            }
+
+
+            if (
+                Array.isArray(data.sources) &&
+                data.sources.length
+            ) {
+
+                const sourcesHeading =
+                    document.createElement("h3");
+
+                sourcesHeading.textContent =
+                    "Supporting Sources";
+
+                result.appendChild(
+                    sourcesHeading
+                );
+
+
+                const sourceList =
+                    document.createElement("ul");
+
+
+                for (const source of data.sources) {
+
+                    const item =
+                        document.createElement("li");
+
+                    item.textContent =
+                        `${source.document}: ${source.excerpt}`;
+
+                    sourceList.appendChild(item);
+                }
+
+
+                result.appendChild(sourceList);
+            }
+        }
+
+
+        // =====================================================
+        // MCP
+        // =====================================================
+
+        async function askMcp(question) {
+
+            const response = await fetch(
+                "/api/mcp/query",
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+
+                    body: JSON.stringify({
+                        question: question
+                    })
+                }
+            );
+
+
+            const data = await response.json();
+
+
+            if (!response.ok) {
+
+                result.textContent =
+                    data.error ||
+                    "Unable to retrieve live cafe data.";
+
+                return;
+            }
+
+
+            result.replaceChildren();
+
+
+            const sourceLabel =
+                document.createElement("p");
+
+            sourceLabel.textContent =
+                "Response source: MCP";
+
+
+            const answerHeading =
+                document.createElement("h2");
+
+            answerHeading.textContent =
+                "Answer";
+
+
+            const answer =
+                document.createElement("p");
+
+            answer.textContent =
+                data.answer ||
+                "No answer available.";
+
+
+            result.append(
+                sourceLabel,
+                answerHeading,
+                answer
+            );
+
+
+            if (data.tool) {
+
+                const tool =
+                    document.createElement("p");
+
+                tool.textContent =
+                    `MCP tool used: ${data.tool}`;
+
+                result.appendChild(tool);
+            }
+        }
     </script>
 
 </body>
