@@ -20,45 +20,6 @@ name: asd-cafe-management-assistant
 services:
 
   # -------------------------------------------------------------------
-  # AI-Mode : shared Ollama runtime + approved open-source LLM
-  # -------------------------------------------------------------------
-  ollama:
-    image: ollama/ollama:latest
-    container_name: cafe-ollama
-   
-    volumes:
-      - ollama-models:/root/.ollama
-    networks:
-      - cafe-net
-    healthcheck:
-      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
-      interval: 15s
-      timeout: 10s
-      retries: 10
-      start_period: 20s
-    restart: unless-stopped
-
-  # Pulls both approved models once, then exits. llama3.2 runs AI-Mode;
-  # qwen2.5:0.5b is the agentic loop's review agent and is also the
-  # default model for student-3-inventory.
-  ollama-init:
-    image: ollama/ollama:latest
-    container_name: cafe-ollama-init
-    depends_on:
-      ollama:
-        condition: service_healthy
-    environment:
-      OLLAMA_HOST: http://ollama:11434
-    entrypoint: ["/bin/sh", "-c"]
-    command: >
-      "ollama pull ${OLLAMA_MODEL:-llama3.2} &&
-       ollama pull ${OLLAMA_REVIEW_MODEL:-qwen2.5:0.5b} &&
-       echo 'both models ready'"
-    networks:
-      - cafe-net
-    restart: "no"
-
-  # -------------------------------------------------------------------
   # Shared entry point : index.html, authentication, staff/customer
   # dashboards (source owned by the group, in ./shared)
   # -------------------------------------------------------------------
@@ -103,8 +64,12 @@ services:
       DB_SERVICE_URL: http://student-4-database:7400
       MENU_SERVICE_URL: http://student2-backend:5201       # Student 2 - Menu API
       INVENTORY_SERVICE_URL: http://student-3-backend:8300   # Student 3 - Inventory API
-      OLLAMA_URL: http://ollama:11434
+      OLLAMA_URL: http://host.docker.internal:11434
       OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2}
+      MCP_URL: http://host.docker.internal:5700
+      RAG_URL: http://host.docker.internal:5600
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       student-4-database:
         condition: service_healthy
@@ -179,7 +144,7 @@ services:
       # AI-Mode. The OpenAI-compatible /v1 endpoint, as in the course
       # configuration guide. Set OLLAMA_BASE_URL in a root .env to reuse
       # an Ollama already running on the host instead of the container.
-      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434/v1}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434/v1}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2}
       OLLAMA_REVIEW_MODEL: ${OLLAMA_REVIEW_MODEL:-qwen2.5:0.5b}
       AI_TIMEOUT: 240
@@ -187,6 +152,8 @@ services:
       # it verifies the one the browser already carries, so a customer's
       # identity cannot be claimed in a request body.
       SECRET_KEY: ${SHARED_SECRET_KEY:-temporary-secret-key}
+      MCP_URL: http://host.docker.internal:5700
+      RAG_URL: http://host.docker.internal:5600
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
@@ -243,6 +210,10 @@ services:
       - "5201:5201"
     environment:
       DATABASE_SERVICE_URL: http://student2-database:5202
+      MCP_URL: http://host.docker.internal:5700
+      RAG_URL: http://host.docker.internal:5600
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       - student2-database
     networks:
@@ -294,17 +265,19 @@ services:
     environment:
       PORT: 8300
       DB_SERVICE_URL: http://student-3-database:7300
-      OLLAMA_URL: http://ollama:11434/api/generate
+      OLLAMA_URL: http://host.docker.internal:11434/api/generate
       OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2}
       LOG_DIRECTORY: /app/logs
       MCP_SERVER_URL: http://host.docker.internal:5700/mcp 
+      MCP_URL: http://host.docker.internal:5700
+      RAG_URL: http://host.docker.internal:5600
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./student-3/logs:/app/logs
     depends_on:
       student-3-database:
         condition: service_healthy
-      ollama-init:
-        condition: service_completed_successfully
     networks:
       - cafe-net
     healthcheck:
@@ -363,6 +336,10 @@ services:
       PORT: 8500
       DATABASE_API_URL: http://student-5-database:7500/api
       ORDER_SERVICE_URL: http://student-4-backend:8400/api
+      MCP_URL: http://host.docker.internal:5700
+      RAG_URL: http://host.docker.internal:5600
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       student-5-database:
         condition: service_healthy
@@ -390,7 +367,6 @@ networks:
     driver: bridge
 
 volumes:
-  ollama-models:
   student3-inventory-data:
   student4-order-data:
   student1-feedback-data:
