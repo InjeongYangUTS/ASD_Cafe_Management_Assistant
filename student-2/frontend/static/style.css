@@ -987,3 +987,164 @@ body {
 .ai-clear-button:hover {
     transform: translateY(-2px);
 }
+
+/* =============================
+   RAG Knowledge Assistant
+   ============================= */
+
+.rag-section {
+    width: 100%;
+    max-width: 850px;
+    margin: 0 auto 30px;
+    padding: 35px;
+
+    background-color: #ffffff;
+    border: 2px solid #f6df9f;
+    border-radius: 20px;
+
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.05);
+}
+
+/* Question form */
+
+#rag-form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+#rag-form label {
+    font-size: 17px;
+    font-weight: 600;
+    color: #333333;
+}
+
+#rag-question {
+    width: 100%;
+    min-height: 130px;
+    padding: 16px;
+
+    font-family: inherit;
+    font-size: 15px;
+    line-height: 1.6;
+
+    background-color: #fffdf9;
+    border: 1px solid #dddddd;
+    border-radius: 12px;
+
+    color: #333333;
+    resize: vertical;
+    outline: none;
+
+    transition: border-color 0.2s ease;
+}
+
+#rag-question:focus {
+    border-color: #f4c6d7;
+    box-shadow: 0 0 0 3px rgba(244, 198, 215, 0.2);
+}
+
+#rag-question::placeholder {
+    color: #999999;
+}
+
+/* Ask button */
+
+#rag-submit {
+    align-self: center;
+
+    min-width: 170px;
+    padding: 13px 25px;
+
+    background-color: #f4c6d7;
+    color: #333333;
+
+    border: none;
+    border-radius: 10px;
+
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 600;
+
+    cursor: pointer;
+
+    transition:
+        background-color 0.2s ease,
+        transform 0.2s ease;
+}
+
+#rag-submit:hover:not(:disabled) {
+    background-color: #ebaec5;
+    transform: translateY(-2px);
+}
+
+#rag-submit:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Answer and sources */
+
+#rag-result:not(:empty) {
+    margin-top: 30px;
+    padding: 25px;
+
+    background-color: #fffdf9;
+    border: 1px solid #f6df9f;
+    border-radius: 15px;
+}
+
+#rag-result h2 {
+    margin: 0 0 15px;
+    font-size: 22px;
+    color: #333333;
+}
+
+#rag-result h3 {
+    margin: 25px 0 12px;
+    font-size: 17px;
+    color: #333333;
+}
+
+#rag-result p {
+    margin: 10px 0;
+    font-size: 15px;
+    line-height: 1.7;
+    color: #555555;
+}
+
+#rag-result ul {
+    margin: 10px 0 0;
+    padding-left: 20px;
+}
+
+#rag-result li {
+    margin-bottom: 10px;
+    padding: 12px 15px;
+
+    background-color: #fff0f5;
+    border: 1px solid #f4c6d7;
+    border-radius: 10px;
+
+    font-size: 14px;
+    line-height: 1.6;
+    color: #555555;
+
+    overflow-wrap: anywhere;
+}
+
+/* Mobile */
+
+@media (max-width: 650px) {
+    .rag-section {
+        padding: 20px;
+    }
+
+    #rag-result:not(:empty) {
+        padding: 18px;
+    }
+
+    #rag-submit {
+        width: 100%;
+    }
+}
