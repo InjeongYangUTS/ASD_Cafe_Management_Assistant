@@ -190,6 +190,44 @@ def frontend_rag_query():
             "error": "Invalid response from the AI assistant"
         }), 502
 
+# -------------------------
+# Staff - MCP Assistant
+# -------------------------
+
+@app.route("/api/mcp/query", methods=["POST"])
+def frontend_mcp_query():
+
+    if "staff_id" not in session:
+        return jsonify({
+            "error": "Unauthorized"
+        }), 401
+
+    data = request.get_json(silent=True)
+
+    if not isinstance(data, dict):
+        return jsonify({
+            "error": "Invalid request"
+        }), 400
+
+    try:
+        response = requests.post(
+            f"{STUDENT2_BACKEND}/api/mcp/query",
+            json=data,
+            timeout=30
+        )
+
+        return jsonify(response.json()), response.status_code
+
+    except requests.RequestException:
+        return jsonify({
+            "error": "Unable to connect to the MCP service"
+        }), 503
+
+    except ValueError:
+        return jsonify({
+            "error": "Invalid response from the MCP service"
+        }), 502
+
 if __name__ == "__main__":
     app.run(
         host="0.0.0.0",
