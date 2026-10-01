@@ -9,6 +9,7 @@ CORS(app)
 
 DATABASE_SERVICE = os.getenv("DATABASE_SERVICE_URL", "http://localhost:5202")
 
+RAG_SERVICE = os.getenv("RAG_SERVICE_URL", "http://host.docker.internal:5600")
 
 # =========================================================
 # MENU ROUTES
@@ -1034,7 +1035,6 @@ def delete_recipe_ingredient(recipe_ingredient_id):
 )
 def ai_price_recommendation(menu_id):
 
-    # Get required pricing information
     # from the database microservice.
     try:
         database_response = requests.get(
@@ -1173,6 +1173,55 @@ Do not add extra details.
             "error": "Unable to connect to Ollama",
             "details": str(error)
         }), 503
+
+# =========================================================
+# SHARED RAG INTEGRATION
+# =========================================================
+
+@app.route("/api/rag/query", methods=["POST"])
+def rag_query():
+
+    data = request.get_json(silent=True)
+
+    if not isinstance(data, dict):
+        return jsonify({
+            "error": "A JSON request body is required"
+        }), 400
+
+    question = data.get("question")
+
+    if not isinstance(question, str) or not question.strip():
+        return jsonify({
+            "error": "Question is required"
+        }), 400
+
+    try:
+        response = requests.post(
+            f"{RAG_SERVICE}/query",
+            json={
+                "question": question.strip()
+            },
+            timeout=120
+        )
+
+        response.raise_for_status()
+
+        return jsonify(response.json()), response.status_code
+
+    except requests.Timeout:
+        return jsonify({
+            "error": "The RAG server did not respond in time"
+        }), 504
+
+    except requests.RequestException:
+        return jsonify({
+            "error": "Unable to connect to the RAG server"
+        }), 503
+
+    except ValueError:
+        return jsonify({
+            "error": "Invalid response from the RAG server"
+        }), 502
 
 
 # =========================================================
