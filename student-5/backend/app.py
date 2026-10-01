@@ -20,10 +20,19 @@ ORDER_SERVICE_URL = os.getenv(
     "",
 )
 
+OLLAMA_URL = os.getenv(
+    "OLLAMA_URL",
+    "http://host.docker.internal:11434/api/generate",
+)
+
+OLLAMA_REVIEW_MODEL = os.getenv(
+    "OLLAMA_REVIEW_MODEL",
+    "qwen2.5:0.5b",
+)
+
 
 def current_time():
     return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
-
 
 def call_database(method, endpoint, data=None):
     return requests.request(
@@ -273,6 +282,139 @@ def process_payment():
 
     except requests.RequestException:
         return jsonify({"error": "Database service is unavailable"}), 503
+
+@app.post("/api/ai/payment-review")
+def payment_ai_review():
+    try:
+        payments_response = call_database("GET", "payments")
+        refunds_response = call_database("GET", "refunds")
+
+        if payments_response.status_code != 200:
+            return jsonify({"error": "Payments could not be analysed"}), 502
+
+        if refunds_response.status_code != 200:
+            return jsonify({"error": "Refunds could not be analysed"}), 502
+
+        payments = payments_response.json()
+        refunds = refunds_response.json()
+
+        completed_payments = [
+            payment for payment in payments
+            if payment.get("payment_status") in {
+                "completed",
+                "partially_refunded",
+                "refunded",
+            }
+        ]
+
+        completed_refunds = [
+            refund for refund in refunds
+            if refund.get("refund_status") == "completed"
+        ]
+
+        statistics = {
+            "completed_payments": len(completed_payments),
+            "partially_refunded_payments": sum(
+                payment.get("payment_status") == "partially_refunded"
+                for payment in payments
+            ),
+            "fully_refunded_payments": sum(
+                payment.get("payment_status") == "refunded"
+                for payment in payments
+            ),
+            "completed_refunds": len(completed_refunds),
+            "total_paid": round(
+                sum(float(payment.get("amount", 0)) for payment in completed_payments),
+                2,
+            ),
+            "total_refunded": round(
+                sum(float(refund.get("refund_amount", 0)) for refund in completed_refunds),
+                2,
+            ),
+        }
+
+        payment_count = statistics["completed_payments"]
+        total_paid = statistics["total_paid"]
+
+        statistics["refund_frequency_percent"] = round(
+            statistics["completed_refunds"] / payment_count * 100,
+            1,
+        ) if payment_count else 0.0
+
+        statistics["refund_value_percent"] = round(
+            statistics["total_refunded"] / total_paid * 100,
+            1,
+        ) if total_paid else 0.0
+
+        refund_frequency = statistics["refund_frequency_percent"]
+        refund_value = statistics["refund_value_percent"]
+
+        if refund_frequency >= 30:
+            frequency_level = "high"
+        elif refund_frequency >= 10:
+            frequency_level = "moderate"
+        else:
+            frequency_level = "low"
+
+        operational_finding = (
+            f"Refund frequency is {frequency_level} at "
+            f"{refund_frequency:.1f}%. Refunded value represents "
+            f"{refund_value:.1f}% of completed payment value."
+        )
+
+        prompt = f"""
+You are a payment operations reviewer for a cafe.
+
+Give exactly one short operational recommendation based on the
+verified finding below:
+
+{operational_finding}
+
+Do not repeat, calculate or reinterpret any statistics.
+Do not include numbers or percentages.
+Do not recommend automatically changing payments or issuing refunds.
+Keep the recommendation under 50 words.
+""".strip()
+
+        ollama_response = requests.post(
+            OLLAMA_URL,
+            json={
+                "model": OLLAMA_REVIEW_MODEL,
+                "prompt": prompt,
+                "stream": False,
+            },
+            timeout=120,
+        )
+
+        if ollama_response.status_code != 200:
+            return jsonify({"error": "Ollama returned an error"}), 502
+
+        recommendation = ollama_response.json().get("response", "").strip()
+
+        if not recommendation:
+            return jsonify({"error": "Ollama returned an empty response"}), 502
+
+        return jsonify(
+            {
+                "model": OLLAMA_REVIEW_MODEL,
+                "statistics": statistics,
+                "operational_finding": operational_finding,
+                "recommendation": recommendation,
+                "privacy": (
+                    "Only anonymous aggregate statistics were sent "
+                    "to the local Ollama model."
+                ),
+            }
+        )
+
+    except requests.RequestException:
+        return jsonify(
+            {"error": "The database or local Ollama service is unavailable"}
+        ), 503
+    except (TypeError, ValueError):
+        return jsonify({"error": "Payment statistics were invalid"}), 502
+
+
 
 @app.get("/api/refunds")
 def list_refunds():
