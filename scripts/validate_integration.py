@@ -51,7 +51,12 @@ STUDENTS = {
         "mcp_tools": ["get_orders", "get_order", "get_kitchen_queue", "get_order_status"]},
     5: {"feature": "Payment & Billing", "owner": "Ong Ath Vongnathi",
         "health": "http://127.0.0.1:8500/health",
-        "mcp": None, "rag": None, "mcp_tools": []},
+        "mcp": ("POST", "http://127.0.0.1:8500/api/ai/mcp",
+                {"tool": "get_payment_records", "arguments": {"limit": 5}}),
+        "rag": ("http://127.0.0.1:8500/api/ai/rag",
+                "How are partial refunds handled in Payment and Billing?"),
+        "mcp_tools": ["get_payment_records", "get_payment_record",
+                      "get_refund_records"]},
 }
 
 PASS, FAIL, NOT_READY = "PASS", "FAIL", "NOT READY"

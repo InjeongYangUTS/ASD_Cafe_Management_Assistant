@@ -6,6 +6,8 @@ import requests
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
+from ai_services import McpClient, RagClient
+
 
 app = Flask(__name__)
 CORS(app)
@@ -30,6 +32,12 @@ OLLAMA_REVIEW_MODEL = os.getenv(
     "qwen2.5:0.5b",
 )
 
+MCP_ENABLED = os.getenv("MCP_ENABLED", "true").lower() == "true"
+RAG_ENABLED = os.getenv("RAG_ENABLED", "true").lower() == "true"
+
+mcp = McpClient()
+rag = RagClient()
+
 
 def current_time():
     return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
@@ -49,6 +57,17 @@ def call_order_service(method, endpoint, data=None):
         json=data,
         timeout=5,
     )
+
+
+def ai_response(payload):
+    """Map the Release 1 status field to its required HTTP status."""
+    status_code = {
+        "disabled": 403,
+        "rejected": 400,
+        "not_registered": 404,
+        "unavailable": 503,
+    }.get(payload.get("status"), 200)
+    return jsonify(payload), status_code
 
 
 @app.get("/health")
@@ -413,6 +432,100 @@ Keep the recommendation under 50 words.
         ), 503
     except (TypeError, ValueError):
         return jsonify({"error": "Payment statistics were invalid"}), 502
+
+
+@app.get("/api/ai/mcp")
+def mcp_tools():
+    if not MCP_ENABLED:
+        return ai_response({
+            "status": "disabled",
+            "available": False,
+            "reason": "MCP is disabled for this environment.",
+            "count": 0,
+            "tools": [],
+        })
+
+    tools, reason = mcp.list_tools()
+    names = [
+        tool.get("name", "") if isinstance(tool, dict) else str(tool)
+        for tool in tools
+    ]
+    student5_tools = [
+        name for name in names
+        if name in {
+            "get_payment_records",
+            "get_payment_record",
+            "get_refund_records",
+        }
+    ]
+    payload = {
+        "status": "success" if reason is None else "unavailable",
+        "available": reason is None,
+        "reason": reason,
+        "count": len(student5_tools),
+        "tools": student5_tools,
+    }
+    return ai_response(payload)
+
+
+@app.post("/api/ai/mcp")
+def mcp_call():
+    if not MCP_ENABLED:
+        return ai_response({
+            "status": "disabled",
+            "available": False,
+            "reason": "MCP is disabled for this environment.",
+        })
+
+    body = request.get_json(silent=True) or {}
+    tool = body.get("tool")
+    arguments = body.get("arguments", {})
+
+    if not isinstance(tool, str) or not tool.strip():
+        return ai_response({
+            "status": "rejected",
+            "reason": "A tool name is required.",
+        })
+    if not isinstance(arguments, dict):
+        return ai_response({
+            "status": "rejected",
+            "reason": "arguments must be an object.",
+        })
+
+    allowed = {
+        "get_payment_records",
+        "get_payment_record",
+        "get_refund_records",
+    }
+    if tool not in allowed:
+        return ai_response({
+            "status": "not_registered",
+            "reason": "The requested tool does not belong to Student 5.",
+        })
+
+    return ai_response(mcp.call(tool, arguments))
+
+
+@app.post("/api/ai/rag")
+def rag_query():
+    if not RAG_ENABLED:
+        return ai_response({
+            "status": "disabled",
+            "reason": "RAG is disabled for this environment.",
+            "answer": None,
+            "sources": [],
+            "confidence": None,
+        })
+
+    body = request.get_json(silent=True) or {}
+    question = body.get("question")
+    if not isinstance(question, str) or not question.strip():
+        return ai_response({
+            "status": "rejected",
+            "reason": "A non-empty question is required.",
+        })
+
+    return ai_response(rag.ask(question.strip()))
 
 
 

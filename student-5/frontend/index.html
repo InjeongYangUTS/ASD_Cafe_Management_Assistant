@@ -244,6 +244,23 @@
             margin-bottom: 20px;
         }
 
+        .ai-grid {
+            margin-top: 25px;
+        }
+
+        .evidence-source {
+            margin-top: 12px;
+            padding: 12px;
+            border-left: 4px solid #f6df9f;
+            background: #fffdf5;
+        }
+
+        .review-flag {
+            margin-top: 12px;
+            color: #8a4b00;
+            font-weight: 700;
+        }
+
         .table-container {
             overflow-x: auto;
             border-radius: 10px;
@@ -435,6 +452,50 @@
     <div id="aiReviewMessage" class="message"></div>
 </section>
 
+        <section id="sharedAiPanels" class="grid ai-grid">
+            <div class="card">
+                <h2>Shared MCP Payment Tool</h2>
+                <p>
+                    Run a read-only payment tool registered on the shared MCP
+                    server. The tool accesses data through this backend API.
+                </p>
+
+                <label for="mcpTool">Tool</label>
+                <select id="mcpTool">
+                    <option value="get_payment_records">get_payment_records</option>
+                    <option value="get_refund_records">get_refund_records</option>
+                </select>
+
+                <label for="mcpLimit">Limit</label>
+                <input id="mcpLimit" type="number" min="1" max="100" value="10">
+
+                <button id="runMcpButton" onclick="runMcpTool()">
+                    Run MCP Tool
+                </button>
+
+                <div id="mcpMessage" class="message"></div>
+                <div id="mcpTable" class="table-container"></div>
+            </div>
+
+            <div class="card">
+                <h2>Shared RAG Payment Knowledge</h2>
+                <p>
+                    Ask a question grounded in the project payment and refund
+                    documentation. The answer includes its source evidence.
+                </p>
+
+                <label for="ragQuestion">Question</label>
+                <textarea id="ragQuestion">How are partial refunds handled?</textarea>
+
+                <button id="askRagButton" onclick="askRag()">
+                    Ask Shared RAG
+                </button>
+
+                <div id="ragMessage" class="message"></div>
+                <div id="ragSources"></div>
+            </div>
+        </section>
+
         <section id="paymentRecords" class="card records">
 
             <h2>Payment Records</h2>
@@ -483,6 +544,117 @@
             element.className = successful
                 ? "message success"
                 : "message error";
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? "")
+                .replaceAll("&", "&amp;")
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll('"', "&quot;")
+                .replaceAll("'", "&#039;");
+        }
+
+        async function runMcpTool() {
+            const button = document.getElementById("runMcpButton");
+            const tool = document.getElementById("mcpTool").value;
+            const limit = Number(document.getElementById("mcpLimit").value);
+            const table = document.getElementById("mcpTable");
+
+            button.disabled = true;
+            table.innerHTML = "";
+
+            try {
+                const response = await fetch(`${API_URL}/api/ai/mcp`, {
+                    method: "POST",
+                    headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({tool, arguments: {limit}})
+                });
+                const result = await response.json();
+                if (!response.ok || result.status !== "success") {
+                    throw new Error(result.reason || "MCP tool is unavailable");
+                }
+
+                showMessage(
+                    "mcpMessage",
+                    `Tool: ${result.tool}\nInputs: limit=${limit}\n` +
+                    `Returned ${result.row_count} row(s).`,
+                    true
+                );
+
+                if (!result.rows.length) {
+                    table.innerHTML = "<p>No matching records.</p>";
+                    return;
+                }
+
+                const head = result.columns.map(
+                    column => `<th>${escapeHtml(column)}</th>`
+                ).join("");
+                const rows = result.rows.map(row => `<tr>${
+                    result.columns.map(column =>
+                        `<td>${escapeHtml(row[column])}</td>`
+                    ).join("")
+                }</tr>`).join("");
+                table.innerHTML = `<table><thead><tr>${head}</tr></thead>` +
+                    `<tbody>${rows}</tbody></table>`;
+            } catch (error) {
+                showMessage("mcpMessage", error.message, false);
+            } finally {
+                button.disabled = false;
+            }
+        }
+
+        async function askRag() {
+            const button = document.getElementById("askRagButton");
+            const question = document.getElementById("ragQuestion").value.trim();
+            const sourcesElement = document.getElementById("ragSources");
+
+            button.disabled = true;
+            sourcesElement.innerHTML = "";
+
+            try {
+                const response = await fetch(`${API_URL}/api/ai/rag`, {
+                    method: "POST",
+                    headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({question})
+                });
+                const result = await response.json();
+
+                if (!response.ok || result.status === "unavailable") {
+                    throw new Error(result.reason || result.error || "RAG is unavailable");
+                }
+                if (result.status === "insufficient_context") {
+                    showMessage(
+                        "ragMessage",
+                        "There is not enough project information to answer this question.",
+                        false
+                    );
+                    sourcesElement.innerHTML =
+                        '<p class="review-flag">Needs staff review</p>';
+                    return;
+                }
+
+                showMessage(
+                    "ragMessage",
+                    `Confidence: ${result.confidence}\n\n${result.answer}`,
+                    true
+                );
+                sourcesElement.innerHTML = (result.sources || []).map(source => `
+                    <div class="evidence-source">
+                        <strong>${escapeHtml(source.document)}</strong>
+                        <p>“${escapeHtml(source.excerpt)}”</p>
+                    </div>
+                `).join("");
+
+                if (["low", "insufficient"].includes(result.confidence)) {
+                    sourcesElement.innerHTML +=
+                        '<p class="review-flag">Needs staff review</p>';
+                }
+            } catch (error) {
+                showMessage("ragMessage", error.message, false);
+            } finally {
+                button.disabled = false;
+            }
         }
 
         async function checkBackend() {
@@ -759,6 +931,7 @@
             document.getElementById("refundCard").hidden = true;
             document.getElementById("paymentRecords").hidden = true;
             document.getElementById("aiReviewCard").hidden = true;
+            document.getElementById("sharedAiPanels").hidden = true;
             document.getElementById("refreshPaymentsButton").hidden = true;
 
             const backLink = document.getElementById("backDashboardLink");

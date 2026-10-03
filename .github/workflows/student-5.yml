@@ -1,5 +1,9 @@
 name: Student 5 - Payment and Billing CI
 
+env:
+  MCP_ENABLED: "false"
+  RAG_ENABLED: "false"
+
 on:
   push:
     paths:
@@ -50,6 +54,14 @@ jobs:
 
       - name: Run Student 5 automated tests
         run: python -m pytest student-5/tests -v
+
+      - name: Verify required MCP and RAG routes and panels
+        run: |
+          grep -q '@app.get("/api/ai/mcp")' student-5/backend/app.py
+          grep -q '@app.post("/api/ai/mcp")' student-5/backend/app.py
+          grep -q '@app.post("/api/ai/rag")' student-5/backend/app.py
+          grep -q 'id="mcpMessage"' student-5/frontend/index.html
+          grep -q 'id="ragSources"' student-5/frontend/index.html
 
   build:
     name: Build Student 5 Docker Services
