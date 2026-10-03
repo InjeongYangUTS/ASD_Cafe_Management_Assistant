@@ -1,6 +1,6 @@
 The Customer Feedback and Reviews feature lets customers leave a star rating from 1 to 5 with a title and a comment. Customers can edit or delete their own reviews. Staff read every review on the staff review board, reply to customers, and track the review status.
 
-Review sentiment is classified as POSITIVE, NEUTRAL or NEGATIVE. The sentiment score starts from the star rating: (rating - 3) / 2, so a 5-star review starts at 1.0 and a 1-star review starts at -1.0. Each positive word such as great, friendly or delicious adds 0.08, and each negative word such as slow, cold or rude subtracts 0.08. The score is kept between -1.0 and 1.0.
+Review sentiment is classified as POSITIVE, NEUTRAL or NEGATIVE. The sentiment score starts from the star rating: (rating - 3) / 2, so a 5-star review starts at 1.0 and a 1-star review starts at -1.0. Each positive word such as great, friendly or delicious adds 0.15, and each negative word such as slow, cold or rude subtracts 0.15. A negated word counts the other way, so "not good" is negative. Words are matched as whole words, so "latte" does not count as "late". The score is kept between -1.0 and 1.0. Sentiment is checked again whenever a customer edits their review.
 
 A review is POSITIVE sentiment when the score is 0.25 or higher, NEGATIVE sentiment when the score is -0.25 or lower, and NEUTRAL sentiment otherwise. A 2-star review with no other positive or negative words scores -0.5 and is classified as NEGATIVE.
 

@@ -447,6 +447,8 @@ body.s1-app {
 
 .s1-ai .s1-hint {
     margin: 10px 0 0;
+    font-size: 14px;
+    color: var(--s1-muted);
 }
 
 .s1-ai-block {
