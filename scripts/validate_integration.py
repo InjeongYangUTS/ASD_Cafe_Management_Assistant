@@ -33,7 +33,8 @@ STUDENTS = {
         "mcp_tools": ["get_menu_item_feedback", "get_top_issues", "get_reviews_needing_reply"]},
     2: {"feature": "Menu & Recipe", "owner": "Ei Thandar",
         "health": "http://127.0.0.1:5201/api/menus",
-        "mcp": None,
+        "mcp": ("POST", "http://127.0.0.1:5201/api/mcp/query",
+                {"question": "How many recipes are there?"}),
         "rag": ("http://127.0.0.1:5201/api/rag/query", "What does the Menu and Recipe feature manage?"),
         "mcp_tools": ["get_menus", "get_menu", "get_menu_price", "get_ingredients",
                       "get_ingredient", "get_recipes", "get_recipe", "get_recipe_ingredients"]},
@@ -155,10 +156,11 @@ def check_student(report, number, spec, tools):
     else:
         method, url, body = spec["mcp"]
         status, data, _, ms = http(method, url, body, timeout=30)
-        ok = status == 200 and isinstance(data, dict) and (data.get("ok") or data.get("success"))
-        rows = data.get("row_count", data.get("count")) if isinstance(data, dict) else None
+        ok = status == 200 and isinstance(data, dict) and (
+            data.get("ok") or data.get("success") or data.get("status") == "success")
+        rows = data.get("row_count", data.get("count", data.get("tool"))) if isinstance(data, dict) else None
         report.add(section, "MCP through backend", "200 + result",
-                   "%s, %s rows in %dms" % (status or "unreachable", rows, ms),
+                   "%s, %s in %dms" % (status or "unreachable", rows, ms),
                    PASS if ok else (NOT_READY if status == 404 else FAIL))
 
     if spec["rag"] is None:
