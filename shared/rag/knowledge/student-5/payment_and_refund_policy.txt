@@ -1,0 +1,7 @@
+The Payment and Billing feature records payments for confirmed cafe orders. A payment contains an order identifier, customer identifier, amount, payment method, payment status and payment time. Supported payment methods are card, cash and digital wallet. A successful payment is marked completed and the related order is updated through the Student 4 Order API.
+
+Refunds are created against an existing completed or partially refunded payment. A refund records the payment identifier, refund amount, reason, requesting customer and refund status. The backend rejects a refund when its amount is greater than the remaining refundable balance. A partial refund changes the payment status to partially_refunded, while refunding the full remaining balance changes it to refunded.
+
+Payment and refund changes are performed only through the Student 5 backend API. Shared MCP tools are read-only and obtain payment information through that backend rather than connecting directly to the Student 5 database.
+
+The AI payment operations review calculates anonymous aggregate statistics in the backend before contacting the local Ollama model. Customer, order and payment identifiers are not included in the prompt. Ollama writes a short operational recommendation but does not approve payments or issue refunds.
