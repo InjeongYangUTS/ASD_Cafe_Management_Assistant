@@ -1,12 +1,17 @@
 import os
 from pathlib import Path
 import sqlite3
+import shutil
 
 from flask import Flask, jsonify, request
 
 app = Flask(__name__)
 
-DATABASE_PATH = Path(__file__).with_name("payments.db")
+DEFAULT_DATABASE_PATH = Path(__file__).with_name("payments.db")
+DATABASE_PATH = Path(os.getenv("PAYMENT_DB_PATH", str(DEFAULT_DATABASE_PATH)))
+if not DATABASE_PATH.exists():
+    DATABASE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(DEFAULT_DATABASE_PATH, DATABASE_PATH)
 
 RESOURCE_CONFIG = {
     "payments": {

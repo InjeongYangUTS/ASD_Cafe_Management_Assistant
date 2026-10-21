@@ -5,9 +5,20 @@ import requests
 app = Flask(__name__)
 
 # Must match the shared authentication service
-app.secret_key = "temporary-secret-key"
+app.secret_key = os.environ.get("SHARED_SECRET_KEY", "temporary-secret-key")
 
 STUDENT2_BACKEND = os.getenv("STUDENT2_BACKEND_URL", "http://student2-backend:5201")
+SHARED_PORT = os.getenv("SHARED_PORT", "5100")
+
+
+def shared_url(path="/"):
+    host = request.host.split(":")[0]
+    return f"{request.scheme}://{host}:{SHARED_PORT}{path}"
+
+
+@app.context_processor
+def inject_cloud_urls():
+    return {"shared_base_url": shared_url("")}
 
 
 # -------------------------
@@ -18,7 +29,7 @@ STUDENT2_BACKEND = os.getenv("STUDENT2_BACKEND_URL", "http://student2-backend:52
 def home():
     # Return to the shared homepage where the user
     # can choose Customer or Staff
-    return redirect("http://localhost:5100/")
+    return redirect(shared_url("/"))
 
 
 # -------------------------
@@ -29,7 +40,7 @@ def home():
 def manage():
     if "staff_id" not in session:
         return redirect(
-            "http://localhost:5100/shared/auth/staff_login.html"
+            shared_url("/shared/auth/staff_login.html")
         )
 
     return render_template("index.html")
@@ -38,7 +49,7 @@ def manage():
 def menus():
     if "staff_id" not in session:
         return redirect(
-            "http://localhost:5100/shared/auth/staff_login.html"
+            shared_url("/shared/auth/staff_login.html")
         )
 
     return render_template("menus.html")
@@ -52,7 +63,7 @@ def menus():
 def recipes():
     if "staff_id" not in session:
         return redirect(
-            "http://localhost:5100/shared/auth/staff_login.html"
+            shared_url("/shared/auth/staff_login.html")
         )
 
     return render_template("recipes.html")
@@ -66,7 +77,7 @@ def recipes():
 def ingredients():
     if "staff_id" not in session:
         return redirect(
-            "http://localhost:5100/shared/auth/staff_login.html"
+            shared_url("/shared/auth/staff_login.html")
         )
 
     return render_template("ingredients.html")
@@ -80,7 +91,7 @@ def ingredients():
 def customer_menu():
     if "customer_id" not in session:
         return redirect(
-            "http://localhost:5100/shared/auth/customer_login.html"
+            shared_url("/shared/auth/customer_login.html")
         )
 
     return render_template("customer_menu.html")
@@ -136,7 +147,7 @@ def htmx_ai_price_recommendation():
 def rag_page():
     if "staff_id" not in session:
         return redirect(
-            "http://localhost:5100/shared/auth/staff_login.html"
+            shared_url("/shared/auth/staff_login.html")
         )
 
     return render_template("rag.html")
