@@ -56,18 +56,34 @@ JSON OUTPUT RULES:
 """
 
 
-    response = requests.post(
-        f"{OLLAMA_URL}/api/generate",
-        json={
-            "model": OLLAMA_MODEL,
-            "prompt": prompt,
-            "stream": False,
-            "format": "json"
-        },
-        timeout=OLLAMA_TIMEOUT
-    )
+    try:
+        response = requests.post(
+            f"{OLLAMA_URL}/api/generate",
+            json={
+                "model": OLLAMA_MODEL,
+                "prompt": prompt,
+                "stream": False,
+                "format": "json"
+            },
+            timeout=OLLAMA_TIMEOUT
+        )
 
-    response.raise_for_status()
+        response.raise_for_status()
+
+    except requests.exceptions.Timeout as exc:
+        raise RuntimeError(
+            "Worker Agent timed out while waiting for Ollama."
+        ) from exc
+
+    except requests.exceptions.ConnectionError as exc:
+        raise RuntimeError(
+            "Worker Agent could not connect to Ollama."
+        ) from exc
+
+    except requests.exceptions.RequestException as exc:
+        raise RuntimeError(
+            "Worker Agent failed to communicate with Ollama."
+        ) from exc
 
     result = response.json()
     output = result.get("response", "").strip()
@@ -156,18 +172,34 @@ JSON OUTPUT RULES:
 7. Do not invent information to satisfy the human feedback.
 """
 
-    response = requests.post(
-        f"{OLLAMA_URL}/api/generate",
-        json={
-            "model": OLLAMA_MODEL,
-            "prompt": prompt,
-            "stream": False,
-            "format": "json"
-        },
-        timeout=OLLAMA_TIMEOUT
-    )
+    try:
+        response = requests.post(
+            f"{OLLAMA_URL}/api/generate",
+            json={
+                "model": OLLAMA_MODEL,
+                "prompt": prompt,
+                "stream": False,
+                "format": "json"
+            },
+            timeout=OLLAMA_TIMEOUT
+        )
 
-    response.raise_for_status()
+        response.raise_for_status()
+
+    except requests.exceptions.Timeout as exc:
+        raise RuntimeError(
+            "Worker Agent revision timed out while waiting for Ollama."
+        ) from exc
+
+    except requests.exceptions.ConnectionError as exc:
+        raise RuntimeError(
+            "Worker Agent revision could not connect to Ollama."
+        ) from exc
+
+    except requests.exceptions.RequestException as exc:
+        raise RuntimeError(
+            "Worker Agent revision failed to communicate with Ollama."
+        ) from exc
 
     output = response.json().get("response", "").strip()
 

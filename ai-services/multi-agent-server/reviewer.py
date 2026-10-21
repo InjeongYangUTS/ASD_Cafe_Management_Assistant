@@ -74,18 +74,34 @@ JSON OUTPUT RULES:
 10. Do not invent issues or require information the user did not request.
 """
 
+    try:
+        response = requests.post(
+            f"{OLLAMA_URL}/api/generate",
+            json={
+                "model": OLLAMA_MODEL,
+                "prompt": prompt,
+                "stream": False,
+                "format": "json"
+            },
+            timeout=OLLAMA_TIMEOUT
+        )
 
+        response.raise_for_status()
 
-    response = requests.post(
-        f"{OLLAMA_URL}/api/generate",
-        json={
-            "model": OLLAMA_MODEL,
-            "prompt": prompt,
-            "stream": False,
-            "format": "json"
-        },
-        timeout=OLLAMA_TIMEOUT
-    )
+    except requests.exceptions.Timeout as exc:
+        raise RuntimeError(
+            "Reviewer Agent timed out while waiting for Ollama."
+        ) from exc
+
+    except requests.exceptions.ConnectionError as exc:
+        raise RuntimeError(
+            "Reviewer Agent could not connect to Ollama."
+        ) from exc
+
+    except requests.exceptions.RequestException as exc:
+        raise RuntimeError(
+            "Reviewer Agent failed to communicate with Ollama."
+        ) from exc
 
     response.raise_for_status()
 

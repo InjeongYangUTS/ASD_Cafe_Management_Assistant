@@ -57,19 +57,34 @@ RULES FOR JSON OUTPUT:
 4. Keep each list concise.
 """
 
+    try:
+        response = requests.post(
+            f"{OLLAMA_URL}/api/generate",
+            json={
+                "model": OLLAMA_MODEL,
+                "prompt": prompt,
+                "stream": False,
+                "format": "json"
+            },
+            timeout=OLLAMA_TIMEOUT
+        )
 
-    response = requests.post(
-        f"{OLLAMA_URL}/api/generate",
-        json={
-            "model": OLLAMA_MODEL,
-            "prompt": prompt,
-            "stream": False,
-            "format": "json"
-        },
-        timeout=OLLAMA_TIMEOUT
-    )
+        response.raise_for_status()
 
-    response.raise_for_status()
+    except requests.exceptions.Timeout as exc:
+        raise RuntimeError(
+            "Planner Agent timed out while waiting for Ollama."
+        ) from exc
+
+    except requests.exceptions.ConnectionError as exc:
+        raise RuntimeError(
+            "Planner Agent could not connect to Ollama."
+        ) from exc
+
+    except requests.exceptions.RequestException as exc:
+        raise RuntimeError(
+            "Planner Agent failed to communicate with Ollama."
+        ) from exc
 
     result = response.json()
 
