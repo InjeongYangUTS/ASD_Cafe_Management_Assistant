@@ -1,10 +1,16 @@
 from flask import Flask, jsonify, request
 import sqlite3
 from pathlib import Path
+import os
+import shutil
 
 app = Flask(__name__)
 
-DB_PATH = Path(__file__).parent / "menu_recipe.db"
+DEFAULT_DB_PATH = Path(__file__).parent / "menu_recipe.db"
+DB_PATH = Path(os.getenv("MENU_DB_PATH", str(DEFAULT_DB_PATH)))
+if not DB_PATH.exists():
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(DEFAULT_DB_PATH, DB_PATH)
 
 
 def get_db_connection():

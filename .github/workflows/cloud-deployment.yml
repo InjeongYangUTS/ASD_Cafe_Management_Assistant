@@ -1,0 +1,48 @@
+name: Cloud deployment validation
+
+on:
+  push:
+    paths:
+      - "docker-compose.yml"
+      - "docker-compose.cloud.yml"
+      - ".env.cloud.example"
+      - "deploy/aws/**"
+      - ".github/workflows/cloud-deployment.yml"
+  pull_request:
+    paths:
+      - "docker-compose.yml"
+      - "docker-compose.cloud.yml"
+      - ".env.cloud.example"
+      - "deploy/aws/**"
+      - ".github/workflows/cloud-deployment.yml"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare validation environment
+        run: |
+          cp .env.cloud.example .env.cloud
+          sed -i 's/replace-with-output-from-openssl-rand-hex-32/ci-only-secret/' .env.cloud
+          sed -i 's/ec2-public-ip-or-dns/127.0.0.1/' .env.cloud
+
+      - name: Validate merged Compose configuration
+        run: |
+          docker compose --env-file .env.cloud \
+            -f docker-compose.yml -f docker-compose.cloud.yml \
+            config --quiet
+
+      - name: Confirm optional AI service is excluded
+        run: |
+          services="$(docker compose --env-file .env.cloud \
+            -f docker-compose.yml -f docker-compose.cloud.yml \
+            config --services)"
+          if grep -qx 'multi-agent-server' <<<"$services"; then
+            echo "multi-agent-server must not start in the required baseline" >&2
+            exit 1
+          fi
+
+      - name: Validate deployment scripts
+        run: bash -n deploy/aws/*.sh

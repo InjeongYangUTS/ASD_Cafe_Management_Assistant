@@ -43,7 +43,7 @@
                 {% if order.status == "READY" %}
                 <a
                      class="s4-btn green small"
-                     href="http://localhost:5500/?mode=customer&amp;order_id={{ order.id }}&amp;customer_id={{ order.customer_id }}&amp;amount={{ '%.2f'|format(order.total_amount) }}"
+                     href="{{ payment_base }}/?mode=customer&amp;order_id={{ order.id }}&amp;customer_id={{ order.customer_id }}&amp;amount={{ '%.2f'|format(order.total_amount) }}"
                 >
                      Pay Now
                 </a>
