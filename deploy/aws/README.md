@@ -80,7 +80,32 @@ feature links. From another computer, run:
 ./deploy/aws/smoke-test.sh EC2_PUBLIC_ADDRESS
 ```
 
-## 4. Evidence
+## 4. GitHub Actions deployment
+
+The `.github/workflows/cloud-deployment.yml` workflow validates the cloud
+configuration on relevant pushes and pull requests. The AWS deployment job is
+manual and can run only from the `main` branch after validation succeeds.
+
+Create an `aws-production` GitHub environment and configure these repository
+or environment secrets:
+
+| Secret | Purpose |
+|---|---|
+| `EC2_HOST` | Public IPv4 address or DNS name of the prepared EC2 instance |
+| `EC2_USER` | SSH user for the instance, normally `ubuntu` |
+| `EC2_SSH_PRIVATE_KEY` | Private key matching the EC2 key pair |
+| `SHARED_SECRET_KEY` | Random application session secret generated with `openssl rand -hex 32` |
+
+After the EC2 instance has been prepared with `setup-ec2.sh`, open the
+**Cloud deployment** workflow under GitHub Actions, select the `main` branch,
+and choose **Run workflow**. The deployment job connects to EC2 through SSH,
+checks out the selected commit, creates the protected `.env.cloud` file,
+starts the baseline Compose services and performs public endpoint smoke tests.
+
+The required cloud baseline does not start AI-Mode, MCP, RAG or the
+Multi-Agent Server.
+
+## 5. Evidence
 
 Capture:
 
@@ -92,7 +117,7 @@ Capture:
 5. One create/read/update/delete flow covering each student feature.
 6. Persistent data still present after `docker compose ... restart`.
 
-## 5. Stop or remove resources
+## 6. Stop or remove resources
 
 Stop the EC2 instance when it is not being assessed. To remove only the
 containers while retaining named database volumes:
