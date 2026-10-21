@@ -1,6 +1,8 @@
-name: Cloud deployment validation
+name: Cloud deployment
 
 on:
+  workflow_dispatch:
+
   push:
     paths:
       - "docker-compose.yml"
@@ -8,6 +10,7 @@ on:
       - ".env.cloud.example"
       - "deploy/aws/**"
       - ".github/workflows/cloud-deployment.yml"
+
   pull_request:
     paths:
       - "docker-compose.yml"
@@ -16,11 +19,16 @@ on:
       - "deploy/aws/**"
       - ".github/workflows/cloud-deployment.yml"
 
+permissions:
+  contents: read
+
 jobs:
   validate:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out repository
+        uses: actions/checkout@v4
 
       - name: Prepare validation environment
         run: |
@@ -31,18 +39,107 @@ jobs:
       - name: Validate merged Compose configuration
         run: |
           docker compose --env-file .env.cloud \
-            -f docker-compose.yml -f docker-compose.cloud.yml \
+            -f docker-compose.yml \
+            -f docker-compose.cloud.yml \
             config --quiet
 
-      - name: Confirm optional AI service is excluded
+      - name: Confirm cloud AI services are disabled
         run: |
           services="$(docker compose --env-file .env.cloud \
-            -f docker-compose.yml -f docker-compose.cloud.yml \
+            -f docker-compose.yml \
+            -f docker-compose.cloud.yml \
             config --services)"
-          if grep -qx 'multi-agent-server' <<<"$services"; then
-            echo "multi-agent-server must not start in the required baseline" >&2
+
+          if grep -qx "multi-agent-server" <<<"$services"; then
+            echo "Multi-Agent Server must be disabled in the cloud baseline." >&2
             exit 1
           fi
 
-      - name: Validate deployment scripts
+      - name: Validate AWS deployment scripts
         run: bash -n deploy/aws/*.sh
+
+  deploy:
+    name: Deploy to AWS EC2
+    needs: validate
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: aws-production
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Check required deployment secrets
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+          SHARED_SECRET_KEY: ${{ secrets.SHARED_SECRET_KEY }}
+        run: |
+          test -n "$EC2_HOST" || { echo "Missing EC2_HOST"; exit 1; }
+          test -n "$EC2_USER" || { echo "Missing EC2_USER"; exit 1; }
+          test -n "$EC2_SSH_PRIVATE_KEY" || {
+            echo "Missing EC2_SSH_PRIVATE_KEY"
+            exit 1
+          }
+          test -n "$SHARED_SECRET_KEY" || {
+            echo "Missing SHARED_SECRET_KEY"
+            exit 1
+          }
+
+      - name: Configure SSH
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+        run: |
+          install -m 700 -d "$HOME/.ssh"
+          printf '%s\n' "$EC2_SSH_PRIVATE_KEY" > "$HOME/.ssh/deployment_key"
+          chmod 600 "$HOME/.ssh/deployment_key"
+          ssh-keyscan -H "$EC2_HOST" >> "$HOME/.ssh/known_hosts"
+
+      - name: Deploy selected commit
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          SHARED_SECRET_KEY: ${{ secrets.SHARED_SECRET_KEY }}
+          REPOSITORY_URL: ${{ github.server_url }}/${{ github.repository }}.git
+          DEPLOY_COMMIT: ${{ github.sha }}
+        run: |
+          ssh -i "$HOME/.ssh/deployment_key" \
+            "$EC2_USER@$EC2_HOST" \
+            bash -s -- \
+            "$REPOSITORY_URL" \
+            "$DEPLOY_COMMIT" \
+            "$EC2_HOST" \
+            "$SHARED_SECRET_KEY" <<'REMOTE'
+          set -euo pipefail
+
+          repository_url="$1"
+          deploy_commit="$2"
+          public_host="$3"
+          shared_secret="$4"
+          application_directory="$HOME/ASD_Cafe_Management_Assistant"
+
+          if [[ ! -d "$application_directory/.git" ]]; then
+            git clone "$repository_url" "$application_directory"
+          fi
+
+          cd "$application_directory"
+          git fetch origin
+          git checkout --detach "$deploy_commit"
+
+          umask 077
+          {
+            printf 'SHARED_SECRET_KEY=%s\n' "$shared_secret"
+            printf 'PUBLIC_HOST=%s\n' "$public_host"
+            printf 'PUBLIC_SCHEME=http\n'
+          } > .env.cloud
+
+          chmod +x deploy/aws/*.sh
+          ./deploy/aws/deploy.sh
+          REMOTE
+
+      - name: Verify public cloud endpoints
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+        run: ./deploy/aws/smoke-test.sh "$EC2_HOST"
