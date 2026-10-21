@@ -10,12 +10,14 @@ on:
       - "student-5/**"
       - "docker-compose.yml"
       - ".github/workflows/student-5.yml"
+      - "tests/release2/post_commit/test_api_payments.py"
 
   pull_request:
     paths:
       - "student-5/**"
       - "docker-compose.yml"
       - ".github/workflows/student-5.yml"
+      - "tests/release2/post_commit/test_api_payments.py"
 
   workflow_dispatch:
 
@@ -83,3 +85,50 @@ jobs:
 
       - name: Build Student 5 frontend service
         run: docker compose build student-5-frontend
+
+  # Release 2: post-commit endpoint tests (Lab 11 post_commit_tests pattern)
+  post_commit_tests:
+    name: Post-commit endpoint tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install test dependencies
+        run: pip install pytest requests
+
+      - name: Start services
+        run: docker compose up -d --build student-5-database student-5-backend
+
+      - name: Wait for backend
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8500/api/payments > /dev/null && exit 0
+            sleep 2
+          done
+          echo "Backend did not start"; docker compose logs; exit 1
+
+      - name: Run post-commit tests
+        run: |
+          mkdir -p reports/release2
+          set +e
+          python -m pytest tests/release2/post_commit/test_api_payments.py -v > reports/release2/student-5-test-results.md
+          status=$?
+          echo "{\"student\": \"student-5\", \"status\": \"$([ $status -eq 0 ] && echo PASS || echo FAIL)\", \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" >> reports/release2/student-5-test-audit.jsonl
+          cat reports/release2/student-5-test-results.md
+          exit $status
+
+      - name: Stop services
+        if: always()
+        run: docker compose down -v
+
+      - name: Upload test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: student-5-post-commit-test-evidence
+          path: reports/release2
