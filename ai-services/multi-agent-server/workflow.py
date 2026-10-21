@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from planner import create_plan
-from worker import execute_task
+from worker import execute_task, revise_task
 from reviewer import review_task
 
 
@@ -162,8 +162,9 @@ def get_workflow(workflow_id):
         return workflow
 
 
+
 def submit_human_review(workflow_id, decision, comments=""):
-    """Record the human's final decision."""
+    """Record a human decision and handle requested corrections."""
 
     if decision not in VALID_DECISIONS:
         raise ValueError(
@@ -181,22 +182,82 @@ def submit_human_review(workflow_id, decision, comments=""):
             raise LookupError("Workflow not found.")
 
         if workflow["status"] != "awaiting_human_review":
-            raise ValueError(
-                "Workflow is not awaiting human review."
-            )
+            raise ValueError("Workflow is not awaiting human review.")
 
-        workflow["human_review"] = {
+        if decision == "correct" and not comments.strip():
+            raise ValueError("Correction comments are required.")
+
+        human_review = {
             "decision": decision,
             "comments": comments,
             "timestamp": timestamp()
         }
 
-        workflow["status"] = "completed"
+        workflow["human_review"] = human_review
 
         record_event(
             workflow,
-            "human_review_completed",
-            workflow["human_review"]
+            "human_review_submitted",
+            human_review
         )
+
+        if decision == "correct":
+            previous_output = workflow["worker_output"]
+
+            workflow["status"] = "revising"
+            record_event(workflow, "revision_started")
+
+            try:
+                revised_result = revise_task(
+                    workflow["task"],
+                    workflow["plan"],
+                    previous_output,
+                    comments,
+                    workflow["evidence"]
+                )
+
+                workflow["worker_output"] = revised_result["output"]
+
+                record_event(
+                    workflow,
+                    "worker_revised",
+                    {"output": workflow["worker_output"]}
+                )
+
+                reviewer_result = review_task(
+                    workflow["task"],
+                    workflow["plan"],
+                    workflow["worker_output"],
+                    workflow["evidence"]
+                )
+
+                workflow["review"] = reviewer_result["review"]
+                workflow["status"] = "awaiting_human_review"
+
+                record_event(
+                    workflow,
+                    "reviewer_revised",
+                    {"review": workflow["review"]}
+                )
+
+            except Exception as error:
+                workflow["status"] = "revision_failed"
+
+                record_event(
+                    workflow,
+                    "revision_failed",
+                    {"error": str(error)}
+                )
+
+                raise
+
+        else:
+            workflow["status"] = "completed"
+
+            record_event(
+                workflow,
+                "human_review_completed",
+                human_review
+            )
 
         return workflow
