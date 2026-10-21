@@ -12,6 +12,8 @@ DATABASE_SERVICE = os.getenv("DATABASE_SERVICE_URL", "http://localhost:5202")
 
 RAG_SERVICE = os.getenv("RAG_SERVICE_URL", "http://host.docker.internal:5600")
 
+MULTI_AGENT_SERVICE = os.getenv("MULTI_AGENT_SERVICE_URL", "http://host.docker.internal:5800")
+
 # =========================================================
 # MENU ROUTES
 # =========================================================
@@ -1630,6 +1632,225 @@ def format_mcp_value(value):
         return format_mcp_list(value)
 
     return str(value)
+
+# =========================================================
+# SHARED MULTI-AGENT INTEGRATION
+# =========================================================
+
+@app.route("/api/multi-agent/workflows", methods=["POST"])
+def create_multi_agent_workflow():
+
+    data = request.get_json(silent=True)
+
+    if not isinstance(data, dict):
+        return jsonify({
+            "error": "A JSON request body is required"
+        }), 400
+
+    task = data.get("task")
+    evidence = data.get("evidence", {})
+
+    if not isinstance(task, str) or not task.strip():
+        return jsonify({
+            "error": "Task is required"
+        }), 400
+
+    if not isinstance(evidence, dict):
+        return jsonify({
+            "error": "Evidence must be a JSON object"
+        }), 400
+
+    try:
+        response = requests.post(
+            f"{MULTI_AGENT_SERVICE}/workflows",
+            json={
+                "task": task.strip(),
+                "evidence": evidence
+            },
+            timeout=420
+        )
+
+        return jsonify(response.json()), response.status_code
+
+    except requests.Timeout:
+        return jsonify({
+            "error": "The Multi-Agent Server did not respond in time"
+        }), 504
+
+    except requests.RequestException:
+        return jsonify({
+            "error": "Unable to connect to the Multi-Agent Server"
+        }), 503
+
+    except ValueError:
+        return jsonify({
+            "error": "Invalid response from the Multi-Agent Server"
+        }), 502
+
+@app.route("/api/multi-agent/workflows/<workflow_id>", methods=["GET"])
+def get_multi_agent_workflow(workflow_id):
+
+    try:
+        response = requests.get(
+            f"{MULTI_AGENT_SERVICE}/workflows/{workflow_id}",
+            timeout=15
+        )
+
+        return jsonify(response.json()), response.status_code
+
+    except requests.Timeout:
+        return jsonify({
+            "error": "The Multi-Agent Server did not respond in time"
+        }), 504
+
+    except requests.RequestException:
+        return jsonify({
+            "error": "Unable to connect to the Multi-Agent Server"
+        }), 503
+
+    except ValueError:
+        return jsonify({
+            "error": "Invalid response from the Multi-Agent Server"
+        }), 502
+
+@app.route("/api/multi-agent/workflows/<workflow_id>/human-review", methods=["POST"])
+def submit_multi_agent_human_review(workflow_id):
+
+    data = request.get_json(silent=True)
+
+    if not isinstance(data, dict):
+        return jsonify({
+            "error": "A JSON request body is required"
+        }), 400
+
+    decision = data.get("decision")
+    comments = data.get("comments", "")
+
+    allowed_decisions = [
+        "approve",
+        "correct",
+        "partial_accept",
+        "reject"
+    ]
+
+    if decision not in allowed_decisions:
+        return jsonify({
+            "error": "Invalid human review decision"
+        }), 400
+
+    if not isinstance(comments, str):
+        return jsonify({
+            "error": "Comments must be a string"
+        }), 400
+
+    if decision == "correct" and not comments.strip():
+        return jsonify({
+            "error": "Comments are required for corrections"
+        }), 400
+
+    try:
+        response = requests.post(
+            f"{MULTI_AGENT_SERVICE}/workflows/{workflow_id}/human-review",
+            json={
+                "decision": decision,
+                "comments": comments.strip()
+            },
+            timeout=420
+        )
+
+        return jsonify(response.json()), response.status_code
+
+    except requests.Timeout:
+        return jsonify({
+            "error": "The Multi-Agent Server did not respond in time"
+        }), 504
+
+    except requests.RequestException:
+        return jsonify({
+            "error": "Unable to connect to the Multi-Agent Server"
+        }), 503
+
+    except ValueError:
+        return jsonify({
+            "error": "Invalid response from the Multi-Agent Server"
+        }), 502
+
+@app.route(
+    "/api/multi-agent/recipes/<int:recipe_id>/workflows",
+    methods=["POST"]
+)
+def create_recipe_multi_agent_workflow(recipe_id):
+
+    data = request.get_json(silent=True)
+
+    if not isinstance(data, dict):
+        return jsonify({
+            "error": "A JSON request body is required"
+        }), 400
+
+    task = data.get("task")
+
+    if not isinstance(task, str) or not task.strip():
+        return jsonify({
+            "error": "Task is required"
+        }), 400
+
+    try:
+        # Retrieve the actual recipe from the database.
+        recipe_response = requests.get(
+            f"{DATABASE_SERVICE}/api/database/recipes/{recipe_id}",
+            timeout=10
+        )
+
+        if recipe_response.status_code == 404:
+            return jsonify({"error": "Recipe not found"}), 404
+
+        recipe_response.raise_for_status()
+        recipe = recipe_response.json()
+
+        # Retrieve the recipe's actual ingredients.
+        ingredients_response = requests.get(
+            f"{DATABASE_SERVICE}/api/database/recipes/{recipe_id}/ingredients",
+            timeout=10
+        )
+
+        ingredients_response.raise_for_status()
+        ingredients = ingredients_response.json()
+
+        # Send live database evidence to the Multi-Agent Server.
+        evidence = {
+            "recipe_id": recipe_id,
+            "recipe_name": recipe.get("name"),
+            "menu_name": recipe.get("menu_name"),
+            "instructions": recipe.get("instructions"),
+            "ingredients": ingredients
+        }
+
+        response = requests.post(
+            f"{MULTI_AGENT_SERVICE}/workflows",
+            json={
+                "task": task.strip(),
+                "evidence": evidence
+            },
+            timeout=420
+        )
+
+        return jsonify(response.json()), response.status_code
+
+    except requests.Timeout:
+        return jsonify({
+            "error": "A service did not respond in time"
+        }), 504
+
+    except requests.RequestException:
+        return jsonify({
+            "error": "Unable to connect to a required service"
+        }), 503
+
+    except ValueError:
+        return jsonify({
+            "error": "Invalid response from a required service"
+        }), 502
 
 # =========================================================
 # TEST / HEALTH ROUTE

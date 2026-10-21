@@ -176,6 +176,9 @@ def inject_shared_home():
                               else "Back to Staff Dashboard"),
         "is_customer": customer,
         "is_staff": is_staff(),
+        "payment_base": "%s://%s:5500" % (
+            request.scheme, request.host.split(":")[0]
+        ),
     }
 
 

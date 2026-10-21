@@ -340,7 +340,7 @@
 
         <a
             id="backDashboardLink"
-            href="http://localhost:5100/staff-dashboard"
+            href="#"
             class="back-button"
         >
             ← Back to Staff Dashboard
@@ -935,13 +935,15 @@
             document.getElementById("refreshPaymentsButton").hidden = true;
 
             const backLink = document.getElementById("backDashboardLink");
-            backLink.href = "http://localhost:5100/customer-dashboard";
+            backLink.href = `${window.location.protocol}//${window.location.hostname}:5100/customer-dashboard`;
             backLink.textContent = "← Back to Customer Dashboard";
             document.querySelector("header h1").textContent = "Pay for Your Order";
             document.querySelector("header p").textContent =
                 "Confirm the order total and choose a payment method.";
         }
 
+        document.getElementById("backDashboardLink").href =
+            `${window.location.protocol}//${window.location.hostname}:5100/staff-dashboard`;
         configureCustomerPayment();
         checkBackend();
 

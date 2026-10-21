@@ -4,6 +4,7 @@ from flask import Flask, render_template, request, redirect, session
 from werkzeug.security import generate_password_hash, check_password_hash
 import sqlite3
 import os
+import shutil
 
 
 app = Flask(
@@ -12,15 +13,20 @@ app = Flask(
     static_url_path="/shared"
 )
 
-app.secret_key = "temporary-secret-key"
+app.secret_key = os.environ.get("SHARED_SECRET_KEY", "temporary-secret-key")
 
 
-DB_PATH = os.path.join(
+DEFAULT_DB_PATH = os.path.join(
     os.path.dirname(__file__),
     "..",
     "database",
     "users.db"
 )
+DB_PATH = os.environ.get("SHARED_DB_PATH", DEFAULT_DB_PATH)
+
+if not os.path.exists(DB_PATH):
+    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    shutil.copy2(DEFAULT_DB_PATH, DB_PATH)
 
 
 @app.route("/")
@@ -264,8 +270,7 @@ def staff_dashboard():
     return render_template(
         "staff_dashboard.html",
         staff_name=session.get("staff_name"),
-        staff_role=session.get("staff_role"),
-        S5="http://localhost:5500"
+        staff_role=session.get("staff_role")
     )
 
 if __name__ == "__main__":

@@ -353,13 +353,13 @@
         // --------------------------------
 
         const RECIPE_API =
-            "http://localhost:5201/api/recipes";
+            `${window.location.protocol}//${window.location.hostname}:5201/api/recipes`;
 
         const MENU_API =
-            "http://localhost:5201/api/menus";
+            `${window.location.protocol}//${window.location.hostname}:5201/api/menus`;
 
         const INGREDIENT_API =
-            "http://localhost:5201/api/ingredients";
+            `${window.location.protocol}//${window.location.hostname}:5201/api/ingredients`;
 
 
         // --------------------------------
@@ -1409,7 +1409,7 @@
                 if (wasEditing) {
 
                     url =
-                        `http://localhost:5201/api/recipe-ingredients/${editingRecipeIngredientId}`;
+                        `${window.location.protocol}//${window.location.hostname}:5201/api/recipe-ingredients/${editingRecipeIngredientId}`;
 
                     method =
                         "PUT";
@@ -1521,7 +1521,7 @@
 
                 const response =
                     await fetch(
-                        `http://localhost:5201/api/recipe-ingredients/${recipeIngredientId}`,
+                        `${window.location.protocol}//${window.location.hostname}:5201/api/recipe-ingredients/${recipeIngredientId}`,
                         {
                             method: "DELETE"
                         }
