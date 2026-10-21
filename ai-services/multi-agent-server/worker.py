@@ -1,4 +1,4 @@
-
+import json
 import requests
 
 from config import OLLAMA_URL, OLLAMA_MODEL, OLLAMA_TIMEOUT
@@ -8,7 +8,7 @@ def execute_task(task, plan, evidence=None):
     """Execute a task following the Planner Agent's plan."""
 
     evidence = evidence or {}
-
+    evidence_text = json.dumps(evidence, indent=2, ensure_ascii=False)
     
     prompt = f"""
 You are the Worker Agent for the Cafe Management Assistant.
@@ -32,7 +32,7 @@ User task:
 Planner's plan:
 {plan}
 
-Available evidence:
+Available evidence (JSON):
 {evidence}
 
 Return your response using this format:
@@ -74,7 +74,9 @@ Evidence Used:
 
 def revise_task(task, plan, previous_output, feedback, evidence=None):
     """Revise the Worker's output using human feedback."""
+
     evidence = evidence or {}
+    evidence_text = json.dumps(evidence, indent=2, ensure_ascii=False)
 
     prompt = f"""
 You are the Worker Agent for the Cafe Management Assistant.
@@ -102,8 +104,8 @@ Previous Worker output:
 Human feedback:
 {feedback}
 
-Available evidence:
-{evidence}
+Available evidence (JSON):
+{evidence_text}
 
 Return your revised response using this format:
 

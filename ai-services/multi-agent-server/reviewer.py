@@ -1,4 +1,4 @@
-
+import json
 import requests
 
 from config import OLLAMA_URL, OLLAMA_MODEL, OLLAMA_TIMEOUT
@@ -8,7 +8,7 @@ def review_task(task, plan, worker_output, evidence=None):
     """Review the Worker's output against the plan and evidence."""
 
     evidence = evidence or {}
-
+    evidence_text = json.dumps(evidence, indent=2, ensure_ascii=False)
     
     
     prompt = f"""
@@ -34,8 +34,8 @@ REVIEW RULES:
 User task:
 {task}
 
-Available evidence:
-{evidence}
+Available evidence (JSON):
+{evidence_text}
 
 Planner's plan:
 {plan}
