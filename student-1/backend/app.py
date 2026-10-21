@@ -12,7 +12,7 @@ from services.database_api import (
     ServiceError,
 )
 from services.llm_client import LLMClient
-from services.shared_ai import MCPClient, RAGClient
+from services.shared_ai import MCPClient, MultiAgentClient, RAGClient
 
 app = Flask(__name__)
 
@@ -28,6 +28,10 @@ MCP_TOOLS = ["get_menu_item_feedback", "get_top_issues", "get_reviews_needing_re
 
 mcp = MCPClient(allowed_tools=MCP_TOOLS)
 rag = RAGClient()
+multi_agent = MultiAgentClient()
+
+MULTI_AGENT_DECISIONS = ("approve", "correct", "partial_accept", "reject")
+MULTI_AGENT_EVIDENCE_LIMIT = 5
 
 AI_BATCH_LIMIT = int(os.environ.get("AI_BATCH_LIMIT", 5))
 
@@ -92,6 +96,8 @@ def health():
         dependencies["ollama"] = llm.health()
         dependencies["mcp_server"] = {"enabled": mcp.enabled, "url": mcp.base_url}
         dependencies["rag_server"] = {"enabled": rag.enabled, "url": rag.base_url}
+        dependencies["multi_agent_server"] = {"enabled": multi_agent.enabled,
+                                              "url": multi_agent.base_url}
 
     return jsonify({
         "service": "student-1-backend",
@@ -395,6 +401,7 @@ AI_STATUS_CODES = {
     "rejected": 400,
     "disabled": 403,
     "not_registered": 404,
+    "not_found": 404,
     "unavailable": 503,
 }
 
@@ -439,6 +446,76 @@ def rag_query():
     started = time.monotonic()
     result = rag.ask(question)
     ai_audit.record("rag", "query", {"question": question}, result, started)
+
+    return ai_response(result)
+
+
+def review_evidence(review):
+    return {key: review.get(key) for key in
+            ("id", "rating", "title", "comment", "category", "sentiment")}
+
+
+def multi_agent_evidence():
+    """Live feedback database evidence handed to the Planner, Worker and Reviewer."""
+    stats = db.stats()
+    needing_reply = db.list_feedback(needs_reply="true",
+                                     limit=MULTI_AGENT_EVIDENCE_LIMIT)["feedback"]
+    negative = db.list_feedback(sentiment="NEGATIVE",
+                                limit=MULTI_AGENT_EVIDENCE_LIMIT)["feedback"]
+
+    return {
+        "source": "student-1 customer_feedback database",
+        "review_count": stats["row_counts"]["customer_feedback"],
+        "average_rating": stats["average_rating"],
+        "by_status": stats["by_status"],
+        "by_category": stats["by_category"],
+        "by_sentiment": stats["by_sentiment"],
+        "reviews_needing_reply": [review_evidence(r) for r in needing_reply],
+        "negative_reviews": [review_evidence(r) for r in negative],
+    }
+
+
+@app.post("/api/ai/multi-agent")
+def multi_agent_start():
+    """Run Planner -> Worker -> Reviewer on the shared Multi-Agent server with live review evidence."""
+    body = request.get_json(silent=True) or {}
+    task = str(body.get("task") or "").strip()
+
+    if not task:
+        return bad_request("Type a task first.")
+    if len(task) > 300:
+        return bad_request("Please keep the task under 300 characters.")
+
+    started = time.monotonic()
+    evidence = multi_agent_evidence() if multi_agent.enabled else {}
+    result = multi_agent.start(task, evidence)
+    ai_audit.record("multi-agent", "start", {"task": task}, result, started)
+
+    return ai_response(result)
+
+
+@app.get("/api/ai/multi-agent/<workflow_id>")
+def multi_agent_get(workflow_id):
+    """Workflow plan, outputs, human decision and audit history."""
+    return ai_response(multi_agent.get(workflow_id))
+
+
+@app.post("/api/ai/multi-agent/<workflow_id>/review")
+def multi_agent_review(workflow_id):
+    """Human Review: approve, correct, partially accept or reject the Worker output."""
+    body = request.get_json(silent=True) or {}
+    decision = body.get("decision")
+    comments = str(body.get("comments") or "").strip()
+
+    if decision not in MULTI_AGENT_DECISIONS:
+        return bad_request("decision must be one of: %s" % ", ".join(MULTI_AGENT_DECISIONS))
+    if decision == "correct" and not comments:
+        return bad_request("Say what to correct in the comments.")
+
+    started = time.monotonic()
+    result = multi_agent.review(workflow_id, decision, comments)
+    ai_audit.record("multi-agent", "human-review",
+                    {"workflow_id": workflow_id, "decision": decision}, result, started)
 
     return ai_response(result)
 

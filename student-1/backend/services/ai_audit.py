@@ -14,11 +14,16 @@ def _summary(mode, outcome):
     if mode == "rag":
         return {"confidence": outcome.get("confidence"),
                 "sources": [source.get("document") for source in outcome.get("sources", [])]}
+    if mode == "multi-agent":
+        workflow = outcome.get("workflow") or {}
+        return {"workflow_id": workflow.get("workflow_id"),
+                "workflow_status": workflow.get("status"),
+                "error": outcome.get("reason")}
     return {"row_count": outcome.get("row_count"), "error": outcome.get("error")}
 
 
 def record(mode, name, request_input, outcome, started):
-    """Append one MCP or RAG invocation to the JSONL audit log."""
+    """Append one MCP, RAG or Multi-Agent invocation to the JSONL audit log."""
     entry = {
         "request_id": uuid.uuid4().hex,
         "timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds"),

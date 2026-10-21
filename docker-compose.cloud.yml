@@ -19,6 +19,7 @@ services:
       SHARED_SECRET_KEY: ${SHARED_SECRET_KEY:?Set SHARED_SECRET_KEY in .env.cloud}
       MCP_ENABLED: "false"
       RAG_ENABLED: "false"
+      MULTI_AGENT_ENABLED: "false"
 
   student-1-frontend:
     environment:

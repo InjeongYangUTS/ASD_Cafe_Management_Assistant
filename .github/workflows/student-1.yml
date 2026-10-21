@@ -17,11 +17,12 @@ on:
       - "tests/release2/post_commit/test_api_feedback.py"
   workflow_dispatch:
 
-# Release 1: the MCP and RAG integration stays in the code, but the shared
-# servers are not started in CI, so both modes are disabled here.
+# Release 1/2: the MCP, RAG and Multi-Agent integration stays in the code, but
+# the shared servers are not started in CI, so these modes are disabled here.
 env:
   MCP_ENABLED: "false"
   RAG_ENABLED: "false"
+  MULTI_AGENT_ENABLED: "false"
 
 jobs:
 
@@ -191,6 +192,17 @@ jobs:
           case "$mcp" in 403|503) ;; *) echo "FAIL MCP route"; exit 1 ;; esac
           case "$rag" in 403|503) ;; *) echo "FAIL RAG route"; exit 1 ;; esac
           curl -sS -o /dev/null -w "frontend /reviews -> %{http_code}\n" http://localhost:5110/reviews
+
+      - name: Multi-Agent route present, shared server absent in CI
+        run: |
+          set -e
+          # Release 2: same rule as MCP/RAG - 403 disabled or 503 unreachable, never a made-up workflow.
+          ma=$(curl -sS -o /tmp/ma.json -w "%{http_code}" -X POST http://localhost:8100/api/ai/multi-agent \
+               -H "Content-Type: application/json" \
+               -d '{"task":"Summarise the main customer complaints."}')
+          cat /tmp/ma.json
+          echo "Multi-Agent -> $ma"
+          case "$ma" in 403|503) ;; *) echo "FAIL Multi-Agent route"; exit 1 ;; esac
 
       - name: Show logs
         if: failure()
