@@ -105,9 +105,28 @@ def human_review(workflow_id):
         }), 404
 
     except ValueError as error:
+        if str(error) in (
+            "Decision must be approve, correct, reject or partial_accept.",
+            "Comments must be text.",
+            "Workflow is not awaiting human review.",
+            "Correction comments are required."
+        ):
+            return jsonify({
+                "error": str(error)
+            }), 400
+
+        app.logger.exception("Human Review agent validation failed")
+
         return jsonify({
-            "error": str(error)
-        }), 400
+            "error": "Unable to complete the Human Review."
+        }), 500
+
+    except Exception:
+        app.logger.exception("Human Review workflow failed")
+
+        return jsonify({
+            "error": "Unable to complete the Human Review."
+        }), 500
 
 
 if __name__ == "__main__":
