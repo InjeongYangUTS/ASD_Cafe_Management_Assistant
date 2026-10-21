@@ -7,7 +7,9 @@ The Multi-Agent Server is a shared AI service for the Cafe Management Assistant 
 
 It uses three AI agents to process tasks, review generated answers, and allow a human to make the final decision.
 
-The server runs on the host machine, separately from the Docker containers used by the student features.
+The Multi-Agent Server runs as a shared Docker service on the cafe-net network. Student feature backends can communicate with it through HTTP requests.
+
+The server can also run directly on the host machine for local development and testing.
 
 ## Architecture
 
@@ -83,6 +85,103 @@ For local testing, use:
 ```text
 http://localhost:5800
 ```
+
+## Docker Setup (Recommended for Group Members)
+
+The Multi-Agent Server is included in the project's root `docker-compose.yml`.
+
+### 1. Prerequisites
+
+Install and start:
+
+- Docker Desktop
+- Ollama
+
+Download the required AI model:
+
+```bash
+ollama pull llama3.1:8b
+```
+
+Ensure Ollama is running on port `11434`.
+
+### 2. Start the Multi-Agent Server
+
+Open a terminal in the project root directory and run:
+
+```bash
+docker compose build multi-agent-server
+docker compose up -d --no-deps multi-agent-server
+```
+
+These commands build and start only the Multi-Agent Server without starting or rebuilding other student services.
+
+### 3. Verify the Server
+
+```bash
+curl http://localhost:5800/health
+```
+
+Expected response:
+
+```json
+{
+  "service": "multi-agent-server",
+  "status": "ok"
+}
+```
+
+### 4. Connect Student Features
+
+Use the following server addresses:
+
+| Where the request originates | Server URL |
+|---|---|
+| Student backend inside Docker on `cafe-net` | `http://multi-agent-server:5800` |
+| Application running directly on the host | `http://localhost:5800` |
+
+For example, a Python backend running inside Docker can use:
+
+```python
+import requests
+
+MULTI_AGENT_URL = "http://multi-agent-server:5800"
+
+response = requests.get(f"{MULTI_AGENT_URL}/health", timeout=10)
+print(response.json())
+```
+
+Student backends should send workflow requests to the shared service rather than creating separate copies of the AI agents.
+
+### 5. Workflow Logs
+
+Workflow audit logs are stored in:
+
+```text
+ai-services/multi-agent-server/logs/
+```
+
+The directory is mounted into the Docker container at `/app/logs`, so workflow records survive container recreation.
+
+Generated logs are excluded from Git.
+
+### 6. Troubleshooting
+
+Check the container status:
+
+```bash
+docker compose ps multi-agent-server
+```
+
+View server logs:
+
+```bash
+docker compose logs --tail=50 multi-agent-server
+```
+
+If port `5800` is already occupied, stop the other process using that port before starting the Docker service.
+
+The Docker configuration connects to Ollama on the host through `host.docker.internal:11434`. Ensure Ollama is running and accessible from Docker.
 
 ## API Endpoints
 
