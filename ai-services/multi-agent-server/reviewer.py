@@ -49,19 +49,29 @@ Before making your recommendation, verify:
 - Did the Worker identify missing information correctly?
 - Are there any unsupported claims?
 
-Return EXACTLY this format:
+Return ONLY a valid JSON object with these fields:
 
-Assessment:
-<Brief assessment>
+{{
+    "assessment": "A brief assessment of the Worker's response",
+    "issues": [],
+    "recommendation": "approve",
+    "reason": "A brief explanation of the recommendation"
+}}
 
-Issues:
-<Specific issues, or None>
-
-Recommendation:
-<Approve, Revise, or Reject>
-
-Reason:
-<Explain your recommendation>
+JSON OUTPUT RULES:
+1. Return JSON only, without Markdown code fences.
+2. "assessment" must be a string.
+3. "issues" must be a list of strings.
+4. "recommendation" must be exactly one of:
+   "approve", "revise", or "reject".
+5. "reason" must be a string.
+6. If there are no issues, return an empty issues list.
+7. Recommend "approve" when the Worker correctly answers the task
+   using only the supplied evidence.
+8. Recommend "revise" when the answer contains correctable errors.
+9. Recommend "reject" when the answer is fundamentally unsupported
+   by the evidence or fails to address the task.
+10. Do not invent issues or require information the user did not request.
 """
 
 
@@ -71,7 +81,8 @@ Reason:
         json={
             "model": OLLAMA_MODEL,
             "prompt": prompt,
-            "stream": False
+            "stream": False,
+            "format": "json"
         },
         timeout=OLLAMA_TIMEOUT
     )
@@ -83,6 +94,34 @@ Reason:
 
     if not review:
         raise ValueError("Reviewer Agent returned an empty review.")
+
+    try:
+        review_data = json.loads(review)
+    except json.JSONDecodeError as exc:
+        raise ValueError("Reviewer Agent returned invalid JSON.") from exc
+
+    if not isinstance(review_data, dict):
+        raise ValueError("Reviewer Agent must return a JSON object.")
+
+    for field in ("assessment", "reason"):
+        if not isinstance(review_data.get(field), str):
+            raise ValueError(
+                f"Reviewer Agent returned an invalid '{field}' field."
+            )
+
+    issues = review_data.get("issues")
+
+    if not isinstance(issues, list) or not all(
+        isinstance(item, str) for item in issues
+    ):
+        raise ValueError("Reviewer Agent returned an invalid 'issues' field.")
+
+    valid_recommendations = ("approve", "revise", "reject")
+
+    if review_data.get("recommendation") not in valid_recommendations:
+        raise ValueError(
+            "Reviewer Agent returned an invalid recommendation."
+        )
 
     return {
         "agent": "reviewer",

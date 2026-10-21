@@ -33,18 +33,26 @@ Planner's plan:
 {plan}
 
 Available evidence (JSON):
-{evidence}
+{evidence_text}
 
-Return your response using this format:
+Return ONLY a valid JSON object with these fields:
 
-Result:
-<Your answer based strictly on the evidence>
+{{
+    "result": "A concise answer based strictly on the evidence",
+    "missing_information": [],
+    "evidence_used": []
+}}
 
-Missing Information:
-<Information that is missing, or None>
-
-Evidence Used:
-<Briefly identify which supplied evidence supports your answer>
+JSON OUTPUT RULES:
+1. Return JSON only, without Markdown code fences.
+2. "result" must be a string.
+3. "missing_information" must be a list of strings.
+4. "evidence_used" must be a list of strings.
+5. If nothing is missing for the user's task, return an empty
+   missing_information list.
+6. Do not introduce ingredients, quantities, equipment or
+   other information that is not required by the user's task.
+7. Identify which supplied evidence supports the result.
 """
 
 
@@ -53,7 +61,8 @@ Evidence Used:
         json={
             "model": OLLAMA_MODEL,
             "prompt": prompt,
-            "stream": False
+            "stream": False,
+            "format": "json"
         },
         timeout=OLLAMA_TIMEOUT
     )
@@ -65,6 +74,27 @@ Evidence Used:
 
     if not output:
         raise ValueError("Worker Agent returned an empty response.")
+
+    try:
+        output_data = json.loads(output)
+    except json.JSONDecodeError as exc:
+        raise ValueError("Worker Agent returned invalid JSON.") from exc
+
+    if not isinstance(output_data, dict):
+        raise ValueError("Worker Agent must return a JSON object.")
+
+    if not isinstance(output_data.get("result"), str):
+        raise ValueError("Worker Agent returned an invalid 'result' field.")
+
+    for field in ("missing_information", "evidence_used"):
+        value = output_data.get(field)
+
+        if not isinstance(value, list) or not all(
+            isinstance(item, str) for item in value
+        ):
+            raise ValueError(
+                f"Worker Agent returned an invalid '{field}' field."
+            )
 
     return {
         "agent": "worker",
@@ -107,16 +137,23 @@ Human feedback:
 Available evidence (JSON):
 {evidence_text}
 
-Return your revised response using this format:
+Return ONLY a valid JSON object with these fields:
 
-Result:
-<Corrected answer>
+{{
+    "result": "The corrected answer based strictly on the evidence",
+    "missing_information": [],
+    "evidence_used": []
+}}
 
-Missing Information:
-<Missing information, or None>
-
-Evidence Used:
-<Supporting evidence>
+JSON OUTPUT RULES:
+1. Return JSON only, without Markdown code fences.
+2. "result" must be a string.
+3. "missing_information" must be a list of strings.
+4. "evidence_used" must be a list of strings.
+5. If nothing is missing for the user's task, return an empty
+   missing_information list.
+6. Apply the human feedback only when it is supported by evidence.
+7. Do not invent information to satisfy the human feedback.
 """
 
     response = requests.post(
@@ -124,7 +161,8 @@ Evidence Used:
         json={
             "model": OLLAMA_MODEL,
             "prompt": prompt,
-            "stream": False
+            "stream": False,
+            "format": "json"
         },
         timeout=OLLAMA_TIMEOUT
     )
@@ -135,6 +173,27 @@ Evidence Used:
 
     if not output:
         raise ValueError("Worker Agent returned an empty revision.")
+
+    try:
+        output_data = json.loads(output)
+    except json.JSONDecodeError as exc:
+        raise ValueError("Worker Agent returned invalid JSON.") from exc
+
+    if not isinstance(output_data, dict):
+        raise ValueError("Worker Agent must return a JSON object.")
+
+    if not isinstance(output_data.get("result"), str):
+        raise ValueError("Worker Agent returned an invalid 'result' field.")
+
+    for field in ("missing_information", "evidence_used"):
+        value = output_data.get(field)
+
+        if not isinstance(value, list) or not all(
+            isinstance(item, str) for item in value
+        ):
+            raise ValueError(
+                f"Worker Agent returned an invalid '{field}' field."
+            )
 
     return {
         "agent": "worker",
