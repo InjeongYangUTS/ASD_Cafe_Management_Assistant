@@ -309,13 +309,19 @@ def parse_llm_reply(text):
     return sections
 
 
-def analyse(orders, ollama, now=None):
+def analyse(orders, ollama, now=None, ai_mode_enabled=True):
     """
     Full AI-Mode analysis.
 
     Always returns the deterministic metrics. 'mode' says whether the
     narrative came from the LLM or from the fallback rules, so the screen
     and the marker can both see which path ran.
+
+    `ai_mode_enabled=False` is the Release 2 cloud baseline: the model is
+    not called at all, and the caller still gets the metrics and the
+    rule-based narrative. The kitchen does not lose its queue analysis
+    because the deployment was told not to use a language model - it
+    loses only the part a language model was writing.
     """
     metrics = summarise_queue(orders, now=now)
     prompt = build_prompt(metrics)
@@ -331,6 +337,14 @@ def analyse(orders, ollama, now=None):
         "note": None,
         "corrections": [],
     }
+
+    if not ai_mode_enabled:
+        result["note"] = ("AI-Mode is switched off in this deployment "
+                          "(AI_MODE_ENABLED=false) - the model was not "
+                          "called. The figures and the analysis below are "
+                          "computed, not generated.")
+        result["ai_mode_enabled"] = False
+        return result
 
     if not metrics["tickets"]:
         result["note"] = "No open orders - AI analysis skipped."
