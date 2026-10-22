@@ -55,4 +55,8 @@ def health():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", "5300")), debug=False)
+    app.run(
+        host="0.0.0.0",  # noqa: S104 - Required for Docker networking
+        port=int(os.getenv("PORT", "5300")),
+        debug=False,
+    )
