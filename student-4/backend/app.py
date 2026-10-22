@@ -31,6 +31,10 @@ Endpoints
     GET    /api/ai/mcp          shared MCP server - tool catalogue
     POST   /api/ai/mcp          shared MCP server - structured tool result
     POST   /api/ai/rag          shared RAG server - grounded answer
+
+    POST   /api/ai/multi-agent/workflows                    start a run
+    GET    /api/ai/multi-agent/workflows/<id>               fetch a run
+    POST   /api/ai/multi-agent/workflows/<id>/human-review  decide on it
 """
 
 import os
@@ -39,7 +43,7 @@ from datetime import datetime
 from flask import Flask, jsonify, request
 
 import ai
-from ai_services import McpClient, RagClient
+from ai_services import McpClient, MultiAgentClient, RagClient
 from clients import (
     DatabaseClient,
     InventoryClient,
@@ -60,6 +64,10 @@ ollama = OllamaClient()
 # RAG_URL at host.docker.internal rather than a Compose service name.
 mcp = McpClient()
 rag = RagClient()
+
+# Release 2 - the shared Multi-Agent server, reached the same way, with
+# MULTI_AGENT_URL pointing at host.docker.internal:5800.
+multi_agent = MultiAgentClient()
 
 # Allowed status transitions for an order.
 TRANSITIONS = {
@@ -111,6 +119,7 @@ def health():
             "ollama": ollama.health(),
             "mcp": mcp.health(),
             "rag": rag.health(),
+            "multi_agent": multi_agent.health(),
         },
     }
 
@@ -536,6 +545,99 @@ def rag_query():
         return bad_request("a non-empty question is required")
 
     return jsonify(rag.ask(question))
+
+
+# =====================================================================
+# Release 2 - the shared Multi-Agent server
+#
+# Planner -> Worker -> Reviewer -> Human Review. The first three run on
+# the shared server; the fourth is a person on the Kitchen screen, and
+# the workflow stays at awaiting_human_review until they decide. Nothing
+# is applied to an order by any of this: the agents produce a written
+# recommendation about the live queue, and a human accepts, corrects,
+# partially accepts or rejects it.
+#
+# The evidence the agents reason over is this feature's own queue
+# metrics - the same deterministic summary AI-Mode uses - so the three
+# agents are reading real Order & Kitchen data rather than a prompt.
+# =====================================================================
+
+def queue_evidence():
+    """The live queue, trimmed to what three agents can actually read."""
+    try:
+        data = db.list_orders(status=",".join(BOARD_COLUMNS[:3]),
+                              include="items", limit=100)
+    except ServiceError as exc:
+        return {"source": "student-4-backend",
+                "error": "could not read the order database: %s" % exc.message}
+
+    metrics = ai.summarise_queue(data["orders"])
+
+    return {
+        "source": "student-4-backend /api/kitchen/queue",
+        "feature": "Order & Kitchen Management",
+        "generated_at": metrics["generated_at"],
+        "open_order_count": metrics["open_order_count"],
+        "total_workload_minutes": metrics["total_workload_minutes"],
+        "longest_wait_minutes": metrics["longest_wait_minutes"],
+        "busiest_station": metrics["busiest_station"],
+        "congestion_level": metrics["congestion_level"],
+        "station_load": metrics["station_load"],
+        "at_risk_orders": metrics["at_risk_orders"],
+        # The whole board would bury the agents, so only the tickets at
+        # the head of the queue are sent, with the count they came from.
+        "ticket_sample": metrics["tickets"][:8],
+        "ticket_total": len(metrics["tickets"]),
+    }
+
+
+@app.post("/api/ai/multi-agent/workflows")
+def multi_agent_start():
+    """Start a Planner -> Worker -> Reviewer run over the live queue.
+
+    Slow by design: the server runs all three agents on a local model
+    inside this request, then stops and waits for a human.
+    """
+    body = request.get_json(silent=True) or {}
+    task = body.get("task")
+
+    if not isinstance(task, str) or not task.strip():
+        return bad_request("a non-empty task is required")
+
+    evidence = body.get("evidence")
+    if evidence is None:
+        evidence = queue_evidence()
+    elif not isinstance(evidence, dict):
+        return bad_request("evidence must be an object")
+
+    return jsonify(multi_agent.start(task, evidence))
+
+
+@app.get("/api/ai/multi-agent/workflows/<workflow_id>")
+def multi_agent_get(workflow_id):
+    """One workflow, with its plan, work, review and audit history."""
+    return jsonify(multi_agent.get(workflow_id))
+
+
+@app.post("/api/ai/multi-agent/workflows/<workflow_id>/human-review")
+def multi_agent_human_review(workflow_id):
+    """The human decision that releases the workflow.
+
+    This is the stage that makes the loop accountable: nothing the three
+    agents produced counts until a named person accepts it, and anything
+    short of an approval has to say what is wrong.
+    """
+    body = request.get_json(silent=True) or {}
+    decision = body.get("decision")
+    comments = body.get("comments", "")
+
+    if not isinstance(decision, str) or not decision.strip():
+        return bad_request("a decision is required")
+
+    if not isinstance(comments, str):
+        return bad_request("comments must be text")
+
+    return jsonify(multi_agent.submit_review(workflow_id, decision, comments))
 
 
 @app.errorhandler(404)

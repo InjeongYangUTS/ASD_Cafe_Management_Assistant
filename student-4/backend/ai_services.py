@@ -1,24 +1,27 @@
 """
 Student 4 (Stella Kwon) - Order & Kitchen Management
-Clients for the two shared AI services introduced in Release 1.
+Clients for the shared AI services.
 
-    McpClient  -> the shared MCP server   (Injeong Yang)
-    RagClient  -> the shared RAG server   (Ei Thandar)
+    McpClient         -> the shared MCP server          (Release 1)
+    RagClient         -> the shared RAG server          (Release 1)
+    MultiAgentClient  -> the shared Multi-Agent server  (Release 2)
 
-Both servers run on the HOST and are deliberately not containerised, so
-from inside student-4-backend they are reached through
-host.docker.internal, which docker-compose.yml supplies as MCP_URL and
-RAG_URL. Outside Docker the defaults are plain localhost.
+All three servers run on the HOST and are deliberately not
+containerised, so from inside student-4-backend they are reached through
+host.docker.internal, which docker-compose.yml supplies as MCP_URL,
+RAG_URL and MULTI_AGENT_URL. Outside Docker the defaults are plain
+localhost.
 
 These follow the same rule as every other client in this feature: the
-Order service must stay usable while a dependency is down. Neither
-client raises on an outage. Each returns a result object carrying an
+Order service must stay usable while a dependency is down. No client
+here raises on an outage. Each returns a result object carrying an
 "available" flag and a human-readable reason, so the screens can show
 what happened instead of a stack trace.
 
-    from ai_services import McpClient, RagClient
+    from ai_services import McpClient, RagClient, MultiAgentClient
     mcp = McpClient()
     rag = RagClient()
+    multi_agent = MultiAgentClient()
 """
 
 import json
@@ -642,6 +645,290 @@ class RagClient:
 
         return {"available": True, "reason": None,
                 "results": body.get("results", [])}
+
+    def health(self):
+        try:
+            response = requests.get(self.base_url + "/health", timeout=3)
+            body = response.json() if response.ok else {}
+            return {
+                "reachable": response.ok,
+                "url": self.base_url,
+                "service": body.get("service"),
+                "containerised": False,
+            }
+        except (requests.RequestException, ValueError):
+            return {"reachable": False, "url": self.base_url,
+                    "containerised": False}
+
+
+# =====================================================================
+# Shared Multi-Agent server                            (Release 2)
+#
+# Alice's server in ai-services/multi-agent-server, running on the host
+# and deliberately not containerised, so from inside student-4-backend
+# it is reached through host.docker.internal, which docker-compose.yml
+# supplies as MULTI_AGENT_URL.
+#
+#     POST /workflows                      start a run
+#     GET  /workflows/<id>                 fetch it
+#     POST /workflows/<id>/human-review    record the human decision
+#
+# A workflow runs Planner -> Worker -> Reviewer and then STOPS at
+# awaiting_human_review. It does not finish on its own: a person has to
+# approve, correct, partially accept or reject it, and that pause is the
+# point of the stage, not a timeout. So this client has two halves - one
+# that starts a run and waits for it to reach the pause, and one that
+# submits the decision which releases it.
+#
+# The server runs the three agents synchronously inside the POST, on a
+# local model, so that request is slow by nature - minutes, not seconds.
+# MULTI_AGENT_TIMEOUT is sized for that; the poll loop below is a
+# fallback for a server that ever answers before the agents finish.
+# =====================================================================
+
+MULTI_AGENT_URL = os.environ.get("MULTI_AGENT_URL", "http://localhost:5800")
+MULTI_AGENT_TIMEOUT = float(os.environ.get("MULTI_AGENT_TIMEOUT", 420))
+
+# The four decisions the server accepts, from its VALID_DECISIONS set.
+DECISIONS = ("approve", "correct", "partial_accept", "reject")
+
+DECISION_LABELS = {
+    "approve": "Approved",
+    "correct": "Sent back for correction",
+    "partial_accept": "Partially accepted",
+    "reject": "Rejected",
+}
+
+STATUS_LABELS = {
+    "running": "Agents working",
+    "awaiting_human_review": "Waiting for your decision",
+    "revising": "Worker revising after your correction",
+    "revision_failed": "The revision failed",
+    "completed": "Complete",
+    "failed": "Failed",
+}
+
+# Statuses that mean the server has stopped working and is waiting on
+# something outside itself.
+SETTLED = ("awaiting_human_review", "completed", "failed", "revision_failed")
+
+
+class MultiAgentClient:
+    """Runs a Planner -> Worker -> Reviewer -> Human workflow.
+
+    Never raises. Every method returns a dict carrying `available` and,
+    when that is False, a `reason` written for the person looking at the
+    screen rather than for a log.
+    """
+
+    def __init__(self, base_url=MULTI_AGENT_URL, timeout=MULTI_AGENT_TIMEOUT):
+        self.base_url = base_url.rstrip("/")
+        self.timeout = timeout
+
+    # -- helpers ------------------------------------------------------
+
+    def _unavailable(self, reason):
+        return {
+            "available": False,
+            "ok": False,
+            "server": self.base_url,
+            "reason": reason,
+            "workflow_id": None,
+            "status": None,
+            "history": [],
+        }
+
+    def _refused(self, reason):
+        """A request this client itself will not send."""
+        return {
+            "available": True,
+            "ok": False,
+            "server": self.base_url,
+            "reason": reason,
+            "workflow_id": None,
+            "status": None,
+            "history": [],
+        }
+
+    def _down(self, exc):
+        return self._unavailable(
+            "the shared Multi-Agent server is not answering on %s. It runs "
+            "on the host and is not containerised, so start it before using "
+            "this panel. (%s)" % (self.base_url, exc))
+
+    @staticmethod
+    def _decode(workflow):
+        """Parse the agent outputs, which arrive as JSON strings.
+
+        The server stores each agent's result as a JSON string inside the
+        workflow record, so plan, worker_output and review all come back
+        double-encoded. An agent that returned prose instead of JSON is a
+        finding worth showing, not a crash, so the raw text is kept under
+        a _text key when it will not parse.
+        """
+        if not isinstance(workflow, dict):
+            return {}
+
+        decoded = dict(workflow)
+        for field in ("plan", "worker_output", "review"):
+            value = workflow.get(field)
+            if isinstance(value, (dict, list)) or value in (None, ""):
+                continue
+            try:
+                decoded[field] = json.loads(value)
+            except (ValueError, TypeError):
+                decoded[field] = {"_text": str(value)}
+        return decoded
+
+    def _present(self, workflow, elapsed_ms=None):
+        """Shape a workflow record for the screen."""
+        workflow = self._decode(workflow)
+        status = workflow.get("status") or ""
+        human = workflow.get("human_review") or {}
+        decision = str(human.get("decision") or "").lower()
+
+        return {
+            "available": True,
+            "ok": status not in ("failed", "revision_failed"),
+            "server": self.base_url,
+            "workflow_id": workflow.get("workflow_id"),
+            "task": workflow.get("task"),
+            "status": status,
+            "status_label": STATUS_LABELS.get(status, status),
+            "awaiting_review": status == "awaiting_human_review",
+            "created_at": workflow.get("created_at"),
+            "evidence": workflow.get("evidence"),
+            "plan": workflow.get("plan"),
+            "worker_output": workflow.get("worker_output"),
+            "review": workflow.get("review"),
+            "human_review": human or None,
+            "decision": decision or None,
+            "decision_label": DECISION_LABELS.get(decision),
+            "history": workflow.get("history") or [],
+            "elapsed_ms": elapsed_ms,
+            "reason": None,
+        }
+
+    def _read(self, response):
+        """Body, or a reason the body is unusable. Returns (body, reason)."""
+        try:
+            body = response.json()
+        except ValueError:
+            return None, ("the Multi-Agent server returned something that "
+                          "is not JSON (HTTP %s)" % response.status_code)
+
+        if response.status_code >= 400:
+            # The server's own message first - "Workflow is not awaiting
+            # human review" tells the reader far more than "HTTP 400".
+            message = body.get("error") if isinstance(body, dict) else None
+            return None, ("the Multi-Agent server refused the request: %s"
+                          % (message or "HTTP %s" % response.status_code))
+
+        return body, None
+
+    # -- public -------------------------------------------------------
+
+    def start(self, task, evidence=None, poll_seconds=420):
+        """Start a workflow and return it once it reaches the human stage."""
+        task = (task or "").strip()
+        if not task:
+            return self._refused(
+                "Describe what the agents should look at first.")
+
+        if evidence is None:
+            evidence = {}
+        if not isinstance(evidence, dict):
+            return self._refused("Evidence must be a JSON object.")
+
+        started = time.time()
+        try:
+            response = requests.post(self.base_url + "/workflows",
+                                     json={"task": task, "evidence": evidence},
+                                     timeout=self.timeout)
+        except requests.RequestException as exc:
+            return self._down(exc)
+
+        body, reason = self._read(response)
+        if reason:
+            return self._unavailable(reason)
+
+        workflow = body.get("workflow", body) if isinstance(body, dict) else {}
+        workflow_id = workflow.get("workflow_id")
+
+        # The server runs the agents inside the POST, so this loop almost
+        # never turns. It is here so a server that ever answers 202 early
+        # is still handled rather than reported as half-finished.
+        deadline = started + poll_seconds
+        while (workflow.get("status") not in SETTLED
+               and workflow_id and time.time() < deadline):
+            time.sleep(2)
+            polled = self.get(workflow_id)
+            if not polled.get("available"):
+                return polled
+            workflow = polled["raw"]
+
+        result = self._present(workflow, int((time.time() - started) * 1000))
+        result["raw"] = workflow
+        return result
+
+    def get(self, workflow_id):
+        """Fetch one workflow by id."""
+        started = time.time()
+        try:
+            response = requests.get(
+                "%s/workflows/%s" % (self.base_url, workflow_id), timeout=30)
+        except requests.RequestException as exc:
+            return self._down(exc)
+
+        if response.status_code == 404:
+            return self._refused("No workflow with id %s." % workflow_id)
+
+        body, reason = self._read(response)
+        if reason:
+            return self._unavailable(reason)
+
+        workflow = body.get("workflow", body) if isinstance(body, dict) else {}
+        result = self._present(workflow, int((time.time() - started) * 1000))
+        result["raw"] = workflow
+        return result
+
+    def submit_review(self, workflow_id, decision, comments=""):
+        """Record the human decision that releases the workflow."""
+        decision = str(decision or "").strip().lower()
+        if decision not in DECISIONS:
+            return self._refused("Choose one of: %s." % ", ".join(DECISIONS))
+
+        comments = "" if comments is None else str(comments)
+
+        # Anything other than a plain approval has to say why, or whoever
+        # picks up the correction has nothing to act on. The server only
+        # enforces this for "correct"; this client asks for it on every
+        # decision that is not an approval.
+        if decision != "approve" and not comments.strip():
+            return self._refused(
+                "A decision of \u201c%s\u201d needs a comment saying what "
+                "is wrong." % DECISION_LABELS[decision].lower())
+
+        started = time.time()
+        try:
+            response = requests.post(
+                "%s/workflows/%s/human-review" % (self.base_url, workflow_id),
+                json={"decision": decision, "comments": comments},
+                timeout=self.timeout)
+        except requests.RequestException as exc:
+            return self._down(exc)
+
+        if response.status_code == 404:
+            return self._refused("No workflow with id %s." % workflow_id)
+
+        body, reason = self._read(response)
+        if reason:
+            return self._unavailable(reason)
+
+        workflow = body.get("workflow", body) if isinstance(body, dict) else {}
+        result = self._present(workflow, int((time.time() - started) * 1000))
+        result["raw"] = workflow
+        return result
 
     def health(self):
         try:

@@ -1,0 +1,89 @@
+{
+  "server": "http://host.docker.internal:5800",
+  "status": "awaiting_human_review",
+  "captured_from": "student-4-backend /api/ai/multi-agent",
+  "workflow": {
+    "created_at": "2026-10-22T13:52:29.307642+00:00",
+    "evidence": {
+      "at_risk_orders": [
+        "A-1017"
+      ],
+      "busiest_station": "BAR",
+      "congestion_level": "HIGH",
+      "feature": "Order & Kitchen Management",
+      "generated_at": "2026-10-22 13:52:29",
+      "longest_wait_minutes": 69592.7,
+      "open_order_count": 1,
+      "source": "student-4-backend /api/kitchen/queue",
+      "station_load": {
+        "BAR": {
+          "queued_items": 1,
+          "workload_minutes": 1.5
+        },
+        "KITCHEN": {
+          "queued_items": 0,
+          "workload_minutes": 0.0
+        },
+        "PASTRY": {
+          "queued_items": 0,
+          "workload_minutes": 0.0
+        }
+      },
+      "ticket_sample": [
+        {
+          "age_minutes": 69592.7,
+          "at_risk": true,
+          "channel": "DINE_IN",
+          "complexity": 1.0,
+          "id": 17,
+          "item_count": 1,
+          "items": [
+            "1x Latte"
+          ],
+          "order_number": "A-1017",
+          "prep_minutes": 1.5,
+          "priority_score": 83510.35,
+          "status": "PENDING",
+          "table_number": "T3"
+        }
+      ],
+      "ticket_total": 1,
+      "total_workload_minutes": 1.5
+    },
+    "history": [
+      {
+        "details": {},
+        "event": "workflow_started",
+        "timestamp": "2026-10-22T13:52:29.307657+00:00"
+      },
+      {
+        "details": {
+          "plan": "{\n  \"available_information\": [\"open_order_count\", \"total_workload_minutes\", \"busiest_station\", \"congestion_level\", \"station_load\", \"at_risk_orders\", \"ticket_sample\", \"ticket_total\"],\n  \"information_to_check\": [\"longest_wait_minutes\"],\n  \"worker_steps\": [\n    \"Sort tickets by longest wait time\",\n    \"Prioritize tickets with high priority scores\",\n    \"Review tickets at risk of missing the service target\"\n  ]\n}"
+        },
+        "event": "planner_completed",
+        "timestamp": "2026-10-22T13:52:33.256991+00:00"
+      },
+      {
+        "details": {
+          "output": "{\n  \"result\": \"Sort tickets by longest wait time, then prioritize tickets with high priority scores, and review tickets at risk of missing the service target\",\n  \"missing_information\": [],\n  \"evidence_used\": [\n    \"open_order_count\",\n    \"total_workload_minutes\",\n    \"busiest_station\",\n    \"congestion_level\",\n    \"station_load\",\n    \"at_risk_orders\",\n    \"ticket_sample\",\n    \"ticket_total\"\n  ]\n}"
+        },
+        "event": "worker_completed",
+        "timestamp": "2026-10-22T13:52:35.213618+00:00"
+      },
+      {
+        "details": {
+          "review": "{\n  \"assessment\": \"The Worker answered the user's question and identified the supplied information correctly, but did not identify the most at-risk ticket.\",\n  \"issues\": [\"Incorrectly identified the most at-risk ticket\"],\n  \"recommendation\": \"revise\",\n  \"reason\": \"The Worker's response is mostly correct, but missed identifying the most at-risk ticket, which is 'A-1017' according to the evidence.\"\n}"
+        },
+        "event": "reviewer_completed",
+        "timestamp": "2026-10-22T13:52:37.458516+00:00"
+      }
+    ],
+    "human_review": null,
+    "plan": "{\n  \"available_information\": [\"open_order_count\", \"total_workload_minutes\", \"busiest_station\", \"congestion_level\", \"station_load\", \"at_risk_orders\", \"ticket_sample\", \"ticket_total\"],\n  \"information_to_check\": [\"longest_wait_minutes\"],\n  \"worker_steps\": [\n    \"Sort tickets by longest wait time\",\n    \"Prioritize tickets with high priority scores\",\n    \"Review tickets at risk of missing the service target\"\n  ]\n}",
+    "review": "{\n  \"assessment\": \"The Worker answered the user's question and identified the supplied information correctly, but did not identify the most at-risk ticket.\",\n  \"issues\": [\"Incorrectly identified the most at-risk ticket\"],\n  \"recommendation\": \"revise\",\n  \"reason\": \"The Worker's response is mostly correct, but missed identifying the most at-risk ticket, which is 'A-1017' according to the evidence.\"\n}",
+    "status": "awaiting_human_review",
+    "task": "Recommend the order the kitchen should work the open tickets in, and say which ticket is most at risk of missing the service target.",
+    "worker_output": "{\n  \"result\": \"Sort tickets by longest wait time, then prioritize tickets with high priority scores, and review tickets at risk of missing the service target\",\n  \"missing_information\": [],\n  \"evidence_used\": [\n    \"open_order_count\",\n    \"total_workload_minutes\",\n    \"busiest_station\",\n    \"congestion_level\",\n    \"station_load\",\n    \"at_risk_orders\",\n    \"ticket_sample\",\n    \"ticket_total\"\n  ]\n}",
+    "workflow_id": "f2ac8686-180f-4402-9b8d-09543b2b6e78"
+  }
+}

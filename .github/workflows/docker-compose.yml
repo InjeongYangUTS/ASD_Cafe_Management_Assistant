@@ -1,0 +1,385 @@
+# =====================================================================
+# ASD 2026 - Cafe Management Assistant
+# Release 0 : one shared Docker Compose configuration for the whole team.
+#
+# Student 4 (Stella Kwon) added the shared skeleton plus her own three
+# microservices. Students 1, 2, 3 and 5: uncomment your block, keep the
+# same port convention and the same network, and everything wires up.
+#
+#   PORT CONVENTION       frontend 5N00 | database 7N00 | backend 8N00
+#   shared index/auth     5100
+#   ollama (AI-Mode)      11434
+#
+# Run:      docker compose up --build
+# Verify:   docker compose ps
+# Stop:     docker compose down
+# =====================================================================
+
+name: asd-cafe-management-assistant
+
+services:
+
+  # -------------------------------------------------------------------
+  # Shared entry point : index.html, authentication, staff/customer
+  # dashboards (source owned by the group, in ./shared)
+  # -------------------------------------------------------------------
+  shared-frontend:
+    build:
+      context: .
+      dockerfile: docker/shared-frontend.Dockerfile
+    container_name: cafe-shared-frontend
+    ports:
+      - "5100:5100"
+    environment:
+      PORT: 5100
+    networks:
+      - cafe-net
+    restart: unless-stopped
+
+  # ===================================================================
+  # STUDENT 4 - Stella Kwon - Order & Kitchen Management
+  # ===================================================================
+
+  student-4-database:
+    build: ./student-4/database
+    container_name: student-4-database
+    ports:
+      - "7400:7400"
+    environment:
+      PORT: 7400
+      ORDER_DB_PATH: /app/data/orders.db
+    volumes:
+      - student4-order-data:/app/data
+    networks:
+      - cafe-net
+    restart: unless-stopped
+
+  student-4-backend:
+    build: ./student-4/backend
+    container_name: student-4-backend
+    ports:
+      - "8400:8400"
+    environment:
+      PORT: 8400
+      DB_SERVICE_URL: http://student-4-database:7400
+      MENU_SERVICE_URL: http://student2-backend:5201       # Student 2 - Menu API
+      INVENTORY_SERVICE_URL: http://student-3-backend:8300   # Student 3 - Inventory API
+      OLLAMA_URL: http://host.docker.internal:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2}
+      MCP_URL: http://host.docker.internal:5700
+      RAG_URL: http://host.docker.internal:5600
+      # Release 2 - the shared Multi-Agent Server, also on the host and
+      # also not containerised.
+      MULTI_AGENT_URL: http://host.docker.internal:5800
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      student-4-database:
+        condition: service_healthy
+    networks:
+      - cafe-net
+    restart: unless-stopped
+
+  student-4-frontend:
+    build: ./student-4/frontend
+    container_name: student-4-frontend
+    ports:
+      - "5400:5400"
+    environment:
+      PORT: 5400
+      BACKEND_URL: http://student-4-backend:8400
+      SHARED_DIR: /app/shared
+      SHARED_PORT: 5100
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2}
+      # Must match shared-frontend so the login session cookie set on :5100
+      # can be read here. This service never signs anyone in - it only reads
+      # the role, so a customer cannot open the kitchen board.
+      SECRET_KEY: ${SHARED_SECRET_KEY:-temporary-secret-key}
+    volumes:
+      # Read-only reuse of the group stylesheet and icons - never modified.
+      - ./shared:/app/shared:ro
+    depends_on:
+      student-4-backend:
+        condition: service_healthy
+    networks:
+      - cafe-net
+    restart: unless-stopped
+
+  # ===================================================================
+  # STUDENT 1 - Hangyeol Yi - Customer Feedback & Reviews
+  #
+  # Ports follow the convention at the top of this file, with the
+  # documented exception that the frontend uses 5110 because 5100 is the
+  # shared entry point.
+  # ===================================================================
+
+  student-1-database:
+    build: ./student-1/database
+    container_name: student-1-database
+    ports:
+      - "7100:7100"
+    environment:
+      PORT: 7100
+      FEEDBACK_DB_PATH: /app/data/feedback.db
+    volumes:
+      - student1-feedback-data:/app/data
+    networks:
+      - cafe-net
+    restart: unless-stopped
+
+  student-1-backend:
+    # Context is student-1/ rather than student-1/backend/ so the image
+    # can copy in student-1/prompts, which this service and the agentic
+    # loop share. A Dockerfile cannot COPY from outside its context.
+    build:
+      context: ./student-1
+      dockerfile: backend/Dockerfile
+    container_name: student-1-backend
+    ports:
+      - "8100:8100"
+    environment:
+      PORT: 8100
+      DB_SERVICE_URL: http://student-1-database:7100
+      # Order & Kitchen Management. Supplies the order history a review
+      # can attach to and the menu names used to work out which item a
+      # review is about. Optional: reviews work without it.
+      ORDER_SERVICE_URL: http://student-4-backend:8400
+      # AI-Mode. The OpenAI-compatible /v1 endpoint, as in the course
+      # configuration guide. Set OLLAMA_BASE_URL in a root .env to reuse
+      # an Ollama already running on the host instead of the container.
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434/v1}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2}
+      OLLAMA_REVIEW_MODEL: ${OLLAMA_REVIEW_MODEL:-qwen2.5:0.5b}
+      AI_TIMEOUT: 240
+      # Same key as shared-frontend. The backend does not issue a session;
+      # it verifies the one the browser already carries, so a customer's
+      # identity cannot be claimed in a request body.
+      SECRET_KEY: ${SHARED_SECRET_KEY:-temporary-secret-key}
+      MCP_URL: http://host.docker.internal:5700
+      RAG_URL: http://host.docker.internal:5600
+      # Release 2: shared Multi-Agent server runs on the host, not in Compose.
+      MULTI_AGENT_URL: http://host.docker.internal:5800
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      student-1-database:
+        condition: service_healthy
+    networks:
+      - cafe-net
+    restart: unless-stopped
+
+  student-1-frontend:
+    build: ./student-1/frontend
+    container_name: student-1-frontend
+    ports:
+      - "5110:5110"
+    environment:
+      PORT: 5110
+      BACKEND_URL: http://student-1-backend:8100
+      SHARED_DIR: /app/shared
+      SHARED_PORT: 5100
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2}
+      # Must match shared-frontend so the login session cookie set on
+      # port 5100 is readable here. Cookies are scoped by host, not port.
+      SECRET_KEY: ${SHARED_SECRET_KEY:-temporary-secret-key}
+    volumes:
+      # Read-only reuse of the group stylesheet and icons - never modified.
+      - ./shared:/app/shared:ro
+    depends_on:
+      student-1-backend:
+        condition: service_healthy
+    networks:
+      - cafe-net
+    restart: unless-stopped
+
+  # ===================================================================
+  # STUDENT 2 - Ei Thandar - Menu & Recipe Management
+  # ===================================================================
+
+  student2-database:
+    build:
+      context: ./student-2/database
+      dockerfile: Dockerfile
+    container_name: student2-database
+    ports:
+      - "5202:5202"
+    networks:
+      - cafe-net
+
+  student2-backend:
+    build:
+      context: ./student-2
+      dockerfile: backend/Dockerfile
+    container_name: student2-backend
+    ports:
+      - "5201:5201"
+    environment:
+      DATABASE_SERVICE_URL: http://student2-database:5202
+      MCP_URL: http://host.docker.internal:5700
+      RAG_URL: http://host.docker.internal:5600
+      RAG_SERVICE_URL: http://host.docker.internal:5600
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - student2-database
+    networks:
+      - cafe-net
+
+  student2-frontend:
+    build:
+      context: ./student-2/frontend
+      dockerfile: Dockerfile
+    container_name: student2-frontend
+    ports:
+      - "5200:5200"
+    depends_on:
+      - student2-backend
+    networks:
+      - cafe-net
+
+  # ===================================================================
+  # STUDENT 3 - Injeong Yang (Sam) - Inventory & Restocking
+  #   student-4-backend calls
+  #     POST http://student-3-backend:8300/api/inventory/check
+  #     POST http://student-3-backend:8300/api/inventory/deduct
+  # ===================================================================
+  student-3-database:
+    build: ./student-3/database
+    container_name: student-3-database
+    ports:
+      - "7300:7300"
+    environment:
+      PORT: 7300
+      INVENTORY_DB_PATH: /app/data/inventory.db
+    volumes:
+      - student3-inventory-data:/app/data
+    networks:
+      - cafe-net
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:7300/db/health', timeout=4)\""]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  student-3-backend:
+    build: ./student-3/backend
+    container_name: student-3-backend
+    ports:
+      - "8300:8300"
+    environment:
+      PORT: 8300
+      DB_SERVICE_URL: http://student-3-database:7300
+      OLLAMA_URL: http://host.docker.internal:11434/api/generate
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2}
+      LOG_DIRECTORY: /app/logs
+      MCP_SERVER_URL: http://host.docker.internal:5700/mcp
+      MCP_URL: http://host.docker.internal:5700
+      RAG_URL: http://host.docker.internal:5600
+      MULTI_AGENT_URL: http://host.docker.internal:5800
+      MULTI_AGENT_TIMEOUT: "120"
+      MULTI_AGENT_ENABLED: "true"
+    volumes:
+      - ./student-3/logs:/app/logs
+    depends_on:
+      student-3-database:
+        condition: service_healthy
+    networks:
+      - cafe-net
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8300/api/health', timeout=4)\""]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  student-3-frontend:
+    build:
+      context: ./student-3
+      dockerfile: frontend/Dockerfile
+    container_name: student-3-frontend
+    ports:
+      - "5300:5300"
+    environment:
+      PORT: 5300
+      BACKEND_URL: http://student-3-backend:8300
+      SHARED_HOME_URL: http://localhost:5100/staff-dashboard
+    depends_on:
+      student-3-backend:
+        condition: service_healthy
+    networks:
+      - cafe-net
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:5300/health', timeout=4)\""]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  # ===================================================================
+  # STUDENT 5 - Ong Ath Vongnathi (Kota) - Payment & Billing
+  # ============================================================
+
+  student-5-database:
+    build: ./student-5/database
+    container_name: student-5-database
+    ports:
+      - "7500:7500"
+    environment:
+      PORT: 7500
+    networks:
+      - cafe-net
+    restart: unless-stopped
+
+  student-5-backend:
+    build: ./student-5/backend
+    container_name: student-5-backend
+    ports:
+      - "8500:8500"
+    environment:
+      PORT: 8500
+      DATABASE_API_URL: http://student-5-database:7500/api
+      ORDER_SERVICE_URL: http://student-4-backend:8400/api
+      OLLAMA_URL: http://host.docker.internal:11434/api/generate
+      OLLAMA_REVIEW_MODEL: ${OLLAMA_REVIEW_MODEL:-qwen2.5:0.5b}
+      MCP_URL: http://host.docker.internal:5700
+      RAG_URL: http://host.docker.internal:5600
+      MCP_TIMEOUT: 15
+      RAG_TIMEOUT: 120
+      MCP_ENABLED: "true"
+      RAG_ENABLED: "true"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      student-5-database:
+        condition: service_healthy
+      student-4-backend:
+        condition: service_started
+    networks:
+      - cafe-net
+    restart: unless-stopped
+
+  student-5-frontend:
+    build: ./student-5/frontend
+    container_name: student-5-frontend
+    ports:
+      - "5500:5500"
+    depends_on:
+      student-5-backend:
+        condition: service_healthy
+    networks:
+      - cafe-net
+    restart: unless-stopped
+
+
+networks:
+  cafe-net:
+    driver: bridge
+
+volumes:
+  student3-inventory-data:
+  student4-order-data:
+  student1-feedback-data:

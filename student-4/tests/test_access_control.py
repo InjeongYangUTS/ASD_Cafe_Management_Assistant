@@ -101,3 +101,54 @@ def test_staff_are_sent_home_to_the_staff_dashboard(frontend_app):
 
     assert "Back to Staff Dashboard" in body
     assert "/staff-dashboard" in body
+
+
+# ---------------------------------------------------------------------
+# The Multi-Agent panel is staff-only too          (Release 2)
+#
+# The human-review stage is a staff decision recorded against a named
+# workflow, so a customer must not be able to start a run or decide on
+# one - including by posting to the fragment directly, which is the
+# only route that matters once the link is hidden.
+# ---------------------------------------------------------------------
+
+def test_customer_cannot_start_a_multi_agent_workflow(frontend_app):
+    client = client_as(frontend_app, CUSTOMER)
+    response = client.post("/ui/ai/multi-agent", data={"task": "anything"})
+    assert response.status_code == 403
+
+
+def test_customer_cannot_read_a_multi_agent_workflow(frontend_app):
+    client = client_as(frontend_app, CUSTOMER)
+    assert client.get("/ui/ai/multi-agent/wf-1").status_code == 403
+
+
+def test_customer_cannot_decide_on_a_multi_agent_workflow(frontend_app):
+    """The human-review stage is the one that must not be forgeable."""
+    client = client_as(frontend_app, CUSTOMER)
+    response = client.post("/ui/ai/multi-agent/wf-1/review",
+                           data={"decision": "approve"})
+    assert response.status_code == 403
+
+
+def test_the_decision_is_refused_before_it_reaches_the_server(frontend_app):
+    """A non-approval with no reason never leaves this service.
+
+    Staff, not a customer - so this is the panel's own rule, not the
+    role guard: a rejection with nothing written against it would leave
+    whoever picks it up nothing to act on.
+    """
+    client = client_as(frontend_app, STAFF)
+    response = client.post("/ui/ai/multi-agent/wf-1/review",
+                           data={"decision": "reject", "comments": "   "})
+
+    assert response.status_code == 200
+    assert "Say what is wrong" in response.get_data(as_text=True)
+
+
+def test_an_unknown_decision_is_refused(frontend_app):
+    client = client_as(frontend_app, STAFF)
+    response = client.post("/ui/ai/multi-agent/wf-1/review",
+                           data={"decision": "maybe", "comments": "hm"})
+
+    assert "four decisions" in response.get_data(as_text=True)

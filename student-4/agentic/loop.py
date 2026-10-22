@@ -64,6 +64,15 @@ REVIEW_AREAS = ["database", "implementation", "architecture", "devops"]
 MCP_AREAS = ["availability", "protocol", "invocation", "resilience"]
 RAG_AREAS = ["availability", "retrieval", "grounding", "resilience"]
 
+# Release 2. These three review evidence rather than probe a live
+# service, so their areas name stages of an argument, not layers of a
+# system.
+MULTIAGENT_AREAS = ["availability", "workflow", "chain-of-custody",
+                    "human-review"]
+TESTING_AREAS = ["configuration", "security-scan", "endpoint-tests",
+                 "reporting"]
+CLOUD_AREAS = ["artefacts", "deployment", "baseline", "release-decision"]
+
 SYSTEM_PROMPTS = {
     "review": (
         "You are a software engineering reviewer for a university "
@@ -83,6 +92,40 @@ SYSTEM_PROMPTS = {
         "sentences) and NEXT (which of availability, protocol, invocation, "
         "resilience the next iteration should focus on, and why, in one "
         "sentence). Be direct and do not invent checks that were not run."
+    ),
+    "multi-agent": (
+        "You are reviewing a multi-agent workflow in which a Planner, a "
+        "Worker and a Reviewer produced a result that a person then "
+        "approved, corrected or rejected. You are given automated checks on "
+        "the record that workflow left behind. Reply with two short "
+        "sections: FINDING (what the results say about whether each stage "
+        "actually used the previous one's output, at most two sentences) and "
+        "NEXT (which of availability, workflow, chain-of-custody, "
+        "human-review the next iteration should focus on, and why, in one "
+        "sentence). Be direct and do not invent checks that were not run."
+    ),
+    "testing": (
+        "You are reviewing a software team's testing evidence: local "
+        "pre-commit security scans and post-commit endpoint tests run by "
+        "each developer's CI workflow. You are given automated checks on "
+        "that evidence. Reply with two short sections: FINDING (what the "
+        "results say about whether the testing is real rather than "
+        "configured, at most two sentences) and NEXT (which of "
+        "configuration, security-scan, endpoint-tests, reporting the next "
+        "iteration should focus on, and why, in one sentence). Be direct and "
+        "do not invent checks that were not run."
+    ),
+    "cloud": (
+        "You are reviewing evidence that a student team deployed their "
+        "application to a cloud platform. The required deployment must keep "
+        "its AI services disabled by default. You are given automated checks "
+        "on the deployment artefacts, the deployment report and the human "
+        "release decision. Reply with two short sections: FINDING (what the "
+        "results say about whether this deployment is fit to release, at "
+        "most two sentences) and NEXT (which of artefacts, deployment, "
+        "baseline, release-decision the next iteration should focus on, and "
+        "why, in one sentence). Be direct and do not invent checks that were "
+        "not run."
     ),
     "rag": (
         "You are reviewing a retrieval-augmented generation server for a "
@@ -461,6 +504,20 @@ def build_mode(mode, args):
         return (build_rag_probes(args.rag_url, ok, fail, Probe),
                 RAG_AREAS)
 
+    if mode == "multi-agent":
+        from probes_multiagent import build_multiagent_probes
+        return (build_multiagent_probes(args.multiagent_url,
+                                        args.backend_url, ok, fail, Probe),
+                MULTIAGENT_AREAS)
+
+    if mode == "testing":
+        from probes_testing import build_testing_probes
+        return (build_testing_probes(ok, fail, Probe), TESTING_AREAS)
+
+    if mode == "cloud":
+        from probes_cloud import build_cloud_probes
+        return (build_cloud_probes(ok, fail, Probe), CLOUD_AREAS)
+
     raise ValueError("unknown mode %r" % mode)
 
 
@@ -612,10 +669,93 @@ MODE_TITLES = {
     "review": "Release 0 review - my three services",
     "mcp": "Shared MCP server validation",
     "rag": "Shared RAG server validation",
+    "multi-agent": "Release 2 Multi-Agent Workflow Review",
+    "testing": "Release 2 Testing Review",
+    "cloud": "Release 2 Cloud Deployment Review",
+}
+
+# Release 2 asks two of the new modes for more than a pass or a fail:
+# the Multi-Agent mode "produces implementation/review recommendations"
+# and the Cloud mode "supports the final release decision". A mode can
+# register a verdict function here, and write_logs puts what it returns
+# at the top of the Markdown report, where a person reads it. Modes
+# without one behave exactly as they did in Release 1.
+
+def _recommendations(observation):
+    """Turn failures into an ordered list of what to do next."""
+    lines = []
+    for failure in observation["failures"]:
+        lines.append("- **%s** (%s) — %s"
+                     % (failure["description"], failure["area"],
+                        failure["evidence"]))
+    return lines
+
+
+def verdict_multiagent(observation):
+    passed, total = observation["passed"], observation["total"]
+    if observation["failed"] == 0:
+        head = ("**Recommendation: the workflow evidence is complete.** "
+                "All %d checks pass, including the chain-of-custody checks "
+                "that each stage used the previous one's output." % total)
+        return [head]
+    head = ("**Recommendation: %d of %d checks pass.** The workflow cannot "
+            "be signed off until the following are addressed."
+            % (passed, total))
+    return [head, ""] + _recommendations(observation)
+
+
+def verdict_testing(observation):
+    if observation["failed"] == 0:
+        return ["**Recommendation: testing evidence is complete.** All %d "
+                "checks pass across configuration, security scanning, "
+                "endpoint tests and reporting." % observation["total"]]
+    return (["**Recommendation: %d of %d checks pass.** Outstanding items:"
+             % (observation["passed"], observation["total"]), ""]
+            + _recommendations(observation))
+
+
+def verdict_cloud(observation):
+    """The cloud mode ends in a release recommendation, not a score."""
+    blocking = [f for f in observation["failures"]
+                if f["area"] in ("deployment", "baseline")]
+    other = [f for f in observation["failures"]
+             if f["area"] not in ("deployment", "baseline")]
+
+    if observation["failed"] == 0:
+        return ["**Release recommendation: GO.** All %d checks pass. The "
+                "deployment is reachable, CRUD was verified in the cloud, "
+                "and the four AI services are disabled by default as the "
+                "brief requires." % observation["total"],
+                "",
+                "_This is a recommendation. The release decision is "
+                "recorded by a person in "
+                "evidence/release2/cloud/release-decision.json._"]
+
+    verdict = "NO-GO" if blocking else "GO WITH RESERVATIONS"
+    lines = ["**Release recommendation: %s.** %d of %d checks pass."
+             % (verdict, observation["passed"], observation["total"]), ""]
+    if blocking:
+        lines.append("Blocking — the deployment or the required baseline:")
+        lines += _recommendations({"failures": blocking})
+        lines.append("")
+    if other:
+        lines.append("Non-blocking — artefacts and record-keeping:")
+        lines += _recommendations({"failures": other})
+        lines.append("")
+    lines.append("_This is a recommendation. The release decision is "
+                 "recorded by a person in "
+                 "evidence/release2/cloud/release-decision.json._")
+    return lines
+
+
+VERDICTS = {
+    "multi-agent": verdict_multiagent,
+    "testing": verdict_testing,
+    "cloud": verdict_cloud,
 }
 
 
-def write_logs(run_id, mode, records):
+def write_logs(run_id, mode, records, final_observation=None):
     os.makedirs(LOG_DIR, exist_ok=True)
 
     stem = "loop-%s-%s" % (mode, run_id)
@@ -623,13 +763,28 @@ def write_logs(run_id, mode, records):
     jsonl_path = os.path.join(LOG_DIR, stem + ".jsonl")
     with open(jsonl_path, "w", encoding="utf-8") as handle:
         for record in records:
-            handle.write(json.dumps(record) + "\n")
+            handle.write(json.dumps(
+                {k: v for k, v in record.items()
+                 if k != "observation_full"}) + "\n")
 
     md_path = os.path.join(LOG_DIR, stem + ".md")
     with open(md_path, "w", encoding="utf-8") as handle:
         handle.write("# Agentic loop run %s - mode `%s`\n\n" % (run_id, mode))
         handle.write("Student 4 (Stella Kwon) - Order & Kitchen Management\n\n")
         handle.write("%s\n\n" % MODE_TITLES.get(mode, mode))
+
+        # A mode that registered a verdict puts it here, at the top,
+        # because this is the part a person reads.
+        # The verdict is read off the whole run, not the last
+        # iteration. A later iteration re-runs only what failed, so
+        # records[-1] would describe a subset and understate the suite.
+        verdict = VERDICTS.get(mode)
+        if verdict and records:
+            outcome = final_observation or records[-1]["observation_full"]
+            handle.write("## Review outcome\n\n")
+            for line in verdict(outcome):
+                handle.write("%s\n" % line)
+            handle.write("\n---\n\n")
 
         for record in records:
             handle.write("## Iteration %d\n\n" % record["iteration"])
@@ -686,6 +841,13 @@ def run_mode(mode, args):
     focus = "all"
     previous_results = []
 
+    # The latest outcome of every probe, keyed by probe. Iteration 1
+    # runs all of them; later iterations re-run only what failed, so
+    # this is what "the current state of the suite" means. Without it
+    # the headline would read off the last iteration's subset and
+    # report "0/10 passing" for a suite standing at 7/17.
+    latest = {}
+
     for iteration in range(1, args.max_iterations + 1):
 
         selected, rationale = plan(iteration, probes, focus, previous_results)
@@ -723,10 +885,16 @@ def run_mode(mode, args):
             "results": results,
             "observation": {k: v for k, v in observation.items()
                             if k != "failures"},
+            # write_logs needs the failure detail for the verdict block;
+            # it is stripped from the JSONL record below so the machine
+            # readable log keeps the shape Release 1 established.
+            "observation_full": observation,
             "adaptation": adaptation,
         })
 
         previous_results = results
+        for result in results:
+            latest[result["key"]] = result
 
         if adaptation["next_focus"] is None:
             print("\n[LOOP]    converged after %d iteration(s)." % iteration)
@@ -735,9 +903,13 @@ def run_mode(mode, args):
         focus = adaptation["next_focus"]
         print("[LOOP]    next iteration focuses on '%s'" % focus)
 
-    md_path, jsonl_path = write_logs(run_id, mode, records)
+    # Every probe at its latest outcome, in the order the pack declares
+    # them, so the headline describes the suite rather than whatever
+    # subset the last iteration happened to re-run.
+    final = observe([latest[p.key] for p in probes if p.key in latest], areas)
 
-    final = records[-1]["observation"]
+    md_path, jsonl_path = write_logs(run_id, mode, records, final)
+
     print("\n" + "=" * 72)
     print(" %s FINAL: %d/%d probes passing"
           % (mode.upper(), final["passed"], final["total"]))
@@ -754,11 +926,17 @@ def run_mode(mode, args):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Student 4 shared agentic loop - review, MCP and RAG "
-                    "validation modes")
-    parser.add_argument("--mode", choices=["review", "mcp", "rag", "all"],
+        description="Student 4 shared agentic loop - six review modes: "
+                    "review, mcp and rag (Release 1); multi-agent, "
+                    "testing and cloud (Release 2)")
+    parser.add_argument("--mode",
+                        choices=["review", "mcp", "rag",
+                                 "multi-agent", "testing", "cloud",
+                                 "all", "release2"],
                         default=os.environ.get("LOOP_MODE", "review"),
-                        help="which probe pack to run (default: review)")
+                        help="which probe pack to run. 'all' runs the "
+                             "Release 1 modes, 'release2' the three "
+                             "Release 2 review modes (default: review)")
 
     parser.add_argument("--db-url",
                         default=os.environ.get("S4_DB_URL", "http://localhost:7400"))
@@ -774,6 +952,10 @@ def main():
     parser.add_argument("--rag-url",
                         default=os.environ.get("RAG_URL", "http://localhost:5600"),
                         help="shared RAG server, non-containerised")
+    parser.add_argument("--multiagent-url",
+                        default=os.environ.get("MULTI_AGENT_URL",
+                                               "http://localhost:5800"),
+                        help="shared Multi-Agent server, non-containerised")
 
     parser.add_argument("--ollama-url",
                         default=os.environ.get("OLLAMA_URL", "http://localhost:11434"))
@@ -782,7 +964,12 @@ def main():
     parser.add_argument("--max-iterations", type=int, default=3)
     args = parser.parse_args()
 
-    modes = ["review", "mcp", "rag"] if args.mode == "all" else [args.mode]
+    if args.mode == "all":
+        modes = ["review", "mcp", "rag"]
+    elif args.mode == "release2":
+        modes = ["multi-agent", "testing", "cloud"]
+    else:
+        modes = [args.mode]
 
     codes = {}
     for mode in modes:

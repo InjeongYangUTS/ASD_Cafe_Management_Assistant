@@ -1,0 +1,235 @@
+{#
+  Shared Multi-Agent server - Planner, Worker, Reviewer, Human Review.
+
+  The four stages are shown in order, each one labelled with who
+  produced it, so a reader can see that the Worker answered the
+  Planner's steps and the Reviewer judged the Worker's answer rather
+  than the task. The run stops at the fourth stage and stays there:
+  until a person decides, nothing here counts as accepted.
+#}
+
+{% if error %}
+
+<div class="s4-alert error"><strong>Could not run the workflow</strong>{{ error }}</div>
+
+{% elif not result.available %}
+
+<div class="s4-alert warn">
+    <strong>Shared Multi-Agent server unavailable</strong>
+    {{ result.reason }}
+</div>
+
+{% elif not result.workflow_id %}
+
+<div class="s4-alert warn"><strong>Nothing to run</strong>{{ result.reason }}</div>
+
+{% else %}
+
+{% if notice %}
+<div class="s4-alert ok"><strong>Recorded</strong>{{ notice }}</div>
+{% endif %}
+
+<p class="s4-ai-head">
+    <span class="s4-mode-tag ollama">Multi-Agent · 4 stages</span>
+    <span class="s4-stage-state {{ result.status }}">{{ result.status_label }}</span>
+    {% if result.elapsed_ms %}
+    <span class="s4-chip inline">{{ result.elapsed_ms }} ms</span>
+    {% endif %}
+    <span class="s4-chip inline">id {{ result.workflow_id[:8] }}</span>
+</p>
+
+<p class="s4-muted" style="margin: 0 0 16px;">Task: “{{ result.task }}”</p>
+
+{% if not result.ok %}
+<div class="s4-alert error">
+    <strong>The workflow did not finish</strong>
+    One of the agents failed. The audit history at the bottom records
+    where it stopped.
+</div>
+{% endif %}
+
+<!-- ---------- stage 1: Planner ---------- -->
+<div class="s4-stage">
+    <h5><span class="s4-stage-no">1</span> Planner <span class="s4-muted">· shared server</span></h5>
+
+    {% if result.plan is mapping and result.plan._text %}
+    <p class="s4-warn-text">The Planner returned prose, not the agreed JSON:</p>
+    <blockquote class="s4-source-text">{{ result.plan._text }}</blockquote>
+
+    {% elif result.plan is mapping %}
+    {% if result.plan.worker_steps %}
+    <p class="s4-stage-label">Steps handed to the Worker</p>
+    <ol class="s4-stage-list">
+        {% for step in result.plan.worker_steps %}<li>{{ step }}</li>{% endfor %}
+    </ol>
+    {% endif %}
+
+    {% if result.plan.available_information %}
+    <p class="s4-stage-label">Read from the evidence</p>
+    <ul class="s4-stage-list">
+        {% for line in result.plan.available_information %}<li>{{ line }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+
+    {% if result.plan.information_to_check %}
+    <p class="s4-stage-label">Still to check</p>
+    <ul class="s4-stage-list">
+        {% for line in result.plan.information_to_check %}<li>{{ line }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+
+    {% else %}
+    <p class="s4-muted">No plan was produced.</p>
+    {% endif %}
+</div>
+
+<!-- ---------- stage 2: Worker ---------- -->
+<div class="s4-stage">
+    <h5><span class="s4-stage-no">2</span> Worker <span class="s4-muted">· shared server</span></h5>
+
+    {% if result.worker_output is mapping and result.worker_output._text %}
+    <p class="s4-warn-text">The Worker returned prose, not the agreed JSON:</p>
+    <blockquote class="s4-source-text">{{ result.worker_output._text }}</blockquote>
+
+    {% elif result.worker_output is mapping %}
+    <div class="s4-rag-answer">{{ result.worker_output.result }}</div>
+
+    {% if result.worker_output.evidence_used %}
+    <p class="s4-stage-label">Evidence it used</p>
+    <ul class="s4-stage-list">
+        {% for line in result.worker_output.evidence_used %}<li>{{ line }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+
+    {% if result.worker_output.missing_information %}
+    <p class="s4-stage-label">What it could not find</p>
+    <ul class="s4-stage-list">
+        {% for line in result.worker_output.missing_information %}<li>{{ line }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+
+    {% else %}
+    <p class="s4-muted">No work was produced.</p>
+    {% endif %}
+</div>
+
+<!-- ---------- stage 3: Reviewer ---------- -->
+<div class="s4-stage">
+    <h5><span class="s4-stage-no">3</span> Reviewer <span class="s4-muted">· shared server</span></h5>
+
+    {% if result.review is mapping and result.review._text %}
+    <p class="s4-warn-text">The Reviewer returned prose, not the agreed JSON:</p>
+    <blockquote class="s4-source-text">{{ result.review._text }}</blockquote>
+
+    {% elif result.review is mapping %}
+    <p class="s4-ai-head" style="margin-top: 0;">
+        <span class="s4-rec {{ result.review.recommendation }}">
+            recommends: {{ result.review.recommendation }}
+        </span>
+        <span class="s4-chip inline">
+            {{ result.review.issues|length }} issue{{ "" if result.review.issues|length == 1 else "s" }}
+        </span>
+    </p>
+
+    <p>{{ result.review.assessment }}</p>
+
+    {% if result.review.issues %}
+    <p class="s4-stage-label">Issues raised</p>
+    <ul class="s4-stage-list">
+        {% for issue in result.review.issues %}<li>{{ issue }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+
+    {% if result.review.reason %}
+    <p class="s4-muted">Why: {{ result.review.reason }}</p>
+    {% endif %}
+
+    {% else %}
+    <p class="s4-muted">No review was produced.</p>
+    {% endif %}
+</div>
+
+<!-- ---------- stage 4: Human ---------- -->
+<div class="s4-stage human">
+    <h5><span class="s4-stage-no">4</span> Human Review <span class="s4-muted">· you</span></h5>
+
+    {% if result.human_review %}
+    <p class="s4-ai-head" style="margin-top: 0;">
+        <span class="s4-rec {{ result.decision }}">{{ result.decision_label }}</span>
+        <span class="s4-chip inline">{{ result.human_review.timestamp }}</span>
+    </p>
+
+    {% if result.human_review.comments %}
+    <blockquote class="s4-source-text">{{ result.human_review.comments }}</blockquote>
+    {% endif %}
+
+    {% if result.awaiting_review %}
+    <p class="s4-muted">
+        The correction has been worked and reviewed again. Decide once more
+        below.
+    </p>
+    {% endif %}
+    {% endif %}
+
+    {% if result.awaiting_review %}
+    <p class="s4-muted" style="margin-bottom: 12px;">
+        Nothing above is accepted until you decide. A correction sends the
+        work back to the Worker and then the Reviewer, which takes as long
+        as the first run.
+    </p>
+
+    <form hx-post="/ui/ai/multi-agent/{{ result.workflow_id }}/review"
+          hx-target="#s4-ma"
+          hx-swap="innerHTML"
+          hx-indicator="#s4-ma-loading">
+
+        <div class="s4-field">
+            <label for="ma-comments">
+                Your comments (required for anything but an approval)
+            </label>
+            <textarea id="ma-comments" name="comments" rows="2"
+                      placeholder="What is wrong, and what should change?"></textarea>
+        </div>
+
+        <div class="s4-decision-row">
+            <button class="s4-btn green" type="submit"
+                    name="decision" value="approve">Approve</button>
+            <button class="s4-btn blue" type="submit"
+                    name="decision" value="partial_accept">Partially accept</button>
+            <button class="s4-btn yellow" type="submit"
+                    name="decision" value="correct">Send back for correction</button>
+            <button class="s4-btn danger" type="submit"
+                    name="decision" value="reject">Reject</button>
+        </div>
+    </form>
+
+    {% elif result.status == "completed" %}
+    <p class="s4-muted">
+        This workflow is closed. The decision above is recorded in the audit
+        history with the time it was made.
+    </p>
+    {% endif %}
+</div>
+
+<!-- ---------- audit history ---------- -->
+{% if result.history %}
+<div class="s4-ai-section">
+    <h5>Audit history <span class="s4-chip inline">{{ result.history|length }} events</span></h5>
+
+    <ul class="s4-timeline">
+        {% for event in result.history %}
+        <li>
+            <span class="s4-tl-time">{{ event.timestamp }}</span>
+            {{ event.event.replace("_", " ") }}
+        </li>
+        {% endfor %}
+    </ul>
+
+    <p class="s4-muted" style="margin-top: 10px;">
+        Every stage is timestamped by the shared server, so the order the
+        four stages ran in can be checked rather than taken on trust.
+    </p>
+</div>
+{% endif %}
+
+{% endif %}
