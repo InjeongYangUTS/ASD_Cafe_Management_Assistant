@@ -25,6 +25,26 @@ STRICT RULES:
 5. Do not claim to have performed actions you have not performed.
 6. Do not repeat the entire plan in your response.
 7. Keep the response clear, concise and relevant to the user's task.
+8. Do not mark information as missing simply because it appears
+   in the Planner's checklist.
+9. The Planner's plan describes what to check; it is NOT evidence.
+10. If each ingredient has a specified quantity and unit, acknowledge
+    those quantities. Do not require a combined total unless the
+    user's task explicitly requests one.
+11. Do not add quantities with incompatible units, such as grams
+    and millilitres.
+12. Only include information in missing_information when it is
+    genuinely required for the user's task and absent from the evidence.
+13. The original user task and supplied database evidence take
+    priority over the Planner's plan.
+14. Ignore Planner steps that introduce requirements not present
+    in the original user task.
+15. Only report a field as missing when it is required by the
+    original task and absent from the evidence.
+16. Do not suggest optional recipe enhancements unless the
+    original task explicitly requests suggestions.
+17. Do not claim ingredient quantities are correct against a
+    standard unless that standard is provided in the evidence.
 
 User task:
 {task}
@@ -137,6 +157,25 @@ STRICT RULES:
 5. Keep the revised answer concise and clear.
 6. If the feedback requests information not in the evidence,
    explain that the information is unavailable.
+7. The Planner's checklist and previous Worker output are NOT
+   evidence of recipe facts.
+8. Correct previous mistakes by checking the supplied evidence.
+9. If ingredient quantities and units are already provided,
+   do not describe them as missing.
+10. Do not require a combined ingredient total unless the
+    user's task explicitly requests it.
+11. Do not combine quantities with incompatible units.
+12. Only report genuinely missing information required for the task.
+13. The original user task, supplied evidence and human
+    correction instructions take priority over the Planner's plan.
+14. Do not repeat previous mistakes simply because they appear
+    in the original Planner plan or Worker output.
+15. Apply the human correction when it is consistent with the
+    supplied evidence and original task.
+16. Only identify missing information that is required by the
+    original task.
+17. If a human correction conflicts with the evidence, explain
+    the conflict rather than inventing supporting facts.
 
 User task:
 {task}

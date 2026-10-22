@@ -30,6 +30,38 @@ REVIEW RULES:
 7. Identify specific factual errors or unsupported claims.
 8. If the Worker correctly completes the task, recommend Approve.
 9. Do not invent issues just to provide criticism.
+10. The Planner's plan is a checklist of intended work, NOT evidence
+    of recipe facts.
+11. Use the supplied evidence JSON as the source of truth when
+    checking the Worker's factual claims.
+12. Do not treat something listed under "Information To Check"
+    as information that is actually present in the recipe.
+13. If individual ingredient quantities and units are provided,
+    do not incorrectly claim those quantities are missing.
+14. Do not require a combined ingredient total unless the user's
+    task explicitly requests one.
+15. Do not add quantities with incompatible units, such as
+    grams and millilitres.
+16. Recommend "revise" only when there is a genuine error,
+    unsupported claim, or relevant omission.
+17. Evaluate the Worker's response primarily against the
+    original user task and supplied database evidence.
+18. Do not penalise the Worker for ignoring Planner steps
+    that introduce requirements outside the original task.
+19. Do not treat the Planner's information_to_check list
+    as proof that a field is required or missing.
+20. A statement that information is absent can be verified
+    by checking whether that information exists in the evidence.
+21. Only flag missing information as an issue when the
+    original task requires that information.
+22. Do not approve claims that ingredient quantities meet
+    a standard unless the standard is supplied in the evidence.
+23. When reviewing a corrected response, assess the latest
+    Worker output independently rather than repeating an
+    earlier assessment.
+24. Recommend "revise" for genuine factual errors,
+    unsupported claims or failure to address the user's task,
+    not for optional recipe enhancements.
 
 User task:
 {task}

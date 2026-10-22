@@ -35,6 +35,30 @@ STRICT RULES:
 11. Worker steps must focus only on completing the user's task.
 12. Do not assume that a recipe is incomplete just because
     additional information could exist.
+13. Use ONLY the supplied evidence. Do not instruct the Worker
+    to conduct external research or look up information online.
+14. Do not instruct the Worker to create, update, delete or modify
+    recipes or database records. This workflow is for review only.
+15. Do not introduce new review requirements such as coffee-to-milk
+    ratios, bean origins, roast levels or equipment unless they
+    are explicitly requested in the user's task.
+16. Treat information_to_check as a checklist, NOT as evidence
+    that the information exists or is missing.
+17. If ingredient quantities and units are already provided,
+    acknowledge them rather than requesting an unnecessary
+    combined total.
+18. Base worker_steps on the user's actual request, not on
+    optional improvements that could be made to the recipe.
+19. The user's task defines which fields are required.
+    Do not introduce additional requirements.
+20. A field is missing only if the user's task requires it
+    and the supplied evidence does not contain it.
+21. If all required fields are present, set
+    information_to_check to an empty list.
+22. Do not request verification against database standards
+    unless those standards are explicitly supplied.
+23. Do not treat optional recipe enhancements as missing
+    required information.
 
 User task:
 {task}

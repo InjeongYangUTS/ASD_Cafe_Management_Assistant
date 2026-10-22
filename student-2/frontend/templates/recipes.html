@@ -343,6 +343,136 @@
 
         </section>
 
+        <!-- AI RECIPE REVIEW -->
+
+        <section
+            id="ai-recipe-review-section"
+            class="management-section"
+            style="display: none;"
+        >
+            <div class="section-heading">
+                <div>
+                    <h2>AI Recipe Review</h2>
+                    <p id="ai-review-recipe-name">
+                        Review the selected recipe using AI.
+                    </p>
+                </div>
+            </div>
+
+            <div class="management-form">
+
+                <div class="form-group">
+                    <label for="ai-review-task">
+                        Review Instructions
+                    </label>
+
+                    <textarea
+                        id="ai-review-task"
+                        rows="4"
+                    >Review the selected recipe using only the supplied database evidence. Check whether the recipe has a name, ingredients with quantities and units, and preparation instructions. Report any missing required fields or inconsistencies supported by the evidence. Acknowledge information that is already provided. Do not require additional details such as ingredient ratios, origins, roast levels or equipment unless explicitly requested. Do not compare the recipe against external standards or invent information. Do not modify the recipe.</textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button
+                        type="button"
+                        id="start-ai-review-button"
+                        class="primary-button"
+                    >
+                        Start AI Review
+                    </button>
+                </div>
+
+                <p
+                    id="ai-review-status"
+                    role="status"
+                    aria-live="polite"
+                ></p>
+
+                <div
+                    id="ai-human-review-loading"
+                    role="status"
+                    aria-live="polite"
+                    style="
+                        display: none;
+                        text-align: center;
+                        padding: 48px 20px;
+                        font-size: 16px;
+                        font-weight: 500;
+                    "
+                >
+                    Submitting human review. Please wait...
+                </div>
+
+                <div
+                    id="ai-review-results"
+                    style="display: none;"
+                >
+                    <h3>Planner</h3>
+                    <pre id="ai-review-plan"></pre>
+
+                    <h3>Worker</h3>
+                    <pre id="ai-review-worker"></pre>
+
+                    <h3>Reviewer</h3>
+                    <pre id="ai-review-reviewer"></pre>
+                </div>
+
+                <div
+                    id="ai-human-review-section"
+                    style="display: none;"
+                >
+                    <h3>Human Review</h3>
+
+                    <div class="form-group">
+                        <label for="ai-human-comments">
+                            Comments
+                        </label>
+
+                        <textarea
+                            id="ai-human-comments"
+                            rows="3"
+                            placeholder="Enter feedback or corrections..."
+                        ></textarea>
+                    </div>
+
+                    <div class="form-actions">
+                        <button
+                            type="button"
+                            id="ai-approve-button"
+                            class="primary-button"
+                        >
+                            Approve
+                        </button>
+
+                        <button
+                            type="button"
+                            id="ai-correct-button"
+                            class="secondary-button"
+                        >
+                            Request Correction
+                        </button>
+
+                        <button
+                            type="button"
+                            id="ai-partial-button"
+                            class="secondary-button"
+                        >
+                            Partially Accept
+                        </button>
+
+                        <button
+                            type="button"
+                            id="ai-reject-button"
+                            class="secondary-button"
+                        >
+                            Reject
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
     </main>
 
 
@@ -361,7 +491,6 @@
         const INGREDIENT_API =
             `${window.location.protocol}//${window.location.hostname}:5201/api/ingredients`;
 
-
         // --------------------------------
         // STATE
         // --------------------------------
@@ -374,6 +503,107 @@
 
         let allRecipes = [];
 
+        // --------------------------------
+        // AI RECIPE REVIEW STATE
+        // --------------------------------
+
+        let aiSelectedRecipeId = null;
+
+        let aiWorkflowId = null;
+
+        // --------------------------------
+        // FORMAT AI RESULTS FOR DISPLAY
+        // --------------------------------
+
+        function formatAIResult(value) {
+
+            if (value === null || value === undefined) {
+                return "No information available.";
+            }
+
+            // Convert JSON strings into JavaScript objects
+            if (typeof value === "string") {
+                try {
+                    value = JSON.parse(value);
+                } catch {
+                    return value;
+                }
+            }
+
+            // Format headings such as missing_information
+            function formatHeading(key) {
+                return key
+                    .replace(/_/g, " ")
+                    .replace(/\b\w/g, letter => letter.toUpperCase());
+            }
+
+            // Format values into readable text
+            function formatValue(data, indent = "") {
+
+                if (Array.isArray(data)) {
+
+                    if (data.length === 0) {
+                        return "None";
+                    }
+
+                    return data.map(item =>
+                        `${indent}• ${formatValue(item, indent + "  ")}`
+                    ).join("\n");
+                }
+
+                if (typeof data === "object" && data !== null) {
+                    return Object.entries(data).map(([key, val]) => {
+                        return `${indent}${formatHeading(key)}:\n${formatValue(val, indent + "  ")}`;
+                    }).join("\n\n");
+                }
+
+                return String(data);
+            }
+
+            return formatValue(value);
+        }
+
+        // --------------------------------
+        // OPEN AI RECIPE REVIEW
+        // --------------------------------
+
+        function openRecipeReview(recipeId, recipeName) {
+
+            aiSelectedRecipeId = recipeId;
+
+            aiWorkflowId = null;
+
+            document.getElementById(
+                "ai-review-recipe-name"
+            ).textContent = `AI Review for ${recipeName}`;
+
+            document.getElementById(
+                "ai-review-status"
+            ).textContent = "";
+
+            document.getElementById(
+                "ai-review-results"
+            ).style.display = "none";
+
+            document.getElementById(
+                "ai-human-review-section"
+            ).style.display = "none";
+
+            document.getElementById(
+                "ai-human-comments"
+            ).value = "";
+
+            document.getElementById(
+                "ai-recipe-review-section"
+            ).style.display = "block";
+
+            document.getElementById(
+                "ai-recipe-review-section"
+            ).scrollIntoView({
+                behavior: "smooth",
+                block: "start"
+            });
+        }
 
         // --------------------------------
         // SUCCESS MESSAGES
@@ -669,49 +899,46 @@
                     }
                 );
 
+                actions.appendChild(manageButton);
 
-                actions.appendChild(
-                    manageButton
+                const reviewButton =
+                    document.createElement("button");
+
+                reviewButton.type = "button";
+
+                reviewButton.className = "secondary-button";
+
+                reviewButton.textContent = "AI Review";
+
+                reviewButton.addEventListener(
+                    "click",
+                    function() {
+                        openRecipeReview(
+                            recipe.recipe_id,
+                            recipe.name
+                        );
+                    }
                 );
 
-                actions.appendChild(
-                    editButton
-                );
+                actions.appendChild(reviewButton);
 
-                actions.appendChild(
-                    deleteButton
-                );
+                actions.appendChild(editButton);
 
+                actions.appendChild(deleteButton);
 
-                actionsCell.appendChild(
-                    actions
-                );
+                actionsCell.appendChild(actions);
 
+                row.appendChild(idCell);
 
-                row.appendChild(
-                    idCell
-                );
+                row.appendChild(menuCell);
 
-                row.appendChild(
-                    menuCell
-                );
+                row.appendChild(nameCell);
 
-                row.appendChild(
-                    nameCell
-                );
+                row.appendChild(instructionsCell);
 
-                row.appendChild(
-                    instructionsCell
-                );
+                row.appendChild(actionsCell);
 
-                row.appendChild(
-                    actionsCell
-                );
-
-
-                tableBody.appendChild(
-                    row
-                );
+                tableBody.appendChild(row);
             });
         }
 
@@ -1682,6 +1909,287 @@
             }
         );
 
+        // --------------------------------
+        // START AI RECIPE REVIEW
+        // --------------------------------
+
+        document.getElementById(
+            "start-ai-review-button"
+        ).addEventListener("click", async function() {
+
+            if (aiSelectedRecipeId === null) {
+                alert("Please select a recipe first.");
+                return;
+            }
+
+            const task = document.getElementById(
+                "ai-review-task"
+            ).value.trim();
+
+            if (!task) {
+                alert("Please enter review instructions.");
+                return;
+            }
+
+            const startButton = document.getElementById(
+                "start-ai-review-button"
+            );
+
+            const status = document.getElementById(
+                "ai-review-status"
+            );
+
+            const recipeId = aiSelectedRecipeId;
+
+            startButton.disabled = true;
+            status.textContent = "AI review in progress. Please wait...";
+
+            document.getElementById(
+                "ai-review-results"
+            ).style.display = "none";
+
+            document.getElementById(
+                "ai-human-review-section"
+            ).style.display = "none";
+
+            aiWorkflowId = null;
+
+            try {
+
+                const response = await fetch(
+                    `http://localhost:5201/api/multi-agent/recipes/${recipeId}/workflows`,
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({
+                            task: task
+                        })
+                    }
+                );
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(
+                        result.error || "Failed to start AI review."
+                    );
+                }
+
+                // Avoid displaying an old result if another recipe was selected.
+                if (aiSelectedRecipeId !== recipeId) {
+                    return;
+                }
+
+                aiWorkflowId = result.workflow_id;
+
+                document.getElementById(
+                    "ai-review-plan"
+                ).textContent = formatAIResult(result.plan);
+
+                document.getElementById(
+                    "ai-review-worker"
+                ).textContent = formatAIResult(result.worker_output);
+
+                document.getElementById(
+                    "ai-review-reviewer"
+                ).textContent = formatAIResult(result.review);
+
+                document.getElementById(
+                    "ai-review-results"
+                ).style.display = "block";
+
+                status.textContent = `Workflow status: ${result.status}`;
+
+                if (result.status === "awaiting_human_review") {
+                    document.getElementById(
+                        "ai-human-review-section"
+                    ).style.display = "block";
+                }
+
+            } catch (error) {
+
+                console.error("AI recipe review error:", error);
+
+                if (aiSelectedRecipeId === recipeId) {
+                    status.textContent = `Error: ${error.message}`;
+                }
+
+            } finally {
+
+                startButton.disabled = false;
+
+            }
+        });
+
+        // --------------------------------
+        // SUBMIT AI HUMAN REVIEW
+        // --------------------------------
+
+        async function submitAIHumanReview(decision) {
+
+            if (!aiWorkflowId) {
+                alert("Please start an AI review first.");
+                return;
+            }
+
+            const comments = document.getElementById(
+                "ai-human-comments"
+            ).value.trim();
+
+            if (decision === "correct" && !comments) {
+                alert("Please enter correction instructions.");
+                return;
+            }
+
+            const workflowId = aiWorkflowId;
+
+            const status = document.getElementById(
+                "ai-review-status"
+            );
+
+            const buttons = document.querySelectorAll(
+                "#ai-human-review-section button"
+            );
+
+            buttons.forEach(button => button.disabled = true);
+
+            const reviewResults = document.getElementById(
+                "ai-review-results"
+            );
+
+            const humanReviewSection = document.getElementById(
+                "ai-human-review-section"
+            );
+
+            const loadingMessage = document.getElementById(
+                "ai-human-review-loading"
+            );
+
+            // Hide previous results and review buttons while processing
+            reviewResults.style.display = "none";
+            humanReviewSection.style.display = "none";
+
+            // Show the loading message in the results area
+            loadingMessage.style.display = "block";
+
+            status.textContent = "";
+
+            try {
+
+                const response = await fetch(
+                    `http://localhost:5201/api/multi-agent/workflows/${workflowId}/human-review`,
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({
+                            decision: decision,
+                            comments: comments
+                        })
+                    }
+                );
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(
+                        result.error || "Failed to submit human review."
+                    );
+                }
+
+                // Ignore results from a workflow that is no longer selected.
+                if (aiWorkflowId !== workflowId) {
+                    return;
+                }
+
+                document.getElementById(
+                    "ai-review-plan"
+                ).textContent = formatAIResult(result.plan);
+
+                document.getElementById(
+                    "ai-review-worker"
+                ).textContent = formatAIResult(result.worker_output);
+
+                document.getElementById(
+                    "ai-review-reviewer"
+                ).textContent = formatAIResult(result.review);
+
+                document.getElementById(
+                    "ai-review-results"
+                ).style.display = "block";
+
+                status.textContent = `Workflow status: ${result.status}`;
+
+                document.getElementById(
+                    "ai-human-comments"
+                ).value = "";
+
+                document.getElementById(
+                    "ai-human-review-section"
+                ).style.display =
+                    result.status === "awaiting_human_review"
+                        ? "block"
+                        : "none";
+
+            } catch (error) {
+
+                console.error("Human review error:", error);
+
+                if (aiWorkflowId === workflowId) {
+
+                    status.textContent = `Error: ${error.message}`;
+
+                    // Restore the previous results and review controls
+                    reviewResults.style.display = "block";
+                    humanReviewSection.style.display = "block";
+
+                }
+
+            } finally {
+
+                // Only update the UI if this workflow is still selected
+                if (aiWorkflowId === workflowId) {
+
+                    loadingMessage.style.display = "none";
+
+                    buttons.forEach(button => button.disabled = false);
+
+                }
+
+            }
+        }
+
+
+        // --------------------------------
+        // HUMAN REVIEW BUTTON EVENTS
+        // --------------------------------
+
+        document.getElementById(
+            "ai-approve-button"
+        ).addEventListener("click", function() {
+            submitAIHumanReview("approve");
+        });
+
+        document.getElementById(
+            "ai-correct-button"
+        ).addEventListener("click", function() {
+            submitAIHumanReview("correct");
+        });
+
+        document.getElementById(
+            "ai-partial-button"
+        ).addEventListener("click", function() {
+            submitAIHumanReview("partial_accept");
+        });
+
+        document.getElementById(
+            "ai-reject-button"
+        ).addEventListener("click", function() {
+            submitAIHumanReview("reject");
+        });
 
         // --------------------------------
         // INITIAL PAGE LOAD
