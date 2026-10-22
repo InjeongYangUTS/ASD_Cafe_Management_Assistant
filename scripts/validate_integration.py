@@ -30,7 +30,8 @@ OUT_OF_SCOPE = "What is the capital city of France?"
 
 # An id no workflow has: the server answers 404 "Workflow not found" without calling a model,
 # which proves the backend reaches the Multi-Agent server in about a second.
-PROBE_WORKFLOW_ID = "validation-probe"
+# UUID-shaped because some backends reject other ids with 400 before calling the server.
+PROBE_WORKFLOW_ID = "00000000-0000-0000-0000-000000000000"
 
 # One row per feature. Leave "mcp", "rag" or "multi_agent" as None until that student's route exists.
 STUDENTS = {
@@ -55,7 +56,7 @@ STUDENTS = {
         "rag": ("http://127.0.0.1:8300/api/rag/query", "What does the Inventory feature manage?"),
         "mcp_tools": ["get_inventory_items", "get_low_stock_items", "get_inventory_item",
                       "get_suppliers", "get_restock_orders"],
-        "multi_agent": None},
+        "multi_agent": "http://127.0.0.1:8300/api/multi-agent/workflows/%s"},
     4: {"feature": "Order & Kitchen Management", "owner": "Stella Kwon",
         "health": "http://127.0.0.1:8400/api/health",
         "mcp": ("POST", "http://127.0.0.1:8400/api/ai/mcp", {}),
