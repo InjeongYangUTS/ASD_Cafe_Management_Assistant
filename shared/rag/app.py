@@ -126,5 +126,5 @@ if __name__ == "__main__":
     app.run(
         host=RAG_HOST,
         port=RAG_PORT,
-        debug=True
+        debug=os.environ.get("FLASK_DEBUG", "0") == "1"
     )

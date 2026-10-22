@@ -27,3 +27,25 @@ select = ["S"]
 # Reviewed: SQL fragments are fixed application-defined strings.
 # User inputs are passed using SQLite parameter placeholders.
 "student-3/database/app.py" = ["S608"]
+
+# Reviewed: these services intentionally listen on all interfaces so Docker can
+# publish their ports. External access remains controlled by Compose/cloud
+# networking rather than the Flask development server's bind address.
+"ai-services/mcp-server/server.py" = ["S104"]
+"ai-services/multi-agent-server/config.py" = ["S104"]
+"shared/frontend/app.py" = ["S104"]
+"shared/rag/config.py" = ["S104"]
+"student-2/backend/app.py" = ["S104"]
+"student-2/database/app.py" = ["S104"]
+"student-2/frontend/app.py" = ["S104"]
+"student-4/backend/app.py" = ["S104"]
+"student-4/database/app.py" = ["S104", "S608"]
+"student-4/frontend/app.py" = ["S104"]
+"student-4/tests/mock_peers.py" = ["S104"]
+"student-5/backend/app.py" = ["S104"]
+"student-5/database/app.py" = ["S104", "S608"]
+
+# Reviewed: table and column identifiers in these files come exclusively from
+# fixed application-owned allowlists; all record values use SQL parameters.
+"student-4/database/seed.py" = ["S608"]
+"student-5/database/seed.py" = ["S608"]
