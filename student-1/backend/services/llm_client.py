@@ -25,7 +25,7 @@ class LLMClient:
     def _client(self):
         return OpenAI(
             base_url=self.base_url,
-            api_key="ollama",
+            api_key="ollama",  # pragma: allowlist secret - Ollama ignores the key, the client requires a value
             timeout=self.timeout,
         )
 
