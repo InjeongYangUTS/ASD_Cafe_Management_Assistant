@@ -111,10 +111,33 @@ class Evidence:
         return node
 
 
+def newest_first(paths):
+    """Sort by modification time, most recent first, ties broken by name.
+
+    The name tiebreak is not decoration. A fresh clone stamps every file
+    with the checkout time, so on a CI runner the mtimes are identical
+    and the order would otherwise be whatever the filesystem felt like -
+    which would make the same commit review a different record on
+    different runs.
+    """
+    return sorted(paths,
+                  key=lambda p: (-os.path.getmtime(p), os.path.basename(p)))
+
+
 def load_json(pattern, label, newest=True):
-    """Find and parse one JSON evidence file by repository-relative glob."""
+    """Find and parse one JSON evidence file by repository-relative glob.
+
+    `newest` means newest by mtime, not last by filename. An earlier
+    version sorted by name and called the result "newest", which quietly
+    reviewed whichever record sorted last in the alphabet - so the run I
+    had just captured was ignored in favour of one from a week before.
+    """
     matches = repo_glob(pattern)
-    path = (matches[-1] if newest else matches[0]) if matches else None
+    if matches:
+        ordered = newest_first(matches)
+        path = ordered[0] if newest else ordered[-1]
+    else:
+        path = None
     ev = Evidence(path, label, pattern)
 
     if path is None:

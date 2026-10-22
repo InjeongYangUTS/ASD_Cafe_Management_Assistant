@@ -37,6 +37,7 @@ import json
 import requests
 
 from evidence import (Evidence, inner_json, iso_ordered, load_json,
+                      newest_first,
                       overlap, relative, repo_glob)
 from repo import must_not_be_containerised
 
@@ -57,8 +58,7 @@ def _completed_run():
     stages but cannot answer the human-review probes, so those pick the
     newest completed run if there is one and say so if there is not.
     """
-    best = None
-    for path in repo_glob(EVIDENCE_GLOB):
+    for path in newest_first(repo_glob(EVIDENCE_GLOB)):
         ev = Evidence(path, "A multi-agent workflow record", EVIDENCE_GLOB)
         try:
             with open(path, "r", encoding="utf-8") as handle:
@@ -67,8 +67,8 @@ def _completed_run():
             continue
         workflow = ev.dig("workflow", default=ev.data)
         if isinstance(workflow, dict) and workflow.get("human_review"):
-            best = ev
-    return best
+            return ev
+    return None
 
 
 def build_multiagent_probes(server_url, backend_url, ok, fail, Probe):
