@@ -138,7 +138,7 @@ def stats():
         return {
             row[column]: row["c"]
             for row in conn.execute(
-                "SELECT %s, COUNT(*) AS c FROM customer_feedback "
+                "SELECT %s, COUNT(*) AS c FROM customer_feedback "  # noqa: S608 - column is one of three fixed names, never user input
                 "WHERE %s IS NOT NULL GROUP BY %s" % (column, column, column)
             ).fetchall()
         }
@@ -393,7 +393,7 @@ def update_feedback(feedback_id):
         return error("feedback %d not found" % feedback_id, 404)
 
     conn.execute(
-        "UPDATE customer_feedback SET %s WHERE id = ?" %
+        "UPDATE customer_feedback SET %s WHERE id = ?" %  # noqa: S608 - columns come from EDITABLE_FIELDS, values are bound parameters
         ", ".join("%s = ?" % column for column in updates),
         list(updates.values()) + [feedback_id],
     )
@@ -568,7 +568,7 @@ ensure_schema()
 
 if __name__ == "__main__":
     app.run(
-        host="0.0.0.0",
+        host="0.0.0.0",  # noqa: S104 - container needs to bind all interfaces
         port=int(os.environ.get("PORT", 7100)),
         debug=os.environ.get("FLASK_DEBUG", "0") == "1",
     )
