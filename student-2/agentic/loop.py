@@ -2,6 +2,7 @@ import json
 import socket
 import urllib.request
 import urllib.error
+from urllib.parse import urlsplit
 from datetime import datetime
 from pathlib import Path
 
@@ -31,13 +32,22 @@ LOG_DIR.mkdir(parents=True, exist_ok=True)
 # Helper functions
 # ---------------------------------------------------------
 
+def validate_http_url(url):
+    parsed = urlsplit(url)
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        raise ValueError("Only HTTP and HTTPS service URLs are permitted")
+    return url
+
 def http_get(url, timeout=10):
-    request = urllib.request.Request(
+    url = validate_http_url(url)
+    request = urllib.request.Request(  # noqa: S310 - validated URL
         url,
         headers={"Accept": "application/json"}
     )
 
-    with urllib.request.urlopen(request, timeout=timeout) as response:
+    with urllib.request.urlopen(  # noqa: S310 - validated request URL
+        request, timeout=timeout
+    ) as response:
         body = response.read().decode("utf-8")
 
         if not body:
@@ -530,14 +540,15 @@ Return only one word.
         "stream": False
     }).encode("utf-8")
 
-    request = urllib.request.Request(
-        f"{OLLAMA_URL}/api/generate",
+    generate_url = validate_http_url(f"{OLLAMA_URL}/api/generate")
+    request = urllib.request.Request(  # noqa: S310 - validated URL
+        generate_url,
         data=payload,
         headers={"Content-Type": "application/json"},
         method="POST"
     )
 
-    with urllib.request.urlopen(
+    with urllib.request.urlopen(  # noqa: S310 - validated request URL
         request,
         timeout=60
     ) as response:

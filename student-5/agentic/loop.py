@@ -1,6 +1,7 @@
 import json
 import os
 import urllib.request
+from urllib.parse import urlsplit
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -24,8 +25,17 @@ OLLAMA_MODEL = os.getenv(
     "qwen2.5:0.5b"
 )
 
+def validate_http_url(url):
+    parsed = urlsplit(url)
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        raise ValueError("Only HTTP and HTTPS service URLs are permitted")
+    return url
+
 def get_json(url):
-    with urllib.request.urlopen(url, timeout=10) as response:
+    validated_url = validate_http_url(url)
+    with urllib.request.urlopen(  # noqa: S310 - URL validated above
+        validated_url, timeout=10
+    ) as response:
         return json.loads(response.read().decode("utf-8"))
 
 
@@ -38,14 +48,17 @@ def ask_ollama(prompt):
         }
     ).encode("utf-8")
 
-    request = urllib.request.Request(
-        OLLAMA_URL,
+    validated_url = validate_http_url(OLLAMA_URL)
+    request = urllib.request.Request(  # noqa: S310 - validated URL
+        validated_url,
         data=payload,
         headers={"Content-Type": "application/json"},
         method="POST"
     )
 
-    with urllib.request.urlopen(request, timeout=120) as response:
+    with urllib.request.urlopen(  # noqa: S310 - validated request URL
+        request, timeout=120
+    ) as response:
         result = json.loads(response.read().decode("utf-8"))
 
     return result.get("response", "").strip()
