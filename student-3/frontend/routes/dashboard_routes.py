@@ -68,3 +68,47 @@ def rag_query():
     )
     
     return jsonify(result)
+
+@dashboard_bp.post("/api/multi-agent/workflows")
+def multi_agent_start():
+    body = request.get_json(silent=True)
+    if not isinstance(body, dict):
+        return jsonify({"error": "A JSON object is required."}), 400
+    task = body.get("task", "")
+    if not isinstance(task, str) or not task.strip():
+        return jsonify({"error": "Enter a review task."}), 400
+    if len(task) > 1000:
+        return jsonify({"error": "Task is too long."}), 400
+    result = call_backend(
+        "POST", "/api/multi-agent/workflows",
+        timeout=135, json={"task": task.strip()},
+    )
+    return jsonify(result), 201
+
+
+@dashboard_bp.get("/api/multi-agent/workflows/<workflow_id>")
+def multi_agent_details(workflow_id):
+    result = call_backend(
+        "GET", f"/api/multi-agent/workflows/{workflow_id}", timeout=20,
+    )
+    return jsonify(result)
+
+
+@dashboard_bp.post("/api/multi-agent/workflows/<workflow_id>/human-review")
+def multi_agent_review(workflow_id):
+    body = request.get_json(silent=True)
+    if not isinstance(body, dict):
+        return jsonify({"error": "A JSON object is required."}), 400
+    decision = body.get("decision")
+    comments = body.get("comments", "")
+    if decision not in {"approve", "correct", "reject", "partial_accept"}:
+        return jsonify({"error": "Invalid review decision."}), 400
+    if not isinstance(comments, str):
+        return jsonify({"error": "Comments must be text."}), 400
+    if decision == "correct" and not comments.strip():
+        return jsonify({"error": "Enter correction comments."}), 400
+    result = call_backend(
+        "POST", f"/api/multi-agent/workflows/{workflow_id}/human-review",
+        timeout=135, json={"decision": decision, "comments": comments},
+    )
+    return jsonify(result)

@@ -657,3 +657,14 @@ body {
     }
 
 }
+
+/* Release 2 Multi-Agent review */
+.ma-output-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin: 20px 0; }
+.ma-output { background: #f4f6f8; border: 1px solid #dbe1e6; border-radius: 8px; padding: 14px; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 300px; overflow-y: auto; font: 13px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.ma-caution { border-left: 4px solid #b77d20; background: #fff8e9; padding: 12px 14px; line-height: 1.5; }
+.ma-history { padding-left: 24px; line-height: 1.7; overflow-wrap: anywhere; }
+#multi-agent-panel h3 { margin: 18px 0 8px; }
+#multi-agent-panel .ask-button-row { display: flex; flex-wrap: wrap; gap: 12px; }
+#multi-agent-panel [hidden] { display: none !important; }
+#multi-agent-panel select.question-box { min-height: 44px; height: auto; }
+@media (max-width: 900px) { .ma-output-grid { grid-template-columns: 1fr; } }

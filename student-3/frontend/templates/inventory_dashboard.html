@@ -452,6 +452,58 @@
     </section>
 
 
+
+    <!-- RELEASE 2 - MULTI-AGENT HUMAN REVIEW -->
+    <section class="management-section" id="multi-agent-panel"
+             data-start-url="{{ url_for('dashboard.multi_agent_start') }}"
+             data-workflows-url="/api/multi-agent/workflows">
+        <div class="section-heading">
+            <h2>Multi-Agent Restocking Review</h2>
+            <p>Run Planner → Worker → Reviewer with current low-stock records, then submit a human decision.</p>
+        </div>
+        <div class="form-group">
+            <label for="ma-task">Review task</label>
+            <textarea class="question-box" id="ma-task" rows="3">Review the low-stock inventory evidence. Identify out-of-stock items first, distinguish facts from recommendations, and clearly state any missing information.</textarea>
+        </div>
+        <div class="ask-button-row">
+            <button type="button" class="ask-ai-button" id="ma-run">Run Multi-Agent Review</button>
+            <button type="button" class="secondary-button" id="ma-refresh" hidden>Refresh Workflow</button>
+        </div>
+        <p id="ma-status" role="status" aria-live="polite">No workflow started.</p>
+        <div id="ma-results" hidden>
+            <p><strong>Workflow ID:</strong> <code id="ma-id"></code></p>
+            <p><strong>Status:</strong> <span id="ma-workflow-status"></span></p>
+            <p class="ma-caution">AI output is advisory and may contain factual mistakes. Check inventory quantities before approval. Human review does not create a restock order.</p>
+            <div class="ma-output-grid">
+                <div><h3>Planner</h3><pre class="ma-output" id="ma-plan"></pre></div>
+                <div><h3>Worker</h3><pre class="ma-output" id="ma-worker"></pre></div>
+                <div><h3>Reviewer</h3><pre class="ma-output" id="ma-review"></pre></div>
+            </div>
+            <h3>Audit History</h3>
+            <ol id="ma-history" class="ma-history"></ol>
+            <div id="ma-human-review" hidden>
+                <h3>Human Review</h3>
+                <div class="form-group">
+                    <label for="ma-decision">Decision</label>
+                    <select id="ma-decision" class="question-box">
+                        <option value="correct">Correct</option>
+                        <option value="approve">Approve</option>
+                        <option value="reject">Reject</option>
+                        <option value="partial_accept">Partial Accept</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="ma-comments">Human feedback</label>
+                    <textarea id="ma-comments" rows="3" class="question-box" placeholder="Describe evidence-based corrections or reasons for your decision."></textarea>
+                </div>
+                <div class="ask-button-row">
+                    <button type="button" class="ask-ai-button" id="ma-submit">Submit Human Review</button>
+                </div>
+                <p id="ma-human-status" role="status" aria-live="polite"></p>
+            </div>
+        </div>
+    </section>
+
     <!-- =========================================================
          RECENT RESTOCK ORDERS
     ========================================================== -->

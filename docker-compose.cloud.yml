@@ -36,6 +36,10 @@ services:
       SHARED_SECRET_KEY: ${SHARED_SECRET_KEY:?Set SHARED_SECRET_KEY in .env.cloud}
       SHARED_PORT: "5100"
 
+  student-3-backend:
+    environment:
+      MULTI_AGENT_ENABLED: "false"
+
   student-3-frontend:
     environment:
       SHARED_HOME_URL: ${PUBLIC_SCHEME:-http}://${PUBLIC_HOST:?Set PUBLIC_HOST in .env.cloud}:5100/staff-dashboard
