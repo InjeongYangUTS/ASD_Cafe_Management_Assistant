@@ -1259,3 +1259,23 @@ body {
     margin-top: 34px;
     text-align: center;
 }
+
+/* AI Recipe Review Results */
+
+#ai-review-results pre {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    word-break: normal;
+
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1.7;
+
+    margin-top: 10px;
+    margin-bottom: 24px;
+}
+
+#ai-review-results h3 {
+    margin-top: 24px;
+    margin-bottom: 12px;
+}

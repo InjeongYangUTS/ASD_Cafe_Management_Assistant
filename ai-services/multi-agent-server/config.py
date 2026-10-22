@@ -1,6 +1,6 @@
 import os
 
-MULTI_AGENT_HOST = os.getenv("MULTI_AGENT_HOST", "0.0.0.0")
+MULTI_AGENT_HOST = os.getenv("MULTI_AGENT_HOST", "127.0.0.1")
 MULTI_AGENT_PORT = int(os.getenv("MULTI_AGENT_PORT", "5800"))
 
 OLLAMA_URL = os.getenv(
