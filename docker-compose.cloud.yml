@@ -44,6 +44,22 @@ services:
     environment:
       SHARED_HOME_URL: ${PUBLIC_SCHEME:-http}://${PUBLIC_HOST:?Set PUBLIC_HOST in .env.cloud}:5100/staff-dashboard
 
+  # Student 4 - Order & Kitchen Management.
+  #
+  # The required cloud baseline keeps every AI service off. These four
+  # flags are read by student-4/backend/app.py, which returns without
+  # calling the service and reports "off" rather than "down" in its
+  # health payload - so the baseline can be checked on the running
+  # deployment, not just in this file. Ordering, the kitchen board and
+  # all CRUD are unaffected; the Kitchen screen still shows its computed
+  # queue metrics and rule-based analysis with AI-Mode off.
+  student-4-backend:
+    environment:
+      AI_MODE_ENABLED: "false"
+      MCP_ENABLED: "false"
+      RAG_ENABLED: "false"
+      MULTI_AGENT_ENABLED: "false"
+
   student-4-frontend:
     environment:
       SECRET_KEY: ${SHARED_SECRET_KEY:?Set SHARED_SECRET_KEY in .env.cloud}

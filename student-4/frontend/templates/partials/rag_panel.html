@@ -2,6 +2,13 @@
 
 <div class="s4-alert error"><strong>Could not ask the question</strong>{{ error }}</div>
 
+{% elif result.disabled %}
+
+<div class="s4-alert info">
+    <strong>Shared RAG server switched off here</strong>
+    {{ result.reason }}
+</div>
+
 {% elif result.status == "unavailable" %}
 
 <div class="s4-alert warn">

@@ -12,6 +12,13 @@
 
 <div class="s4-alert error"><strong>Could not run the workflow</strong>{{ error }}</div>
 
+{% elif result.disabled %}
+
+<div class="s4-alert info">
+    <strong>Shared Multi-Agent server switched off here</strong>
+    {{ result.reason }}
+</div>
+
 {% elif not result.available %}
 
 <div class="s4-alert warn">

@@ -69,6 +69,82 @@ rag = RagClient()
 # MULTI_AGENT_URL pointing at host.docker.internal:5800.
 multi_agent = MultiAgentClient()
 
+
+# =====================================================================
+# AI service switches
+#
+# Release 2 requires AI-Mode, MCP, RAG and the Multi-Agent server to be
+# DISABLED BY DEFAULT in the cloud deployment, while the core ordering
+# and kitchen functions keep working. Each is a flag read once at start
+# up and defaulting to ON, so local behaviour is unchanged and
+# docker-compose.cloud.yml turns them off for the cloud baseline.
+#
+# A flag that only sits in a YAML file is not a switch. These are read
+# by the routes below, which return without calling the service at all,
+# and by the health report, which says "off" rather than "down" - the
+# difference between a deliberate baseline and an outage is the whole
+# point of the requirement.
+# =====================================================================
+
+TRUTHY = ("1", "true", "yes", "on", "enabled")
+
+
+def service_enabled(name, default=True):
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in TRUTHY
+
+
+AI_MODE_ENABLED = service_enabled("AI_MODE_ENABLED")
+MCP_ENABLED = service_enabled("MCP_ENABLED")
+RAG_ENABLED = service_enabled("RAG_ENABLED")
+MULTI_AGENT_ENABLED = service_enabled("MULTI_AGENT_ENABLED")
+
+AI_SERVICE_FLAGS = {
+    "ai_mode": ("AI_MODE_ENABLED", AI_MODE_ENABLED),
+    "mcp": ("MCP_ENABLED", MCP_ENABLED),
+    "rag": ("RAG_ENABLED", RAG_ENABLED),
+    "multi_agent": ("MULTI_AGENT_ENABLED", MULTI_AGENT_ENABLED),
+}
+
+
+def turned_off(service, variable, **extra):
+    """The answer an AI route gives when its service is switched off.
+
+    HTTP 200, not an error: in the cloud baseline this is the expected
+    state, not a fault. `disabled` is what the screens branch on so they
+    can say "turned off here" instead of "not responding".
+    """
+    payload = {
+        "available": False,
+        "ok": False,
+        "disabled": True,
+        "flag": variable,
+        "reason": ("%s is switched off in this deployment (%s=false). The "
+                   "ordering and kitchen functions are unaffected."
+                   % (service, variable)),
+    }
+    payload.update(extra)
+    return payload
+
+
+def dependency_off(client, variable):
+    """What the health report says about a switched-off dependency.
+
+    It does NOT call the service. Reporting a server as unreachable when
+    this deployment was told not to use it would be a false alarm, and
+    on a cloud box it would also add three network timeouts to every
+    health check.
+    """
+    return {
+        "enabled": False,
+        "reachable": False,
+        "url": client.base_url,
+        "containerised": False,
+        "note": "disabled by configuration (%s=false)" % variable,
+    }
+
 # Allowed status transitions for an order.
 TRANSITIONS = {
     "PENDING":   ["CONFIRMED", "CANCELLED"],
@@ -116,11 +192,26 @@ def health():
             "order_database": database,
             "menu_service_student_2": menu.health(),
             "inventory_service_student_3": inventory.health(),
-            "ollama": ollama.health(),
-            "mcp": mcp.health(),
-            "rag": rag.health(),
-            "multi_agent": multi_agent.health(),
+            "ollama": (ollama.health() if AI_MODE_ENABLED
+                       else {"enabled": False, "reachable": False,
+                             "url": ollama.base_url, "model": ollama.model,
+                             "note": "AI-Mode disabled by configuration "
+                                     "(AI_MODE_ENABLED=false)"}),
+            "mcp": (mcp.health() if MCP_ENABLED
+                    else dependency_off(mcp, "MCP_ENABLED")),
+            "rag": (rag.health() if RAG_ENABLED
+                    else dependency_off(rag, "RAG_ENABLED")),
+            "multi_agent": (multi_agent.health() if MULTI_AGENT_ENABLED
+                            else dependency_off(multi_agent,
+                                                "MULTI_AGENT_ENABLED")),
         },
+        # Which AI services this deployment is allowed to use at all.
+        # The cloud baseline turns every one of them off; locally they
+        # are all on. Reported so the state can be read off the running
+        # service rather than inferred from a config file.
+        "ai_services": {name: {"flag": variable, "enabled": enabled}
+                        for name, (variable, enabled)
+                        in AI_SERVICE_FLAGS.items()},
     }
 
     report["status"] = "healthy" if database.get("reachable") else "degraded"
@@ -437,9 +528,18 @@ def kitchen_queue():
 
 @app.post("/api/ai/kitchen-analysis")
 def kitchen_analysis():
+    """Queue analysis, with or without the model.
+
+    When AI-Mode is switched off the screen still gets everything that
+    does not need a model: the deterministic queue metrics and the
+    rule-based narrative. That is what keeps the Kitchen screen useful
+    in the cloud baseline rather than showing an error where the
+    analysis used to be.
+    """
     data = db.list_orders(status=",".join(BOARD_COLUMNS[:3]),
                           include="items", limit=100)
-    result = ai.analyse(data["orders"], ollama)
+    result = ai.analyse(data["orders"], ollama,
+                        ai_mode_enabled=AI_MODE_ENABLED)
     return jsonify(result)
 
 
@@ -462,6 +562,11 @@ def kitchen_analysis_get():
 @app.get("/api/ai/mcp")
 def mcp_tools():
     """The tool catalogue the shared MCP server advertises."""
+    if not MCP_ENABLED:
+        return jsonify(turned_off("The shared MCP server", "MCP_ENABLED",
+                                  server=mcp.base_url, containerised=False,
+                                  count=0, tools=[], transport=None))
+
     tools, reason = mcp.list_tools()
 
     return jsonify({
@@ -490,6 +595,10 @@ def mcp_call():
     well-formed but disagreeing with the service that owns the data is the
     failure nothing else catches.
     """
+    if not MCP_ENABLED:
+        return jsonify(turned_off("The shared MCP server", "MCP_ENABLED",
+                                  server=mcp.base_url, tools=[]))
+
     body = request.get_json(silent=True) or {}
     tool_name = body.get("tool")
     arguments = body.get("arguments") or {}
@@ -538,6 +647,15 @@ def rag_query():
     RAG server returns alongside the answer. This service adds no wording
     of its own.
     """
+    if not RAG_ENABLED:
+        # The RAG panel branches on `status`, so this carries the status
+        # it already understands plus the `disabled` flag that tells it
+        # the server is off rather than down.
+        return jsonify(turned_off("The shared RAG server", "RAG_ENABLED",
+                                  status="unavailable", answer=None,
+                                  sources=[], source_count=0,
+                                  server=rag.base_url))
+
     body = request.get_json(silent=True) or {}
     question = body.get("question")
 
@@ -598,6 +716,12 @@ def multi_agent_start():
     Slow by design: the server runs all three agents on a local model
     inside this request, then stops and waits for a human.
     """
+    if not MULTI_AGENT_ENABLED:
+        return jsonify(turned_off("The shared Multi-Agent server",
+                                  "MULTI_AGENT_ENABLED",
+                                  server=multi_agent.base_url,
+                                  workflow_id=None, status=None, history=[]))
+
     body = request.get_json(silent=True) or {}
     task = body.get("task")
 
@@ -616,6 +740,12 @@ def multi_agent_start():
 @app.get("/api/ai/multi-agent/workflows/<workflow_id>")
 def multi_agent_get(workflow_id):
     """One workflow, with its plan, work, review and audit history."""
+    if not MULTI_AGENT_ENABLED:
+        return jsonify(turned_off("The shared Multi-Agent server",
+                                  "MULTI_AGENT_ENABLED",
+                                  server=multi_agent.base_url,
+                                  workflow_id=None, status=None, history=[]))
+
     return jsonify(multi_agent.get(workflow_id))
 
 
@@ -627,6 +757,12 @@ def multi_agent_human_review(workflow_id):
     agents produced counts until a named person accepts it, and anything
     short of an approval has to say what is wrong.
     """
+    if not MULTI_AGENT_ENABLED:
+        return jsonify(turned_off("The shared Multi-Agent server",
+                                  "MULTI_AGENT_ENABLED",
+                                  server=multi_agent.base_url,
+                                  workflow_id=None, status=None, history=[]))
+
     body = request.get_json(silent=True) or {}
     decision = body.get("decision")
     comments = body.get("comments", "")
