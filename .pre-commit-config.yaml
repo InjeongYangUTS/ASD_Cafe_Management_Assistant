@@ -1,0 +1,25 @@
+
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-security
+        name: Ruff Security Scan
+        entry: ruff check --config pyproject.toml
+        language: system
+        types: [python]
+        pass_filenames: true
+
+      - id: detect-secrets
+        name: Detect Secrets
+        entry: detect-secrets-hook --baseline .secrets.baseline
+        language: system
+        types: [text]
+        pass_filenames: true
+        exclude: '(^|/)(tests/fixtures/|\.venv[^/]*/|__MACOSX/)'
+
+      - id: pip-audit
+        name: Dependency Vulnerability Audit
+        entry: python scripts/security/audit_dependencies.py
+        language: system
+        pass_filenames: false
+        always_run: true

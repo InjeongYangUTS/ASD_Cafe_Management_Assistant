@@ -5,9 +5,11 @@ import requests
 
 MCP_URL = os.environ.get("MCP_URL", "http://localhost:5700").rstrip("/")
 RAG_URL = os.environ.get("RAG_URL", "http://localhost:5600").rstrip("/")
+MULTI_AGENT_URL = os.environ.get("MULTI_AGENT_URL", "http://localhost:5800").rstrip("/")
 
 MCP_TIMEOUT = float(os.environ.get("MCP_TIMEOUT", 15))
 RAG_TIMEOUT = float(os.environ.get("RAG_TIMEOUT", 120))
+MULTI_AGENT_TIMEOUT = float(os.environ.get("MULTI_AGENT_TIMEOUT", 900))
 
 
 def _enabled(name):
@@ -255,3 +257,50 @@ class RAGClient:
         data["server"] = self.base_url
         data["needs_review"] = data.get("confidence") in ("low", "insufficient")
         return data
+
+
+class MultiAgentClient:
+    """Planner -> Worker -> Reviewer workflows on the shared Multi-Agent server."""
+
+    def __init__(self, base_url=MULTI_AGENT_URL, timeout=MULTI_AGENT_TIMEOUT):
+        self.base_url = base_url.rstrip("/")
+        self.timeout = timeout
+
+    @property
+    def enabled(self):
+        return _enabled("MULTI_AGENT_ENABLED")
+
+    def _unavailable(self, status, reason):
+        return {"status": status, "reason": reason, "workflow": None,
+                "server": self.base_url}
+
+    def _send(self, method, path, body=None):
+        if not self.enabled:
+            return self._unavailable("disabled",
+                                     "Multi-Agent is disabled (MULTI_AGENT_ENABLED=false).")
+
+        try:
+            response = requests.request(method, self.base_url + path,
+                                        json=body, timeout=self.timeout)
+            data = response.json()
+        except (requests.RequestException, ValueError) as exc:
+            return self._unavailable("unavailable",
+                                     "The shared Multi-Agent server is not reachable at %s (%s)."
+                                     % (self.base_url, exc.__class__.__name__))
+
+        if response.status_code >= 400:
+            status = {400: "rejected", 404: "not_found"}.get(response.status_code, "unavailable")
+            return self._unavailable(status, data.get("error") or
+                                     "The Multi-Agent server answered HTTP %d." % response.status_code)
+
+        return {"status": "success", "workflow": data, "server": self.base_url}
+
+    def start(self, task, evidence):
+        return self._send("POST", "/workflows", {"task": task, "evidence": evidence})
+
+    def get(self, workflow_id):
+        return self._send("GET", "/workflows/%s" % workflow_id)
+
+    def review(self, workflow_id, decision, comments=""):
+        return self._send("POST", "/workflows/%s/human-review" % workflow_id,
+                          {"decision": decision, "comments": comments})

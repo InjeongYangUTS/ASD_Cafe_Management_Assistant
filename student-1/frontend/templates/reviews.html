@@ -56,6 +56,9 @@
         <button type="button" class="s1-tab" role="tab" aria-selected="false"
                 data-pane="pane-mcp"
                 data-source="MCP &middot; Shared MCP server">Tools</button>
+        <button type="button" class="s1-tab" role="tab" aria-selected="false"
+                data-pane="pane-multi-agent"
+                data-source="Multi-Agent &middot; Shared Multi-Agent server">Multi-Agent</button>
     </div>
 
     <div id="pane-reviews" class="s1-tab-pane" role="tabpanel">
@@ -150,6 +153,47 @@
         </div>
 
         <div id="mcp-result"></div>
+
+    </div>
+
+    <div id="pane-multi-agent" class="s1-tab-pane" role="tabpanel" hidden>
+
+        <form class="s1-ask"
+              hx-post="/reviews/ai/multi-agent"
+              hx-target="#multi-agent-result"
+              hx-swap="innerHTML"
+              hx-indicator="#multi-agent-waiting"
+              hx-disabled-elt="find button">
+
+            <input type="text" id="multi-agent-task" name="task" required maxlength="300"
+                   list="multi-agent-samples"
+                   placeholder="e.g. {{ multi_agent_samples[0] }}">
+            <datalist id="multi-agent-samples">
+                {% for sample in multi_agent_samples %}
+                    <option value="{{ sample }}"></option>
+                {% endfor %}
+            </datalist>
+
+            <button type="submit" class="s1-button">Run workflow</button>
+        </form>
+
+        <p class="s1-hint" style="margin:10px 0 0;">
+            Planner &rarr; Worker &rarr; Reviewer run on live review data from the
+            feedback database, then you approve, correct, partially accept or reject
+            the result.
+        </p>
+
+        <div id="multi-agent-waiting" class="s1-waiting htmx-indicator">
+            <div class="s1-waiting-dots" aria-hidden="true">
+                <span></span><span></span><span></span>
+            </div>
+            <div>
+                <strong>Planner, Worker and Reviewer are working&hellip;</strong>
+                <span>This can take a few minutes.</span>
+            </div>
+        </div>
+
+        <div id="multi-agent-result"></div>
 
     </div>
 

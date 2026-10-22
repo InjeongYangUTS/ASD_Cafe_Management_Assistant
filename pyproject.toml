@@ -1,0 +1,29 @@
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+extend-exclude = [
+    ".git",
+    ".venv",
+    ".venv-mac",
+    ".venv-security",
+    "venv",
+    "env",
+    "__MACOSX",
+    "__pycache__",
+    ".pytest_cache"
+]
+
+[tool.ruff.lint]
+select = ["S"]
+
+[tool.ruff.lint.per-file-ignores]
+"test_*.py" = ["S101"]
+"*_test.py" = ["S101"]
+"conftest.py" = ["S101"]
+"tests/**/*.py" = ["S101"]
+"**/tests/**/*.py" = ["S101"]
+
+# Reviewed: SQL fragments are fixed application-defined strings.
+# User inputs are passed using SQLite parameter placeholders.
+"student-3/database/app.py" = ["S608"]

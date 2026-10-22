@@ -10,6 +10,12 @@ from recipes import build_requirements
 
 from mcp_client import call_mcp_tool 
 from rag_client import query_rag 
+from multi_agent_client import (
+    MultiAgentError,
+    start_inventory_workflow,
+    get_inventory_workflow,
+    submit_inventory_review,
+)
 
 ALLOWED_RESTOCK_STATUSES = {"Pending", "Ordered", "Delivered", "Cancelled"}
 ALLOWED_SUPPLIER_STATUSES = {"Active", "Inactive"}
@@ -320,5 +326,70 @@ def rag_query():
             "error": str(e)
         }), 500
 
+
+@app.post("/api/multi-agent/workflows")
+def create_inventory_multi_agent_workflow():
+    if os.getenv("MULTI_AGENT_ENABLED", "true").lower() != "true":
+        return error("Multi-Agent mode is disabled.", 403)
+
+    body = request.get_json(silent=True)
+    if not isinstance(body, dict):
+        return error("A JSON object is required.")
+
+    task = body.get("task", "")
+    if not isinstance(task, str) or not task.strip():
+        return error("A non-empty task is required.")
+    if len(task) > 1000:
+        return error("Task must not exceed 1000 characters.")
+
+    # Uses live database evidence, not untrusted inventory data from the browser.
+    dashboard_data = call_database("GET", "/db/dashboard")
+    inventory_items = dashboard_data.get("low_stock_items")
+    if not isinstance(inventory_items, list):
+        return error("Low-stock inventory data is unavailable.", 503)
+
+    try:
+        result = start_inventory_workflow(task.strip(), inventory_items)
+    except MultiAgentError as exc:
+        return error(exc.message, exc.status_code)
+    return jsonify(result), 201
+
+
+@app.get("/api/multi-agent/workflows/<workflow_id>")
+def inventory_multi_agent_workflow_details(workflow_id):
+    if os.getenv("MULTI_AGENT_ENABLED", "true").lower() != "true":
+        return error("Multi-Agent mode is disabled.", 403)
+    try:
+        result = get_inventory_workflow(workflow_id)
+    except MultiAgentError as exc:
+        return error(exc.message, exc.status_code)
+    return jsonify(result)
+
+
+@app.post("/api/multi-agent/workflows/<workflow_id>/human-review")
+def inventory_multi_agent_human_review(workflow_id):
+    if os.getenv("MULTI_AGENT_ENABLED", "true").lower() != "true":
+        return error("Multi-Agent mode is disabled.", 403)
+    body = request.get_json(silent=True)
+    if not isinstance(body, dict):
+        return error("A JSON object is required.")
+    decision = body.get("decision")
+    comments = body.get("comments", "")
+    if decision not in {"approve", "correct", "reject", "partial_accept"}:
+        return error("Invalid Human Review decision.")
+    if not isinstance(comments, str):
+        return error("Comments must be text.")
+    if decision == "correct" and not comments.strip():
+        return error("Correction comments are required.")
+    try:
+        result = submit_inventory_review(workflow_id, decision, comments)
+    except MultiAgentError as exc:
+        return error(exc.message, exc.status_code)
+    return jsonify(result)
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", "8300")), debug=False)
+    app.run(
+        host="0.0.0.0",  # noqa: S104 - Required for Docker networking
+        port=int(os.getenv("PORT", "8300")),
+        debug=False,
+    )

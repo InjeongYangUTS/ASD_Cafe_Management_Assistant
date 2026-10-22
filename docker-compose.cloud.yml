@@ -1,0 +1,65 @@
+# AWS EC2 baseline override.
+# Run together with docker-compose.yml. The required baseline keeps all AI
+# services disabled; the Multi-Agent server is retained behind the optional
+# "ai" profile for later bonus work.
+
+services:
+  multi-agent-server:
+    profiles: ["ai"]
+
+  shared-frontend:
+    environment:
+      SHARED_SECRET_KEY: ${SHARED_SECRET_KEY:?Set SHARED_SECRET_KEY in .env.cloud}
+      SHARED_DB_PATH: /app/data/users.db
+    volumes:
+      - shared-auth-data:/app/data
+
+  student-1-backend:
+    environment:
+      SHARED_SECRET_KEY: ${SHARED_SECRET_KEY:?Set SHARED_SECRET_KEY in .env.cloud}
+      MCP_ENABLED: "false"
+      RAG_ENABLED: "false"
+      MULTI_AGENT_ENABLED: "false"
+
+  student-1-frontend:
+    environment:
+      SECRET_KEY: ${SHARED_SECRET_KEY:?Set SHARED_SECRET_KEY in .env.cloud}
+
+  student2-database:
+    environment:
+      MENU_DB_PATH: /app/data/menu_recipe.db
+    volumes:
+      - student2-menu-data:/app/data
+
+  student2-frontend:
+    environment:
+      SHARED_SECRET_KEY: ${SHARED_SECRET_KEY:?Set SHARED_SECRET_KEY in .env.cloud}
+      SHARED_PORT: "5100"
+
+  student-3-backend:
+    environment:
+      MULTI_AGENT_ENABLED: "false"
+
+  student-3-frontend:
+    environment:
+      SHARED_HOME_URL: ${PUBLIC_SCHEME:-http}://${PUBLIC_HOST:?Set PUBLIC_HOST in .env.cloud}:5100/staff-dashboard
+
+  student-4-frontend:
+    environment:
+      SECRET_KEY: ${SHARED_SECRET_KEY:?Set SHARED_SECRET_KEY in .env.cloud}
+
+  student-5-database:
+    environment:
+      PAYMENT_DB_PATH: /app/data/payments.db
+    volumes:
+      - student5-payment-data:/app/data
+
+  student-5-backend:
+    environment:
+      MCP_ENABLED: "false"
+      RAG_ENABLED: "false"
+
+volumes:
+  shared-auth-data:
+  student2-menu-data:
+  student5-payment-data:

@@ -30,6 +30,12 @@ CAFE_TZ = ZoneInfo(os.environ.get("CAFE_TIMEZONE", "Australia/Sydney"))
 
 HTTP_TIMEOUT = float(os.environ.get("HTTP_TIMEOUT", 6))
 AI_HTTP_TIMEOUT = float(os.environ.get("AI_HTTP_TIMEOUT", 240))
+MULTI_AGENT_HTTP_TIMEOUT = float(os.environ.get("MULTI_AGENT_HTTP_TIMEOUT", 930))
+
+MULTI_AGENT_SAMPLE_TASKS = [
+    "Draft a short staff reply for each review that still needs a reply.",
+    "Summarise the main customer complaints and recommend three actions for the cafe.",
+]
 
 STATUS_LABELS = {
     "SUBMITTED": "New",
@@ -100,6 +106,7 @@ def inject_shared():
         "staff_login": base + "/shared/auth/staff_login.html",
         "status_labels": STATUS_LABELS,
         "ollama_model": OLLAMA_MODEL,
+        "multi_agent_samples": MULTI_AGENT_SAMPLE_TASKS,
     }
 
 
@@ -519,6 +526,71 @@ def staff_rag():
     return render_template("partials/rag_answer.html", result=result)
 
 
+def readable_workflow(workflow):
+    """The shared server returns plan, worker_output and review as JSON text; turn them into dicts."""
+    if not workflow:
+        return workflow
+
+    for key, fallback in (("plan", "worker_steps"), ("worker_output", "result"),
+                          ("review", "assessment")):
+        value = workflow.get(key)
+        if isinstance(value, str):
+            try:
+                value = json.loads(value)
+            except ValueError:
+                value = {fallback: [value] if fallback == "worker_steps" else value}
+        workflow[key] = value if isinstance(value, dict) else {}
+
+    return workflow
+
+
+@app.post("/reviews/ai/multi-agent")
+def staff_multi_agent():
+    """HTMX: run Planner -> Worker -> Reviewer on the shared Multi-Agent server."""
+    if current_staff() is None:
+        return signin_again()
+
+    task = (request.form.get("task") or "").strip()
+
+    if not task:
+        return render_template("partials/multi_agent_result.html",
+                               error="Type a task first.")
+
+    try:
+        result = call_backend("POST", "/api/ai/multi-agent",
+                              json={"task": task},
+                              timeout=MULTI_AGENT_HTTP_TIMEOUT)
+    except BackendError as exc:
+        return render_template("partials/multi_agent_result.html",
+                               error=exc.message, tone=exc.tone)
+
+    return render_template("partials/multi_agent_result.html",
+                           workflow=readable_workflow(result["workflow"]))
+
+
+@app.post("/reviews/ai/multi-agent/<workflow_id>/review")
+def staff_multi_agent_review(workflow_id):
+    """HTMX: record the staff member's Human Review decision."""
+    if current_staff() is None:
+        return signin_again()
+
+    try:
+        result = call_backend("POST", "/api/ai/multi-agent/%s/review" % workflow_id,
+                              json={"decision": request.form.get("decision"),
+                                    "comments": request.form.get("comments", "")},
+                              timeout=MULTI_AGENT_HTTP_TIMEOUT)
+    except BackendError as exc:
+        try:
+            workflow = readable_workflow(call_backend("GET", "/api/ai/multi-agent/%s" % workflow_id)["workflow"])
+        except BackendError:
+            workflow = None
+        return render_template("partials/multi_agent_result.html",
+                               workflow=workflow, error=exc.message, tone=exc.tone)
+
+    return render_template("partials/multi_agent_result.html",
+                           workflow=readable_workflow(result["workflow"]))
+
+
 @app.errorhandler(BackendError)
 def handle_backend_error(exc):
     return render_template("partials/message.html", tone="error",
@@ -527,7 +599,7 @@ def handle_backend_error(exc):
 
 if __name__ == "__main__":
     app.run(
-        host="0.0.0.0",
+        host="0.0.0.0",  # noqa: S104 - container needs to bind all interfaces
         port=int(os.environ.get("PORT", 5110)),
         debug=os.environ.get("FLASK_DEBUG", "0") == "1",
     )

@@ -1,0 +1,92 @@
+{% if error %}
+    <div class="s1-message {{ tone or 'error' }}" style="margin:14px 0 0;">{{ error }}</div>
+{% endif %}
+
+{% if workflow %}
+    {% set plan = workflow.plan or {} %}
+    {% set output = workflow.worker_output or {} %}
+    {% set review = workflow.review or {} %}
+
+    <div class="s1-ai-block" style="margin-top:14px;">
+
+        <h4>{{ workflow.task }}</h4>
+
+        <p class="s1-meta" style="margin:0 0 8px;">
+            Workflow <code>{{ workflow.workflow_id }}</code>
+            &middot; Status: <span class="s1-tag">{{ workflow.status }}</span>
+        </p>
+
+        <p class="s1-meta" style="margin:12px 0 4px;"><strong>1. Planner</strong></p>
+        <ul>
+            {% for step in plan.worker_steps or [] %}<li>{{ step }}</li>{% endfor %}
+        </ul>
+        {% if plan.information_to_check %}
+            <p class="s1-meta" style="margin:0;">To check: {{ plan.information_to_check | join('; ') }}</p>
+        {% endif %}
+
+        <p class="s1-meta" style="margin:12px 0 4px;"><strong>2. Worker</strong></p>
+        <p style="white-space:pre-line;">{{ output.result }}</p>
+        {% if output.missing_information %}
+            <p class="s1-meta" style="margin:0;">Missing: {{ output.missing_information | join('; ') }}</p>
+        {% endif %}
+        {% if output.evidence_used %}
+            <p class="s1-meta" style="margin:0;">Evidence used: {{ output.evidence_used | join('; ') }}</p>
+        {% endif %}
+
+        <p class="s1-meta" style="margin:12px 0 4px;"><strong>3. Reviewer</strong></p>
+        <p>{{ review.assessment }}</p>
+        <p class="s1-meta" style="margin:0;">
+            Recommendation: <span class="s1-tag">{{ review.recommendation }}</span>
+            {% if review.reason %}&middot; {{ review.reason }}{% endif %}
+        </p>
+        {% if review.issues %}
+            <ul>{% for issue in review.issues %}<li>{{ issue }}</li>{% endfor %}</ul>
+        {% endif %}
+
+        <p class="s1-meta" style="margin:12px 0 4px;"><strong>4. Human Review</strong></p>
+        {% if workflow.status == 'awaiting_human_review' %}
+            <form hx-post="/reviews/ai/multi-agent/{{ workflow.workflow_id }}/review"
+                  hx-target="#multi-agent-result"
+                  hx-swap="innerHTML"
+                  hx-indicator="#multi-agent-waiting"
+                  hx-disabled-elt="find button">
+
+                <div class="s1-field">
+                    <label for="ma-decision">Decision</label>
+                    <select id="ma-decision" name="decision" required>
+                        <option value="approve">Approve</option>
+                        <option value="partial_accept">Partially accept</option>
+                        <option value="correct">Correct (Worker revises, Reviewer re-checks)</option>
+                        <option value="reject">Reject</option>
+                    </select>
+                </div>
+
+                <div class="s1-field">
+                    <label for="ma-comments">Comments (required for Correct)</label>
+                    <textarea id="ma-comments" name="comments" maxlength="500" rows="2"></textarea>
+                </div>
+
+                <button type="submit" class="s1-button">Submit decision</button>
+            </form>
+        {% elif workflow.human_review %}
+            <p class="s1-meta" style="margin:0;">
+                Decision: <span class="s1-tag">{{ workflow.human_review.decision }}</span>
+                {% if workflow.human_review.comments %}&middot; {{ workflow.human_review.comments }}{% endif %}
+                &middot; {{ workflow.human_review.timestamp | cafe_time }}
+            </p>
+        {% endif %}
+
+        <p class="s1-meta" style="margin:12px 0 4px;"><strong>Workflow history</strong></p>
+        <ul class="s1-meta">
+            {% for event in workflow.history or [] %}
+                <li>{{ event.timestamp | cafe_time }} &ndash; {{ event.event }}</li>
+            {% endfor %}
+        </ul>
+
+        <p class="s1-ai-source" style="margin:8px 0 0;">
+            Planner &rarr; Worker &rarr; Reviewer from the shared Multi-Agent server,
+            grounded in the feedback database.
+        </p>
+
+    </div>
+{% endif %}
