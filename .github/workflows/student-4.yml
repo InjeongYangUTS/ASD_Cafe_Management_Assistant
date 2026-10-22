@@ -10,8 +10,13 @@
 #   job 3  validate       - run the stack with the shared docker-compose,
 #                           check health, run the integration tests and
 #                           the agentic loop in --mode review
-#   job 4  ai-validation  - the agentic loop in --mode mcp and --mode rag.
+#   job 4  ai-validation  - the agentic loop in --mode mcp, --mode rag
+#                           and --mode multi-agent.
 #                           DISABLED BY DEFAULT. See the note below.
+#   job 5  release2-review - the agentic loop in --mode testing and
+#                           --mode cloud. These two review EVIDENCE the
+#                           team commits, not running servers, so they
+#                           belong in every build.
 #
 # WHY THE MCP AND RAG MODES ARE DISABLED IN CI
 # --------------------------------------------
@@ -53,7 +58,7 @@ on:
   workflow_dispatch:
     inputs:
       run_ai_modes:
-        description: "Also run the agentic loop in --mode mcp and --mode rag (needs a self-hosted runner with both servers and Ollama on localhost)"
+        description: "Also run the agentic loop in --mode mcp, --mode rag and --mode multi-agent (needs a self-hosted runner with all three shared servers and Ollama on localhost)"
         type: boolean
         default: false
 
@@ -97,10 +102,7 @@ jobs:
                                   student-4/frontend student-4/agentic
           python -m pyflakes student-4/database/*.py student-4/backend/*.py \
                              student-4/frontend/app.py \
-                             student-4/agentic/loop.py \
-                             student-4/agentic/probes_mcp.py \
-                             student-4/agentic/probes_rag.py \
-                             student-4/agentic/repo.py
+                             student-4/agentic/*.py
 
       - name: Validate the seed script and the schema
         run: |
@@ -125,12 +127,12 @@ jobs:
       # The MCP and RAG integration is checked here as far as it can be
       # without the two servers. The live probes are job 4.
       # ---------------------------------------------------------------
-      - name: The agentic loop registers the mcp and rag modes
+      - name: The agentic loop registers all six modes
         run: |
           cd student-4
           python agentic/loop.py --help | tee /tmp/loop-help.txt
           grep -q -- "--mode" /tmp/loop-help.txt
-          for mode in review mcp rag all; do
+          for mode in review mcp rag multi-agent testing cloud all release2; do
             grep -q "$mode" /tmp/loop-help.txt \
               || { echo "mode '$mode' is not registered"; exit 1; }
             echo "  mode '$mode' registered"
@@ -144,6 +146,10 @@ jobs:
           sys.path.insert(0, "agentic")
           from probes_mcp import build_mcp_probes, AREAS as MCP_AREAS
           from probes_rag import build_rag_probes, AREAS as RAG_AREAS
+          from probes_multiagent import (build_multiagent_probes,
+                                         AREAS as MA_AREAS)
+          from probes_testing import build_testing_probes, AREAS as T_AREAS
+          from probes_cloud import build_cloud_probes, AREAS as C_AREAS
 
           class Probe:
               def __init__(self, key, area, description, run):
@@ -157,9 +163,17 @@ jobs:
           mcp = build_mcp_probes("http://localhost:5700",
                                  "http://localhost:8400", ok, fail, Probe)
           rag = build_rag_probes("http://localhost:5600", ok, fail, Probe)
+          multiagent = build_multiagent_probes("http://localhost:5800",
+                                               "http://localhost:8400",
+                                               ok, fail, Probe)
+          testing = build_testing_probes(ok, fail, Probe)
+          cloud = build_cloud_probes(ok, fail, Probe)
 
           for name, pack, areas in (("mcp", mcp, MCP_AREAS),
-                                    ("rag", rag, RAG_AREAS)):
+                                    ("rag", rag, RAG_AREAS),
+                                    ("multi-agent", multiagent, MA_AREAS),
+                                    ("testing", testing, T_AREAS),
+                                    ("cloud", cloud, C_AREAS)):
               assert pack, "%s pack is empty" % name
               keys = [p.key for p in pack]
               assert len(set(keys)) == len(keys), "duplicate keys in %s" % name
@@ -212,10 +226,12 @@ jobs:
                 % len(services))
           PY
 
-      - name: My backend exposes the MCP and RAG routes
+      - name: My backend exposes the MCP, RAG and Multi-Agent routes
         run: |
           cd student-4
-          for route in "/api/ai/mcp" "/api/ai/rag"; do
+          for route in "/api/ai/mcp" "/api/ai/rag" \
+                       "/api/ai/multi-agent/workflows" \
+                       "/api/ai/multi-agent/workflows/<workflow_id>/human-review"; do
             grep -q "\"$route" backend/app.py || grep -q "'$route" backend/app.py \
               || { echo "backend/app.py does not expose $route"; exit 1; }
             echo "  $route present"
@@ -378,7 +394,7 @@ jobs:
   #    so the pipeline documents them and so they can be run on demand.
   # -------------------------------------------------------------------
   ai-validation:
-    name: Agentic loop (MCP + RAG modes)
+    name: Agentic loop (MCP + RAG + Multi-Agent modes)
     runs-on: ubuntu-latest
     needs: unit-tests
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_ai_modes }}
@@ -386,6 +402,7 @@ jobs:
     env:
       MCP_URL: http://localhost:5700
       RAG_URL: http://localhost:5600
+      MULTI_AGENT_URL: http://localhost:5800
       S4_BACKEND_URL: http://localhost:8400
       OLLAMA_URL: http://localhost:11434
 
@@ -402,13 +419,14 @@ jobs:
       - name: Install dependencies
         run: pip install requests flask
 
-      - name: Confirm the two servers are reachable on this runner
+      - name: Confirm the three servers are reachable on this runner
         run: |
-          for url in "$MCP_URL/health" "$RAG_URL/health"; do
+          for url in "$MCP_URL/health" "$RAG_URL/health" \
+                     "$MULTI_AGENT_URL/health"; do
             curl -fsS --max-time 5 "$url" \
-              || { echo "$url is not answering - start the shared MCP and"; \
-                   echo "RAG servers on this runner before dispatching with"; \
-                   echo "run_ai_modes = true"; exit 1; }
+              || { echo "$url is not answering - start the shared MCP, RAG"; \
+                   echo "and Multi-Agent servers on this runner before"; \
+                   echo "dispatching with run_ai_modes = true"; exit 1; }
             echo "  $url ok"
           done
 
@@ -422,11 +440,75 @@ jobs:
           cd student-4
           python agentic/loop.py --mode rag --max-iterations 3
 
+      - name: Agentic loop - Multi-Agent workflow review
+        run: |
+          cd student-4
+          python agentic/loop.py --mode multi-agent --max-iterations 3
+
       - name: Upload the MCP and RAG validation logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: student-4-agentic-logs-ai
+          path: student-4/agentic/logs/
+          if-no-files-found: warn
+
+  # -------------------------------------------------------------------
+  # 5. The two Release 2 review modes that need no servers
+  #
+  #    --mode testing and --mode cloud review EVIDENCE the team commits
+  #    - the pre-commit configuration, the endpoint-test reports, the
+  #    deployment artefacts - so unlike the MCP, RAG and Multi-Agent
+  #    modes they run perfectly well on a GitHub-hosted runner, and
+  #    they belong in every build rather than behind a dispatch flag.
+  # -------------------------------------------------------------------
+  release2-review:
+    name: Agentic loop (testing + cloud review)
+    runs-on: ubuntu-latest
+    needs: unit-tests
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Agentic loop - Testing review
+        run: |
+          cd student-4
+          python agentic/loop.py --mode testing --max-iterations 3
+
+      # -----------------------------------------------------------------
+      # ADVISORY UNTIL THE CLOUD DEPLOYMENT EVIDENCE IS FILED.
+      #
+      # The cloud mode reviews evidence/release2/cloud/, which is Ong's
+      # deliverable, not mine. Until the deployment report and the human
+      # release decision are committed, this mode reports a NO-GO - which
+      # is the correct finding, but failing every Student 4 build on it
+      # would bury my own failures under somebody else's pending work.
+      #
+      # continue-on-error keeps the finding in the run log and in the
+      # uploaded verdict. Delete this one line once the evidence lands,
+      # and the release recommendation becomes a hard gate.
+      # -----------------------------------------------------------------
+      - name: Agentic loop - Cloud deployment review
+        continue-on-error: true
+        run: |
+          cd student-4
+          python agentic/loop.py --mode cloud --max-iterations 3
+
+      - name: Upload the Release 2 review logs and verdicts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: student-4-agentic-logs-release2
           path: student-4/agentic/logs/
           if-no-files-found: warn
 
