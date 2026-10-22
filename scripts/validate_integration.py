@@ -71,7 +71,7 @@ STUDENTS = {
                 "How are partial refunds handled in Payment and Billing?"),
         "mcp_tools": ["get_payment_records", "get_payment_record",
                       "get_refund_records"],
-        "multi_agent": None},
+        "multi_agent": "http://127.0.0.1:8500/api/ai/multi-agent/%s"},
 }
 
 PASS, FAIL, NOT_READY = "PASS", "FAIL", "NOT READY"

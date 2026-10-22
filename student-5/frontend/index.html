@@ -496,6 +496,34 @@
             </div>
         </section>
 
+        <section id="multiAgentCard" class="card records">
+            <h2>Multi-Agent Payment Operations Review</h2>
+            <p>
+                Run a Planner, Worker and Reviewer workflow against anonymous
+                payment evidence, then record a staff decision.
+            </p>
+
+            <label for="multiAgentTask">Review task</label>
+            <textarea id="multiAgentTask">Review payment and refund operations, identify the main operational risk, and recommend one safe staff action.</textarea>
+
+            <button id="runMultiAgentButton" onclick="runMultiAgent()">
+                Run Multi-Agent Review
+            </button>
+
+            <div id="multiAgentMessage" class="message"></div>
+            <div id="multiAgentResult"></div>
+
+            <div id="humanReviewControls" hidden>
+                <h3>Human Review</h3>
+                <label for="humanReviewComments">Comments</label>
+                <textarea id="humanReviewComments" placeholder="Required when requesting a correction"></textarea>
+                <button onclick="submitHumanReview('approve')">Approve</button>
+                <button onclick="submitHumanReview('partial_accept')">Partially accept</button>
+                <button onclick="submitHumanReview('correct')">Request correction</button>
+                <button onclick="submitHumanReview('reject')">Reject</button>
+            </div>
+        </section>
+
         <section id="paymentRecords" class="card records">
 
             <h2>Payment Records</h2>
@@ -536,6 +564,7 @@
 
         const PAGE_PARAMS = new URLSearchParams(window.location.search);
         const CUSTOMER_MODE = PAGE_PARAMS.get("mode") === "customer";
+        let activeWorkflowId = null;
 
         function showMessage(elementId, message, successful) {
             const element = document.getElementById(elementId);
@@ -553,6 +582,99 @@
                 .replaceAll(">", "&gt;")
                 .replaceAll('"', "&quot;")
                 .replaceAll("'", "&#039;");
+        }
+
+        function readableAgentOutput(value) {
+            if (value === null || value === undefined) return "Not available";
+            return typeof value === "string"
+                ? value
+                : JSON.stringify(value, null, 2);
+        }
+
+        function renderMultiAgentWorkflow(workflow) {
+            activeWorkflowId = workflow.workflow_id;
+            const result = document.getElementById("multiAgentResult");
+            result.innerHTML = `
+                <div class="evidence-source">
+                    <h3>Planner</h3>
+                    <pre>${escapeHtml(readableAgentOutput(workflow.plan))}</pre>
+                </div>
+                <div class="evidence-source">
+                    <h3>Worker</h3>
+                    <pre>${escapeHtml(readableAgentOutput(workflow.worker_output))}</pre>
+                </div>
+                <div class="evidence-source">
+                    <h3>Reviewer</h3>
+                    <pre>${escapeHtml(readableAgentOutput(workflow.review))}</pre>
+                </div>
+                <p><strong>Status:</strong> ${escapeHtml(workflow.status)}</p>
+                <p><strong>Workflow ID:</strong> ${escapeHtml(workflow.workflow_id)}</p>
+            `;
+            document.getElementById("humanReviewControls").hidden =
+                workflow.status !== "awaiting_human_review";
+        }
+
+        async function runMultiAgent() {
+            const button = document.getElementById("runMultiAgentButton");
+            const task = document.getElementById("multiAgentTask").value.trim();
+            button.disabled = true;
+            document.getElementById("multiAgentResult").innerHTML = "";
+            document.getElementById("humanReviewControls").hidden = true;
+            showMessage(
+                "multiAgentMessage",
+                "Planner, Worker and Reviewer are running. This can take several minutes.",
+                true
+            );
+
+            try {
+                const response = await fetch(`${API_URL}/api/ai/multi-agent`, {
+                    method: "POST",
+                    headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({task})
+                });
+                const result = await response.json();
+                if (!response.ok || result.status !== "success") {
+                    throw new Error(result.reason || "Multi-Agent workflow failed");
+                }
+                renderMultiAgentWorkflow(result.workflow);
+                showMessage(
+                    "multiAgentMessage",
+                    "All three agents finished. A staff decision is required.",
+                    true
+                );
+            } catch (error) {
+                showMessage("multiAgentMessage", error.message, false);
+            } finally {
+                button.disabled = false;
+            }
+        }
+
+        async function submitHumanReview(decision) {
+            if (!activeWorkflowId) return;
+            const comments = document
+                .getElementById("humanReviewComments").value.trim();
+            try {
+                const response = await fetch(
+                    `${API_URL}/api/ai/multi-agent/${activeWorkflowId}/human-review`,
+                    {
+                        method: "POST",
+                        headers: {"Content-Type": "application/json"},
+                        body: JSON.stringify({decision, comments})
+                    }
+                );
+                const result = await response.json();
+                if (!response.ok || result.status !== "success") {
+                    throw new Error(result.reason || "Human review failed");
+                }
+                renderMultiAgentWorkflow(result.workflow);
+                showMessage(
+                    "multiAgentMessage",
+                    `Human Review recorded: ${decision}.`,
+                    true
+                );
+            } catch (error) {
+                showMessage("multiAgentMessage", error.message, false);
+            }
         }
 
         async function runMcpTool() {
