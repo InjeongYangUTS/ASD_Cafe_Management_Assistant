@@ -250,6 +250,91 @@ def test_rag_route_is_disabled_in_ci_mode():
     assert response.get_json()["status"] == "disabled"
 
 
+def test_multi_agent_start_uses_anonymous_payment_evidence():
+    workflow_result = {
+        "status": "success",
+        "workflow": {
+            "workflow_id": "workflow-5",
+            "status": "awaiting_human_review",
+            "plan": {"steps": ["Inspect refunds"]},
+            "worker_output": "Refund frequency needs staff attention.",
+            "review": {"verdict": "supported"},
+        },
+    }
+    database_results = [
+        mock_response(200, [{"amount": 20, "payment_status": "completed"}]),
+        mock_response(200, [{
+            "refund_amount": 5,
+            "refund_reason": "duplicate charge",
+            "requested_by": 99,
+        }]),
+    ]
+
+    with backend_app.app.test_client() as client:
+        with patch.object(backend_app, "MULTI_AGENT_ENABLED", True), patch.object(
+            backend_app, "call_database", side_effect=database_results
+        ), patch.object(
+            backend_app.multi_agent, "start", return_value=workflow_result
+        ) as start:
+            response = client.post(
+                "/api/ai/multi-agent",
+                json={"task": "Review refund operations"},
+            )
+
+    evidence = start.call_args.args[1]
+    assert response.status_code == 200
+    assert response.get_json()["workflow"]["status"] == "awaiting_human_review"
+    assert evidence["payment_count"] == 1
+    assert evidence["total_refund_value"] == 5.0
+    assert "requested_by" not in str(evidence)
+
+
+def test_multi_agent_get_proxies_shared_server_result():
+    result = {
+        "status": "not_found",
+        "reason": "Workflow not found.",
+        "workflow": None,
+    }
+    with backend_app.app.test_client() as client:
+        with patch.object(backend_app, "MULTI_AGENT_ENABLED", True), patch.object(
+            backend_app.multi_agent, "get", return_value=result
+        ):
+            response = client.get("/api/ai/multi-agent/missing")
+
+    assert response.status_code == 404
+    assert response.get_json()["reason"] == "Workflow not found."
+
+
+def test_multi_agent_human_review_is_forwarded():
+    result = {
+        "status": "success",
+        "workflow": {"workflow_id": "workflow-5", "status": "completed"},
+    }
+    with backend_app.app.test_client() as client:
+        with patch.object(backend_app, "MULTI_AGENT_ENABLED", True), patch.object(
+            backend_app.multi_agent, "review", return_value=result
+        ) as review:
+            response = client.post(
+                "/api/ai/multi-agent/workflow-5/human-review",
+                json={"decision": "approve", "comments": "Checked by staff"},
+            )
+
+    assert response.status_code == 200
+    review.assert_called_once_with("workflow-5", "approve", "Checked by staff")
+
+
+def test_multi_agent_route_is_disabled_in_cloud_mode():
+    with backend_app.app.test_client() as client:
+        with patch.object(backend_app, "MULTI_AGENT_ENABLED", False):
+            response = client.post(
+                "/api/ai/multi-agent",
+                json={"task": "Review payment operations"},
+            )
+
+    assert response.status_code == 403
+    assert response.get_json()["status"] == "disabled"
+
+
 def test_process_partial_refund_successfully():
     payment = {
         "id": 12,

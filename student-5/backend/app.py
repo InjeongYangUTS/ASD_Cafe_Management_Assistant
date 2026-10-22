@@ -6,7 +6,7 @@ import requests
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
-from ai_services import McpClient, RagClient
+from ai_services import McpClient, MultiAgentClient, RagClient
 
 
 app = Flask(__name__)
@@ -34,9 +34,13 @@ OLLAMA_REVIEW_MODEL = os.getenv(
 
 MCP_ENABLED = os.getenv("MCP_ENABLED", "true").lower() == "true"
 RAG_ENABLED = os.getenv("RAG_ENABLED", "true").lower() == "true"
+MULTI_AGENT_ENABLED = (
+    os.getenv("MULTI_AGENT_ENABLED", "true").lower() == "true"
+)
 
 mcp = McpClient()
 rag = RagClient()
+multi_agent = MultiAgentClient()
 
 
 def current_time():
@@ -65,6 +69,7 @@ def ai_response(payload):
         "disabled": 403,
         "rejected": 400,
         "not_registered": 404,
+        "not_found": 404,
         "unavailable": 503,
     }.get(payload.get("status"), 200)
     return jsonify(payload), status_code
@@ -526,6 +531,111 @@ def rag_query():
         })
 
     return ai_response(rag.ask(question.strip()))
+
+
+def payment_workflow_evidence():
+    """Build bounded, anonymous payment evidence for the shared agents."""
+    payments_response = call_database("GET", "payments")
+    refunds_response = call_database("GET", "refunds")
+    if payments_response.status_code != 200 or refunds_response.status_code != 200:
+        raise requests.RequestException("Payment evidence is unavailable")
+
+    payments = payments_response.json()
+    refunds = refunds_response.json()
+    return {
+        "source": "student-5 payment and refund database",
+        "payment_count": len(payments),
+        "refund_count": len(refunds),
+        "payment_status_counts": {
+            status: sum(item.get("payment_status") == status for item in payments)
+            for status in ("pending", "completed", "partially_refunded", "refunded")
+        },
+        "total_payment_value": round(
+            sum(float(item.get("amount", 0)) for item in payments), 2
+        ),
+        "total_refund_value": round(
+            sum(float(item.get("refund_amount", 0)) for item in refunds), 2
+        ),
+        "recent_refund_reasons": [
+            item.get("refund_reason")
+            for item in refunds[-10:]
+            if item.get("refund_reason")
+        ],
+    }
+
+
+@app.post("/api/ai/multi-agent")
+def multi_agent_start():
+    """Start Planner -> Worker -> Reviewer with live payment evidence."""
+    if not MULTI_AGENT_ENABLED:
+        return ai_response({
+            "status": "disabled",
+            "reason": "Multi-Agent is disabled for this environment.",
+        })
+
+    body = request.get_json(silent=True) or {}
+    task = body.get("task")
+    if not isinstance(task, str) or not task.strip():
+        return ai_response({
+            "status": "rejected",
+            "reason": "A non-empty task is required.",
+        })
+    if len(task.strip()) > 500:
+        return ai_response({
+            "status": "rejected",
+            "reason": "The task must be 500 characters or fewer.",
+        })
+
+    try:
+        evidence = payment_workflow_evidence()
+    except (requests.RequestException, TypeError, ValueError):
+        return ai_response({
+            "status": "unavailable",
+            "reason": "Payment evidence could not be prepared.",
+        })
+    return ai_response(multi_agent.start(task.strip(), evidence))
+
+
+@app.get("/api/ai/multi-agent/<workflow_id>")
+def multi_agent_get(workflow_id):
+    if not MULTI_AGENT_ENABLED:
+        return ai_response({
+            "status": "disabled",
+            "reason": "Multi-Agent is disabled for this environment.",
+        })
+    return ai_response(multi_agent.get(workflow_id))
+
+
+@app.post("/api/ai/multi-agent/<workflow_id>/human-review")
+def multi_agent_review(workflow_id):
+    if not MULTI_AGENT_ENABLED:
+        return ai_response({
+            "status": "disabled",
+            "reason": "Multi-Agent is disabled for this environment.",
+        })
+
+    body = request.get_json(silent=True) or {}
+    decision = body.get("decision")
+    comments = body.get("comments", "")
+    allowed = {"approve", "correct", "partial_accept", "reject"}
+    if decision not in allowed:
+        return ai_response({
+            "status": "rejected",
+            "reason": "Decision must be approve, correct, partial_accept or reject.",
+        })
+    if not isinstance(comments, str):
+        return ai_response({
+            "status": "rejected",
+            "reason": "Comments must be text.",
+        })
+    if decision == "correct" and not comments.strip():
+        return ai_response({
+            "status": "rejected",
+            "reason": "Correction comments are required.",
+        })
+    return ai_response(
+        multi_agent.review(workflow_id, decision, comments.strip())
+    )
 
 
 

@@ -14,8 +14,12 @@ import requests
 
 MCP_URL = os.getenv("MCP_URL", "http://localhost:5700").rstrip("/")
 RAG_URL = os.getenv("RAG_URL", "http://localhost:5600").rstrip("/")
+MULTI_AGENT_URL = os.getenv(
+    "MULTI_AGENT_URL", "http://localhost:5800"
+).rstrip("/")
 MCP_TIMEOUT = float(os.getenv("MCP_TIMEOUT", "15"))
 RAG_TIMEOUT = float(os.getenv("RAG_TIMEOUT", "120"))
+MULTI_AGENT_TIMEOUT = float(os.getenv("MULTI_AGENT_TIMEOUT", "900"))
 
 
 class McpClient:
@@ -250,3 +254,65 @@ class RagClient:
             }
 
         return body
+
+
+class MultiAgentClient:
+    """Client for the shared Planner -> Worker -> Reviewer service."""
+
+    def __init__(self, base_url=MULTI_AGENT_URL, timeout=MULTI_AGENT_TIMEOUT):
+        self.base_url = base_url
+        self.timeout = timeout
+
+    @staticmethod
+    def _failure(status, reason):
+        return {
+            "status": status,
+            "reason": reason,
+            "workflow": None,
+        }
+
+    def _request(self, method, path, body=None):
+        try:
+            response = requests.request(
+                method,
+                self.base_url + path,
+                json=body,
+                timeout=self.timeout,
+            )
+            data = response.json()
+        except (requests.RequestException, ValueError) as exc:
+            return self._failure(
+                "unavailable",
+                f"The shared Multi-Agent server is not answering on "
+                f"{self.base_url}: {exc}",
+            )
+
+        if response.status_code >= 400:
+            status = "not_found" if response.status_code == 404 else "rejected"
+            if response.status_code >= 500:
+                status = "unavailable"
+            return self._failure(
+                status,
+                data.get("error", "The Multi-Agent request failed."),
+            )
+
+        return {
+            "status": "success",
+            "server": self.base_url,
+            "workflow": data,
+        }
+
+    def start(self, task, evidence):
+        return self._request(
+            "POST", "/workflows", {"task": task, "evidence": evidence}
+        )
+
+    def get(self, workflow_id):
+        return self._request("GET", f"/workflows/{workflow_id}")
+
+    def review(self, workflow_id, decision, comments=""):
+        return self._request(
+            "POST",
+            f"/workflows/{workflow_id}/human-review",
+            {"decision": decision, "comments": comments},
+        )
