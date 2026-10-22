@@ -1,3 +1,4 @@
+import os
 from flask import Flask, jsonify
 from config import RAG_HOST, RAG_PORT
 from flask import Flask, jsonify, request

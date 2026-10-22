@@ -1,0 +1,261 @@
+[
+  {
+    "section": "Shared",
+    "check": "Ollama responds",
+    "expected": "200",
+    "actual": "200 in 53ms",
+    "result": "PASS"
+  },
+  {
+    "section": "Shared",
+    "check": "RAG server responds",
+    "expected": "200",
+    "actual": "200 in 2ms",
+    "result": "PASS"
+  },
+  {
+    "section": "Shared",
+    "check": "MCP server /health responds",
+    "expected": "200",
+    "actual": "200 in 3ms",
+    "result": "PASS"
+  },
+  {
+    "section": "Shared",
+    "check": "Multi-Agent server /health responds",
+    "expected": "200",
+    "actual": "200 in 28ms",
+    "result": "PASS"
+  },
+  {
+    "section": "Shared",
+    "check": "MCP tools/list",
+    "expected": "tools registered",
+    "actual": "23 tools",
+    "result": "PASS"
+  },
+  {
+    "section": "Shared",
+    "check": "RAG out-of-scope question",
+    "expected": "insufficient_context",
+    "actual": "insufficient_context in 26ms",
+    "result": "PASS"
+  },
+  {
+    "section": "Shared",
+    "check": "AI-Mode/MCP/RAG/Multi-Agent not Compose services",
+    "expected": "none",
+    "actual": "none",
+    "result": "PASS"
+  },
+  {
+    "section": "Student 1 - Customer Feedback & Reviews",
+    "check": "Backend responds",
+    "expected": "200",
+    "actual": "200 in 11ms",
+    "result": "PASS"
+  },
+  {
+    "section": "Student 1 - Customer Feedback & Reviews",
+    "check": "Own tools on shared MCP server",
+    "expected": "at least 1",
+    "actual": "get_menu_item_feedback, get_top_issues, get_reviews_needing_reply",
+    "result": "PASS"
+  },
+  {
+    "section": "Student 1 - Customer Feedback & Reviews",
+    "check": "MCP through backend",
+    "expected": "200 + result",
+    "actual": "200, 3 in 166ms",
+    "result": "PASS"
+  },
+  {
+    "section": "Student 1 - Customer Feedback & Reviews",
+    "check": "Multi-Agent through backend",
+    "expected": "reaches server",
+    "actual": "404 Workflow not found in 12ms",
+    "result": "PASS"
+  },
+  {
+    "section": "Student 1 - Customer Feedback & Reviews",
+    "check": "RAG grounded answer",
+    "expected": "sources + confidence",
+    "actual": "200, high, 3 sources in 16898ms",
+    "result": "PASS"
+  },
+  {
+    "section": "Student 1 - Customer Feedback & Reviews",
+    "check": "RAG insufficient context",
+    "expected": "insufficient_context",
+    "actual": "200, insufficient_context in 18ms",
+    "result": "PASS"
+  },
+  {
+    "section": "Student 2 - Menu & Recipe",
+    "check": "Backend responds",
+    "expected": "200",
+    "actual": "200 in 10ms",
+    "result": "PASS"
+  },
+  {
+    "section": "Student 2 - Menu & Recipe",
+    "check": "Own tools on shared MCP server",
+    "expected": "at least 1",
+    "actual": "get_menus, get_menu, get_menu_price, get_ingredients, get_ingredient, get_recipes, get_recipe, get_recipe_ingredients",
+    "result": "PASS"
+  },
+  {
+    "section": "Student 2 - Menu & Recipe",
+    "check": "MCP through backend",
+    "expected": "200 + result",
+    "actual": "200, get_recipes in 288ms",
+    "result": "PASS"
+  },
+  {
+    "section": "Student 2 - Menu & Recipe",
+    "check": "Multi-Agent through backend",
+    "expected": "reaches server",
+    "actual": "404 Workflow not found in 13ms",
+    "result": "PASS"
+  },
+  {
+    "section": "Student 2 - Menu & Recipe",
+    "check": "RAG grounded answer",
+    "expected": "sources + confidence",
+    "actual": "200, high, 2 sources in 173ms",
+    "result": "PASS"
+  },
+  {
+    "section": "Student 2 - Menu & Recipe",
+    "check": "RAG insufficient context",
+    "expected": "insufficient_context",
+    "actual": "200, insufficient_context in 16ms",
+    "result": "PASS"
+  },
+  {
+    "section": "Student 3 - Inventory & Restocking",
+    "check": "Backend responds",
+    "expected": "200",
+    "actual": "200 in 8ms",
+    "result": "PASS"
+  },
+  {
+    "section": "Student 3 - Inventory & Restocking",
+    "check": "Own tools on shared MCP server",
+    "expected": "at least 1",
+    "actual": "get_inventory_items, get_low_stock_items, get_inventory_item, get_suppliers, get_restock_orders",
+    "result": "PASS"
+  },
+  {
+    "section": "Student 3 - Inventory & Restocking",
+    "check": "MCP through backend",
+    "expected": "200 + result",
+    "actual": "200, 8 in 181ms",
+    "result": "PASS"
+  },
+  {
+    "section": "Student 3 - Inventory & Restocking",
+    "check": "Multi-Agent through backend",
+    "expected": "reaches server",
+    "actual": "404 Workflow not found in 12ms",
+    "result": "PASS"
+  },
+  {
+    "section": "Student 3 - Inventory & Restocking",
+    "check": "RAG grounded answer",
+    "expected": "sources + confidence",
+    "actual": "200, high, 2 sources in 124ms",
+    "result": "PASS"
+  },
+  {
+    "section": "Student 3 - Inventory & Restocking",
+    "check": "RAG insufficient context",
+    "expected": "insufficient_context",
+    "actual": "200, insufficient in 15ms",
+    "result": "PASS"
+  },
+  {
+    "section": "Student 4 - Order & Kitchen Management",
+    "check": "Backend responds",
+    "expected": "200",
+    "actual": "200 in 87ms",
+    "result": "PASS"
+  },
+  {
+    "section": "Student 4 - Order & Kitchen Management",
+    "check": "Own tools on shared MCP server",
+    "expected": "at least 1",
+    "actual": "get_orders, get_order, get_kitchen_queue, get_order_status",
+    "result": "PASS"
+  },
+  {
+    "section": "Student 4 - Order & Kitchen Management",
+    "check": "MCP through backend",
+    "expected": "200 + result",
+    "actual": "200, 25 in 40ms",
+    "result": "PASS"
+  },
+  {
+    "section": "Student 4 - Order & Kitchen Management",
+    "check": "Multi-Agent through backend",
+    "expected": "reaches server",
+    "actual": "route not built yet",
+    "result": "NOT READY"
+  },
+  {
+    "section": "Student 4 - Order & Kitchen Management",
+    "check": "RAG grounded answer",
+    "expected": "sources + confidence",
+    "actual": "200, high, 3 sources in 122ms",
+    "result": "PASS"
+  },
+  {
+    "section": "Student 4 - Order & Kitchen Management",
+    "check": "RAG insufficient context",
+    "expected": "insufficient_context",
+    "actual": "200, insufficient_context in 13ms",
+    "result": "PASS"
+  },
+  {
+    "section": "Student 5 - Payment & Billing",
+    "check": "Backend responds",
+    "expected": "200",
+    "actual": "200 in 10ms",
+    "result": "PASS"
+  },
+  {
+    "section": "Student 5 - Payment & Billing",
+    "check": "Own tools on shared MCP server",
+    "expected": "at least 1",
+    "actual": "get_payment_records, get_payment_record, get_refund_records",
+    "result": "PASS"
+  },
+  {
+    "section": "Student 5 - Payment & Billing",
+    "check": "MCP through backend",
+    "expected": "200 + result",
+    "actual": "200, 1 in 46ms",
+    "result": "PASS"
+  },
+  {
+    "section": "Student 5 - Payment & Billing",
+    "check": "Multi-Agent through backend",
+    "expected": "reaches server",
+    "actual": "route not built yet",
+    "result": "NOT READY"
+  },
+  {
+    "section": "Student 5 - Payment & Billing",
+    "check": "RAG grounded answer",
+    "expected": "sources + confidence",
+    "actual": "200, medium, 1 sources in 403ms",
+    "result": "PASS"
+  },
+  {
+    "section": "Student 5 - Payment & Billing",
+    "check": "RAG insufficient context",
+    "expected": "insufficient_context",
+    "actual": "200, insufficient_context in 14ms",
+    "result": "PASS"
+  }
+]
