@@ -138,6 +138,55 @@
 
 </div>
 
+<!-- ============ shared Multi-Agent server (Release 2) ============ -->
+<section class="s4-panel pink" style="margin-top: 24px;">
+
+    <h3>Shared Multi-Agent Server</h3>
+    <p class="s4-panel-sub">
+        Planner → Worker → Reviewer run on the shared server over this
+        feature's live queue; the fourth stage is you.
+        <span class="s4-chip inline">{{ multi_agent_url }}</span>
+        <span class="s4-chip inline">not containerised</span>
+    </p>
+
+    <form hx-post="/ui/ai/multi-agent"
+          hx-target="#s4-ma"
+          hx-swap="innerHTML"
+          hx-indicator="#s4-ma-loading">
+
+        <div class="s4-field">
+            <label for="ma-task">What should the agents work on?</label>
+            <textarea id="ma-task" name="task" rows="2">{{ multi_agent_tasks[0] }}</textarea>
+        </div>
+
+        <button class="s4-btn pink" type="submit">Run the workflow</button>
+
+        <span id="s4-ma-loading" class="htmx-indicator s4-muted"
+              style="margin-left: 10px;">
+            three agents, one after the other — this takes a few minutes…
+        </span>
+    </form>
+
+    <div class="s4-suggestions">
+        {% for suggestion in multi_agent_tasks %}
+        <button type="button" class="s4-suggestion"
+                onclick="document.getElementById('ma-task').value = this.textContent.trim();">
+            {{ suggestion }}
+        </button>
+        {% endfor %}
+    </div>
+
+    <div id="s4-ma" style="margin-top: 18px;">
+        <p class="s4-muted">
+            The run stops at Human Review and waits. Nothing the agents
+            produce is applied to an order — a person approves, corrects,
+            partially accepts or rejects it, and that decision is recorded
+            with the time it was made.
+        </p>
+    </div>
+
+</section>
+
 <div id="s4-board"
      hx-get="/ui/kitchen/board"
      hx-trigger="load, every 15s, boardChanged from:body"

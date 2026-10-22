@@ -1025,3 +1025,143 @@ table.s4-table td.s4-num {
         grid-template-columns: 1fr;
     }
 }
+/* =====================================================================
+   Shared Multi-Agent panel                            (Release 2)
+
+   Four stages, read top to bottom. Each one is boxed so the reader can
+   see where one agent's output ends and the next one's begins; the
+   human stage is marked differently because it is the only one a
+   person is expected to act in.
+   ===================================================================== */
+
+.s4-btn.pink {
+    background-color: var(--s4-pink);
+}
+
+.s4-stage {
+    border: 2px solid var(--s4-line);
+    border-left-width: 6px;
+    border-radius: 14px;
+    padding: 16px 18px;
+    margin-bottom: 14px;
+    background-color: var(--s4-white);
+}
+
+.s4-stage.human {
+    border-color: var(--s4-pink-strong);
+    background-color: var(--s4-pink-soft);
+}
+
+.s4-stage h5 {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+
+    margin: 0 0 12px;
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.s4-stage h5 .s4-muted {
+    font-weight: 400;
+}
+
+.s4-stage-no {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+
+    background-color: var(--s4-pink);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.s4-stage-label {
+    margin: 14px 0 6px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--s4-muted);
+}
+
+.s4-stage-list {
+    margin: 0;
+    padding-left: 20px;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.s4-stage-list li {
+    margin-bottom: 4px;
+}
+
+/* The run's own status, and the two verdicts - the Reviewer's
+   recommendation and the human's decision. They are deliberately the
+   same shape, because the point of the panel is that the second one
+   can disagree with the first. */
+
+.s4-stage-state,
+.s4-rec {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 999px;
+    border: 2px solid var(--s4-line);
+
+    font-size: 12px;
+    font-weight: 700;
+    background-color: var(--s4-white);
+}
+
+.s4-stage-state.awaiting_human_review {
+    border-color: var(--s4-pink-strong);
+    background-color: var(--s4-pink-soft);
+}
+
+.s4-stage-state.running,
+.s4-stage-state.revising {
+    border-color: var(--s4-blue);
+    background-color: var(--s4-blue-soft);
+}
+
+.s4-stage-state.completed {
+    border-color: var(--s4-green);
+    background-color: var(--s4-green-soft);
+}
+
+.s4-stage-state.failed,
+.s4-stage-state.revision_failed {
+    border-color: var(--s4-red);
+    background-color: var(--s4-red-soft);
+}
+
+.s4-rec.approve {
+    border-color: var(--s4-green);
+    background-color: var(--s4-green-soft);
+}
+
+.s4-rec.partial_accept {
+    border-color: var(--s4-blue);
+    background-color: var(--s4-blue-soft);
+}
+
+.s4-rec.revise,
+.s4-rec.correct {
+    border-color: var(--s4-yellow);
+    background-color: var(--s4-yellow-soft);
+}
+
+.s4-rec.reject {
+    border-color: var(--s4-red);
+    background-color: var(--s4-red-soft);
+}
+
+.s4-decision-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}

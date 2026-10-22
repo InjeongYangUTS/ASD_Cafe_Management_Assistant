@@ -266,25 +266,30 @@ model"* — the context-management evidence is visible in the running app.
 
 ```bash
 cd student-4
-python -m pytest tests -q                     # 29 unit tests, no containers
+python -m pytest tests -q                     # 87 unit tests, no containers
 S4_DB_URL=http://localhost:7400 \
 S4_BACKEND_URL=http://localhost:8400 \
 S4_FRONTEND_URL=http://localhost:5400 \
-python -m pytest tests -q                     # 42 tests including integration
+python -m pytest tests -q                     # 100 tests including integration
 python agentic/loop.py                        # 16/16 probes
+python agentic/loop.py --mode release2        # the three Release 2 modes
 ```
 
 | File | Covers |
 | --- | --- |
 | `test_database_api.py` | every CRUD path, validation, cascade delete, total recalculation, stats |
 | `test_ai_mode.py` | queue metrics, priority ordering, at-risk detection, LLM parsing, Ollama-down fallback, prompt hygiene |
+| `test_ai_services.py` | the three shared-AI clients with no network at all — MCP transport discovery, RAG's three statuses, and the Multi-Agent client's decoding, pause handling and refusal to send a decision with no reason |
+| `test_access_control.py` | what a customer may and may not reach, fragment by fragment, including the human-review stage |
 | `test_integration.py` | the three containers, the three screens, a full create→read→update→status→delete round trip, illegal transitions, AI endpoint |
 
-`.github/workflows/student-4.yml` runs three jobs on every push that touches
-this folder: **unit-tests** (compile, pyflakes, seed validation, pytest) →
-**build** (all three images, in parallel) → **validate** (compose up, wait for
-health, integration tests, screen checks, agentic loop, logs uploaded as an
-artifact).
+`.github/workflows/student-4.yml` runs five jobs: **unit-tests** (compile,
+pyflakes, seed validation, pytest) → **build** (all three images, in
+parallel) → **validate** (compose up, wait for health, integration tests,
+screen checks, agentic loop) → **release2-review** (the `testing` and
+`cloud` review modes, which need no servers) → **post-commit tests**. A
+sixth job runs the `mcp`, `rag` and `multi-agent` modes on demand, because a
+GitHub runner has none of those three servers.
 
 ## 8. What I depend on, and what depends on me
 
@@ -293,6 +298,9 @@ artifact).
 | I call | Student 2 — Menu | `GET /api/menus` → `[{menu_id, name, price, available}]` |
 | I call | Student 3 — Inventory | `POST /api/inventory/check` and `/deduct` → `{available, shortages}` |
 | I call | Ollama | `POST /api/generate` |
+| I call | Shared MCP server (host, :5700) | `initialize` → `tools/list` → `tools/call` over streamable-http |
+| I call | Shared RAG server (host, :5600) | `POST /query` → grounded answer + the excerpts behind it |
+| I call | Shared Multi-Agent server (host, :5800) | `POST /workflows`, `GET /workflows/<id>`, `POST /workflows/<id>/human-review` |
 | Calls me | Student 5 — Payment | `GET /api/orders/<id>` for the total, `PUT /api/order-status/<id>` to mark COMPLETED after payment |
 | Shared | Authentication | `customer_id` / `customer_name` snapshotted onto the order |
 

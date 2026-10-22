@@ -1,11 +1,12 @@
 """
 Student 4 (Stella Kwon) - Order & Kitchen Management
-Unit tests for the two shared AI service clients (Release 1).
+Unit tests for the shared AI service clients - McpClient and RagClient
+(Release 1) and MultiAgentClient (Release 2).
 
-No network. Every HTTP call made by McpClient and RagClient is
-intercepted, so these run in CI with neither server present - which is
-the point, because both are deliberately non-containerised and a GitHub
-runner has neither.
+No network. Every HTTP call these clients make is intercepted, so they
+run in CI with none of the three servers present - which is the point,
+because all three are deliberately non-containerised and a GitHub
+runner has none of them.
 
 What is being pinned down:
 
@@ -18,6 +19,9 @@ What is being pinned down:
     * the RAG client passes the three statuses through unchanged -
       success, insufficient_context and unavailable - and never invents
       an answer of its own
+    * the Multi-Agent client decodes the agent outputs, treats the
+      human-review pause as a state rather than a timeout, and will not
+      send a decision that gives no reason
 """
 
 import importlib
@@ -540,4 +544,236 @@ def test_rag_health_marks_itself_non_containerised(ai_services, monkeypatch):
 
     assert health["reachable"] is True
     assert health["service"] == "shared-rag"
+    assert health["containerised"] is False
+
+
+# =====================================================================
+# MultiAgentClient - the four-stage workflow            (Release 2)
+#
+# The server runs Planner, Worker and Reviewer inside one POST and then
+# stops at awaiting_human_review. These pin down the three things that
+# are easy to get wrong about that: the agent outputs arrive as JSON
+# strings and have to be decoded, the pause is a state and not a
+# timeout, and a decision that is not an approval has to carry a reason
+# before it is sent anywhere.
+# =====================================================================
+
+import json as _json
+
+
+def workflow_record(status="awaiting_human_review", human_review=None,
+                    plan=None, worker=None, review=None):
+    """A record shaped the way the shared server really returns one."""
+    return {
+        "workflow_id": "wf-1234-5678",
+        "task": "Rank the open tickets.",
+        "evidence": {"open_order_count": 4},
+        "status": status,
+        "created_at": "2026-10-22T10:00:00+00:00",
+        "plan": _json.dumps(plan if plan is not None else {
+            "available_information": ["Four open tickets"],
+            "information_to_check": [],
+            "worker_steps": ["Rank them", "Name the at-risk ticket"],
+        }),
+        "worker_output": _json.dumps(worker if worker is not None else {
+            "result": "Work ORD-1042 first.",
+            "missing_information": [],
+            "evidence_used": ["ticket_sample"],
+        }),
+        "review": _json.dumps(review if review is not None else {
+            "assessment": "Follows the supplied scores.",
+            "issues": [],
+            "recommendation": "approve",
+            "reason": "No unsupported claims.",
+        }),
+        "human_review": human_review,
+        "history": [
+            {"timestamp": "2026-10-22T10:00:00+00:00",
+             "event": "workflow_started", "details": {}},
+            {"timestamp": "2026-10-22T10:03:00+00:00",
+             "event": "reviewer_completed", "details": {}},
+        ],
+    }
+
+
+def test_multi_agent_sends_the_task_and_the_evidence(ai_services, monkeypatch):
+    recorder = Recorder({"/workflows": FakeResponse(201, workflow_record())})
+    monkeypatch.setattr(ai_services.requests, "post", recorder.post)
+
+    ai_services.MultiAgentClient("http://ma.test").start(
+        "Rank the open tickets.", {"open_order_count": 4})
+
+    path, sent = recorder.calls[0]
+    assert path == "/workflows"
+    assert sent == {"task": "Rank the open tickets.",
+                    "evidence": {"open_order_count": 4}}
+
+
+def test_multi_agent_decodes_the_json_string_agent_outputs(ai_services,
+                                                           monkeypatch):
+    recorder = Recorder({"/workflows": FakeResponse(201, workflow_record())})
+    monkeypatch.setattr(ai_services.requests, "post", recorder.post)
+
+    result = ai_services.MultiAgentClient("http://ma.test").start("Rank them.")
+
+    # Not strings any more - the screen reads fields off these.
+    assert result["plan"]["worker_steps"] == ["Rank them",
+                                              "Name the at-risk ticket"]
+    assert result["worker_output"]["result"] == "Work ORD-1042 first."
+    assert result["review"]["recommendation"] == "approve"
+
+
+def test_multi_agent_keeps_prose_instead_of_crashing(ai_services, monkeypatch):
+    """An agent that ignored the JSON contract is a finding, not a fault."""
+    record = workflow_record()
+    record["plan"] = "I think we should look at the queue."
+    recorder = Recorder({"/workflows": FakeResponse(201, record)})
+    monkeypatch.setattr(ai_services.requests, "post", recorder.post)
+
+    result = ai_services.MultiAgentClient("http://ma.test").start("Rank them.")
+
+    assert result["plan"] == {"_text": "I think we should look at the queue."}
+    assert result["available"] is True
+
+
+def test_multi_agent_marks_the_pause_as_a_state_not_an_error(ai_services,
+                                                             monkeypatch):
+    recorder = Recorder({"/workflows": FakeResponse(201, workflow_record())})
+    monkeypatch.setattr(ai_services.requests, "post", recorder.post)
+
+    result = ai_services.MultiAgentClient("http://ma.test").start("Rank them.")
+
+    assert result["ok"] is True
+    assert result["awaiting_review"] is True
+    assert result["status_label"] == "Waiting for your decision"
+
+
+def test_multi_agent_polls_until_the_run_settles(ai_services, monkeypatch):
+    """A server that answers before the agents finish is still handled."""
+    running = workflow_record(status="running")
+    settled = workflow_record()
+
+    post = Recorder({"/workflows": FakeResponse(201, running)})
+    get = Recorder({"/workflows/wf-1234-5678": FakeResponse(200, settled)})
+    monkeypatch.setattr(ai_services.requests, "post", post.post)
+    monkeypatch.setattr(ai_services.requests, "get", get.get)
+    monkeypatch.setattr(ai_services.time, "sleep", lambda _s: None)
+
+    result = ai_services.MultiAgentClient("http://ma.test").start("Rank them.")
+
+    assert get.calls, "the client never polled"
+    assert result["status"] == "awaiting_human_review"
+
+
+def test_multi_agent_refuses_a_blank_task_without_calling_the_server(
+        ai_services, monkeypatch):
+    recorder = Recorder({})
+    monkeypatch.setattr(ai_services.requests, "post", recorder.post)
+
+    result = ai_services.MultiAgentClient("http://ma.test").start("   ")
+
+    assert result["ok"] is False
+    assert recorder.calls == []
+
+
+def test_multi_agent_outage_is_returned_not_raised(ai_services, monkeypatch):
+    recorder = Recorder({}, error_paths={"/workflows"})
+    monkeypatch.setattr(ai_services.requests, "post", recorder.post)
+
+    result = ai_services.MultiAgentClient("http://ma.test").start("Rank them.")
+
+    assert result["available"] is False
+    assert "not containerised" in result["reason"]
+
+
+def test_multi_agent_prefers_the_servers_own_message(ai_services, monkeypatch):
+    """"Workflow is not awaiting human review" beats "HTTP 400"."""
+    recorder = Recorder({"/workflows/wf-1/human-review": FakeResponse(
+        400, {"error": "Workflow is not awaiting human review."})})
+    monkeypatch.setattr(ai_services.requests, "post", recorder.post)
+
+    result = ai_services.MultiAgentClient("http://ma.test").submit_review(
+        "wf-1", "approve")
+
+    assert "not awaiting human review" in result["reason"]
+    assert "400" not in result["reason"]
+
+
+def test_multi_agent_handles_a_non_json_reply(ai_services, monkeypatch):
+    recorder = Recorder({"/workflows": FakeResponse(200, Ellipsis)})
+    monkeypatch.setattr(ai_services.requests, "post", recorder.post)
+
+    result = ai_services.MultiAgentClient("http://ma.test").start("Rank them.")
+
+    assert result["available"] is False
+    assert "not JSON" in result["reason"]
+
+
+def test_multi_agent_unknown_id_reads_as_a_sentence(ai_services, monkeypatch):
+    recorder = Recorder({})           # everything 404s
+    monkeypatch.setattr(ai_services.requests, "get", recorder.get)
+
+    result = ai_services.MultiAgentClient("http://ma.test").get("nope")
+
+    assert result["ok"] is False
+    assert "No workflow with id nope." == result["reason"]
+
+
+def test_multi_agent_refuses_an_unknown_decision(ai_services, monkeypatch):
+    recorder = Recorder({})
+    monkeypatch.setattr(ai_services.requests, "post", recorder.post)
+
+    result = ai_services.MultiAgentClient("http://ma.test").submit_review(
+        "wf-1", "maybe", "sure")
+
+    assert result["ok"] is False
+    assert recorder.calls == []
+
+
+@pytest.mark.parametrize("decision", ["correct", "reject", "partial_accept"])
+def test_multi_agent_requires_a_reason_for_a_non_approval(ai_services,
+                                                          monkeypatch,
+                                                          decision):
+    """The server only demands this for "correct". The screen demands it
+    for every decision that is not an approval, because a rejection with
+    no reason leaves whoever picks it up nothing to act on."""
+    recorder = Recorder({})
+    monkeypatch.setattr(ai_services.requests, "post", recorder.post)
+
+    result = ai_services.MultiAgentClient("http://ma.test").submit_review(
+        "wf-1", decision, "   ")
+
+    assert result["ok"] is False
+    assert "comment" in result["reason"]
+    assert recorder.calls == []
+
+
+def test_multi_agent_lets_an_approval_through_without_comments(ai_services,
+                                                               monkeypatch):
+    record = workflow_record(
+        status="completed",
+        human_review={"decision": "approve", "comments": "",
+                      "timestamp": "2026-10-22T10:09:00+00:00"})
+    recorder = Recorder({"/workflows/wf-1/human-review":
+                         FakeResponse(200, record)})
+    monkeypatch.setattr(ai_services.requests, "post", recorder.post)
+
+    result = ai_services.MultiAgentClient("http://ma.test").submit_review(
+        "wf-1", "approve")
+
+    assert result["decision_label"] == "Approved"
+    assert result["status"] == "completed"
+    assert result["awaiting_review"] is False
+
+
+def test_multi_agent_health_marks_itself_non_containerised(ai_services,
+                                                           monkeypatch):
+    recorder = Recorder({"/health": FakeResponse(
+        200, {"status": "ok", "service": "multi-agent-server"})})
+    monkeypatch.setattr(ai_services.requests, "get", recorder.get)
+
+    health = ai_services.MultiAgentClient("http://ma.test").health()
+
+    assert health["reachable"] is True
+    assert health["service"] == "multi-agent-server"
     assert health["containerised"] is False

@@ -50,6 +50,22 @@ OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.2")
 MCP_URL = os.environ.get("MCP_URL", "http://localhost:5700")
 RAG_URL = os.environ.get("RAG_URL", "http://localhost:5600")
 
+# Release 2 - the shared Multi-Agent server, shown the same way.
+MULTI_AGENT_URL = os.environ.get("MULTI_AGENT_URL", "http://localhost:5800")
+
+# Starting tasks for the Multi-Agent panel. Each one is a decision about
+# the live queue that a person would otherwise make unaided - the point
+# of the human-review stage is that they still make it, with the agents'
+# reasoning in front of them.
+MULTI_AGENT_TASKS = [
+    "Recommend the order the kitchen should work the open tickets in, "
+    "and say which ticket is most at risk of missing the service target.",
+    "Identify the station that is the bottleneck right now and recommend "
+    "one change to relieve it.",
+    "Review the open queue for any ticket that should be escalated to the "
+    "shift supervisor, and justify each one.",
+]
+
 # Starting questions for the RAG panel. The last one is deliberately
 # unanswerable, so the insufficient-context state can be demonstrated.
 RAG_SUGGESTIONS = [
@@ -61,6 +77,11 @@ RAG_SUGGESTIONS = [
 
 HTTP_TIMEOUT = float(os.environ.get("HTTP_TIMEOUT", 5))
 AI_HTTP_TIMEOUT = float(os.environ.get("AI_HTTP_TIMEOUT", 60))
+
+# Three agents on a local model, one after the other, inside a single
+# request. A minute is not enough; this is sized for the real thing.
+MULTI_AGENT_HTTP_TIMEOUT = float(
+    os.environ.get("MULTI_AGENT_HTTP_TIMEOUT", 480))
 
 STATION_LABELS = {
     "BAR": "Coffee & drinks",
@@ -312,6 +333,8 @@ def kitchen():
         mcp_url=MCP_URL,
         rag_url=RAG_URL,
         rag_suggestions=RAG_SUGGESTIONS,
+        multi_agent_url=MULTI_AGENT_URL,
+        multi_agent_tasks=MULTI_AGENT_TASKS,
     )
 
 
@@ -616,6 +639,91 @@ def ui_ai_rag():
 
     return render_template("partials/rag_panel.html",
                            result=result, question=question)
+
+
+# =====================================================================
+# HTMX partials - shared Multi-Agent server            (Release 2)
+#
+# Planner -> Worker -> Reviewer run on the shared server; the fourth
+# stage is the person at this screen. Like every other panel here, this
+# one talks only to student-4-backend - it has no address for the
+# Multi-Agent server and never calls it directly.
+#
+# All three routes render the same partial, so starting a run, reloading
+# one and deciding on one all leave the panel in a consistent state.
+# =====================================================================
+
+MULTI_AGENT_DECISIONS = ("approve", "correct", "partial_accept", "reject")
+
+
+def render_workflow(result=None, error=None, notice=None):
+    return render_template("partials/multiagent_panel.html",
+                           result=result, error=error, notice=notice)
+
+
+@app.post("/ui/ai/multi-agent")
+@staff_only_partial
+def ui_multi_agent_start():
+    """Run the three agents over the live kitchen queue."""
+    task = (request.form.get("task") or "").strip()
+
+    if not task:
+        return render_workflow(error="Describe what the agents should do.")
+
+    try:
+        result = call_backend(
+            "POST", "/api/ai/multi-agent/workflows",
+            timeout=MULTI_AGENT_HTTP_TIMEOUT, json={"task": task})
+    except BackendError as exc:
+        return render_workflow(error=exc.message)
+
+    return render_workflow(result=result)
+
+
+@app.get("/ui/ai/multi-agent/<workflow_id>")
+@staff_only_partial
+def ui_multi_agent_get(workflow_id):
+    """Reload one workflow, including its audit history."""
+    try:
+        result = call_backend(
+            "GET", "/api/ai/multi-agent/workflows/%s" % workflow_id,
+            timeout=AI_HTTP_TIMEOUT)
+    except BackendError as exc:
+        return render_workflow(error=exc.message)
+
+    return render_workflow(result=result)
+
+
+@app.post("/ui/ai/multi-agent/<workflow_id>/review")
+@staff_only_partial
+def ui_multi_agent_review(workflow_id):
+    """Submit the human decision, which is what releases the workflow.
+
+    A correction sends the work back to the Worker and then the Reviewer
+    again, so this request is as slow as the first one.
+    """
+    decision = (request.form.get("decision") or "").strip().lower()
+    comments = (request.form.get("comments") or "").strip()
+
+    if decision not in MULTI_AGENT_DECISIONS:
+        return render_workflow(error="Choose one of the four decisions.")
+
+    if decision != "approve" and not comments:
+        # Caught here as well as in the backend client, so the person
+        # gets the message without waiting on a round trip.
+        return render_workflow(
+            error="Say what is wrong before sending this back.")
+
+    try:
+        result = call_backend(
+            "POST",
+            "/api/ai/multi-agent/workflows/%s/human-review" % workflow_id,
+            timeout=MULTI_AGENT_HTTP_TIMEOUT,
+            json={"decision": decision, "comments": comments})
+    except BackendError as exc:
+        return render_workflow(error=exc.message)
+
+    return render_workflow(result=result)
 
 
 # =====================================================================
