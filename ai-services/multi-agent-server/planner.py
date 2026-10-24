@@ -59,6 +59,22 @@ STRICT RULES:
     unless those standards are explicitly supplied.
 23. Do not treat optional recipe enhancements as missing
     required information.
+24. When the task asks only whether information is provided,
+    worker_steps must check the presence of the requested fields.
+    Do not introduce accuracy, sufficiency, recipe standards,
+    or real-world verification requirements.
+
+IMPORTANT FINAL CHECK:
+If the user's task only asks whether information is provided,
+check the supplied evidence for the required fields.
+
+If every required field exists:
+- Set information_to_check to [].
+- Do not ask the Worker to verify accuracy.
+- Only instruct the Worker to confirm whether the requested
+  information is present.
+
+Do not list already-provided fields in information_to_check.    
 
 User task:
 {task}
@@ -140,6 +156,22 @@ RULES FOR JSON OUTPUT:
             raise ValueError(
                 f"Planner Agent returned an invalid '{field}' field."
             )
+
+    # Remove unnecessary checklist entries when nothing is missing
+    no_missing_phrases = {
+        "nothing to verify or identify as missing",
+        "nothing to check",
+        "none",
+        "no missing information",
+        "all required information is provided",
+    }
+
+    plan_data["information_to_check"] = [
+        item for item in plan_data["information_to_check"]
+        if item.strip().lower().rstrip(".") not in no_missing_phrases
+    ]
+
+    plan = json.dumps(plan_data, indent=2, ensure_ascii=False)
 
     return {
         "agent": "planner",
