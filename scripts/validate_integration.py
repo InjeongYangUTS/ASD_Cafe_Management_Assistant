@@ -62,7 +62,7 @@ STUDENTS = {
         "mcp": ("POST", "http://127.0.0.1:8400/api/ai/mcp", {}),
         "rag": ("http://127.0.0.1:8400/api/ai/rag", "What does the Order and Kitchen feature manage?"),
         "mcp_tools": ["get_orders", "get_order", "get_kitchen_queue", "get_order_status"],
-        "multi_agent": None},
+        "multi_agent": "http://127.0.0.1:8400/api/ai/multi-agent/workflows/%s"},
     5: {"feature": "Payment & Billing", "owner": "Ong Ath Vongnathi",
         "health": "http://127.0.0.1:8500/health",
         "mcp": ("POST", "http://127.0.0.1:8500/api/ai/mcp",
@@ -170,9 +170,11 @@ def check_multi_agent_route(report, section, route):
         return
 
     status, data, _, ms = http("GET", route % PROBE_WORKFLOW_ID, timeout=15)
-    reached = status == 404 and "workflow not found" in json.dumps(data).lower()
+    # Backends word the server's "not found" differently; Student 4 also answers it with 200.
+    body = json.dumps(data).lower()
+    reached = status in (200, 404) and ("workflow not found" in body or "no workflow with id" in body)
     if reached:
-        actual = "404 Workflow not found in %dms" % ms
+        actual = "%s Workflow not found in %dms" % (status, ms)
     else:
         actual = "%s in %dms" % (status or "unreachable", ms)
     report.add(section, "Multi-Agent through backend", "reaches server", actual,
