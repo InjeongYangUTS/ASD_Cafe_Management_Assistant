@@ -331,6 +331,13 @@
                 padding: 22px;
             }
         }
+
+            pre {
+            max-width: 100%;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+}
     </style>
 </head>
 
@@ -1054,6 +1061,7 @@
             document.getElementById("paymentRecords").hidden = true;
             document.getElementById("aiReviewCard").hidden = true;
             document.getElementById("sharedAiPanels").hidden = true;
+            document.getElementById("multiAgentCard").hidden = true;
             document.getElementById("refreshPaymentsButton").hidden = true;
 
             const backLink = document.getElementById("backDashboardLink");

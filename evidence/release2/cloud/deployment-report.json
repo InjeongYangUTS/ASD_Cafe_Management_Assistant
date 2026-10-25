@@ -1,0 +1,62 @@
+﻿{
+    "platform":  "Microsoft Azure Virtual Machine",
+    "status":  "success",
+    "deployed_at":  "2026-10-25T14:35:58.7852742+11:00",
+    "verified_at":  "2026-10-25T14:35:58.7852742+11:00",
+    "deployed_commit":  "fa84d01b571391aae37a87152d5234c948d745de",
+    "deployment_method":  "Manual deployment to Azure VM over SSH using the repository Docker Compose cloud configuration",
+    "workflow_run":  "https://github.com/InjeongYangUTS/ASD_Cafe_Management_Assistant/actions/runs/39826001754",
+    "workflow_run_purpose":  "Successful cloud configuration validation on main; Azure deployment itself was performed manually over SSH",
+    "frontend_url":  "http://20.211.100.153:5100",
+    "frontend_check":  {
+                           "result":  "pass",
+                           "status_code":  200,
+                           "checked_at":  "2026-10-25T14:35:58.7852742+11:00",
+                           "checked_from":  "External Windows client"
+                       },
+    "crud_checks":  [
+                        {
+                            "operation":  "create",
+                            "result":  "pass",
+                            "target":  "Student 5 cloud payment record",
+                            "evidence":  "Temporary payment ID 11 was created on the Azure-hosted database service"
+                        },
+                        {
+                            "operation":  "read",
+                            "result":  "pass",
+                            "target":  "Student 5 cloud payment record",
+                            "evidence":  "Payment ID 11 was retrieved with the expected values"
+                        },
+                        {
+                            "operation":  "update",
+                            "result":  "pass",
+                            "target":  "Student 5 cloud payment record",
+                            "evidence":  "Payment ID 11 status changed from pending to completed"
+                        },
+                        {
+                            "operation":  "delete",
+                            "result":  "pass",
+                            "target":  "Student 5 cloud payment record",
+                            "evidence":  "Payment ID 11 was deleted and the following read returned HTTP 404"
+                        }
+                    ],
+    "persistence_check":  {
+                              "result":  "pass",
+                              "action":  "Restarted the student-5-database container",
+                              "evidence":  "Payment ID 11 remained available with completed status after restart",
+                              "recovery_note":  "A connection reset occurred during restart; the health retry succeeded and the record remained available"
+                          },
+    "services":  {
+                     "ai_mode":  false,
+                     "mcp":  false,
+                     "rag":  false,
+                     "multi_agent":  false
+                 },
+    "baseline":  "Required cloud baseline with AI services disabled",
+    "bonus":  null,
+    "security":  {
+                     "credentials_committed":  false,
+                     "ssh_private_key_committed":  false,
+                     "secrets_source":  "Ignored .env.cloud file and local SSH key"
+                 }
+}

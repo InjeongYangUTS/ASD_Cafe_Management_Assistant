@@ -298,13 +298,12 @@ python -m pytest student-5/tests -v
 Current test result:
 
 ```text
-14 passed
+24 passed
 ```
 
 | Test file | Coverage |
 |---|---|
-| `test_database_api.py` | Health, create, read, update, delete, and required-field validation |
-| `test_backend_api.py` | Health, payment processing and validation, refunds, order-total validation, and Student 4 status integration |
+| `test_backend_api.py` | Health, payment validation, refunds, Student 4 integration, MCP, RAG, Multi-Agent workflows, human review forwarding, and cloud/CI feature controls |
 
 The tests use temporary or mocked database responses and do not modify the normal seeded database.
 
@@ -325,10 +324,36 @@ The implemented team integration is:
 The Student 5 database stores external order and customer identifiers as integers because foreign-key constraints cannot cross independent microservice databases.
 
 ---
+## 11. Release 2 AI integration
 
-## 11. Known limitations
+Student 5 integrates with the shared local AI services while keeping payment business logic inside its own backend.
 
-- The current frontend is intended for staff/admin use.
+| Service | Student 5 usage |
+|---|---|
+| MCP | Retrieves approved payment and refund data through `get_payment_records`, `get_payment_record`, and `get_refund_records`. |
+| RAG | Answers payment-policy and partial-refund questions using grounded project knowledge and source references. |
+| Multi-Agent | Coordinates Planner, Worker, and Reviewer stages to analyse anonymous payment aggregates before requesting a human decision. |
+| Ollama | Provides the local language model used by the shared RAG and Multi-Agent services. |
+
+Student 5 provides these integration endpoints:
+
+| Method | Path | Purpose |
+|---|---|---|
+| POST | `/api/ai/mcp` | Execute an approved Student 5 MCP tool |
+| POST | `/api/ai/rag` | Ask a grounded payment-policy question |
+| POST | `/api/ai/multi-agent` | Start a payment-operations review |
+| GET | `/api/ai/multi-agent/<workflow_id>` | Retrieve workflow status and evidence |
+| POST | `/api/ai/multi-agent/<workflow_id>/human-review` | Approve or reject the reviewed recommendation |
+
+The Multi-Agent request uses anonymous counts and totals rather than customer payment identities. AI output is advisory: it cannot process payments or refunds, and a human reviewer makes the final decision.
+
+The required cloud baseline disables Ollama, MCP, RAG, and Multi-Agent. These services are demonstrated locally because running local language models securely in the cloud requires additional compute, authentication, HTTPS, and private networking.
+
+---
+
+## 12. Known limitations
+
+- - The frontend supports staff payment management and a restricted customer payment mode, but direct backend role enforcement remains owned by the shared application.
 - Authentication and role enforcement belong to the shared team application and are not yet enforced directly by the Student 5 backend.
 - Customer-specific payment history is not currently filtered by an authenticated session.
 - Payment processing is simulated; it does not contact a real payment provider.
