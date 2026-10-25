@@ -1,0 +1,27 @@
+﻿{
+    "decision":  "go",
+    "decided_by":  "Ong Ath Vongnathi (Student 5)",
+    "decided_at":  "2026-10-25T14:36:09.8982278+11:00",
+    "scope":  "Release 2 required cloud baseline",
+    "based_on":  [
+                     "evidence/release2/cloud/deployment-report.json",
+                     "reports/release2/student-5-unit-test-results.md",
+                     "evidence/release2/multi-agent/student-5-human-review.json",
+                     "https://github.com/InjeongYangUTS/ASD_Cafe_Management_Assistant/actions/runs/39826001754"
+                 ],
+    "reasons":  [
+                    "The public Azure frontend returned HTTP 200",
+                    "Cloud create, read, update and delete checks passed",
+                    "Payment data persisted after the Student 5 database container restarted",
+                    "The required cloud baseline correctly keeps AI services disabled",
+                    "Student 5 passed all 24 automated tests"
+                ],
+    "blockers":  [
+
+                 ],
+    "known_limitations":  [
+                              "Azure deployment is manual; the current automated deployment job targets AWS",
+                              "MCP, RAG, Ollama and Multi-Agent are demonstrated locally and are disabled in the required cloud baseline",
+                              "The cloud endpoint uses HTTP for the university prototype rather than production HTTPS"
+                          ]
+}
