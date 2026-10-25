@@ -51,6 +51,28 @@ EXPECTED_EVENTS = ("workflow_started", "planner_completed",
 EVIDENCE_GLOB = "evidence/release2/multi-agent/*.json"
 
 
+# Each student wraps a workflow record differently. Student 4 writes
+# {server, status, workflow}; Student 5 writes {evidence_type, ...,
+# initial_workflow, final_workflow}. The mode reviews whatever the team
+# produces, so it looks for the record instead of demanding one shape -
+# a probe that only reads its own author's format reviews nothing but
+# its own author.
+WORKFLOW_KEYS = ("workflow", "final_workflow", "initial_workflow")
+
+
+def unwrap(data):
+    """The workflow record inside whatever envelope it arrived in."""
+    if not isinstance(data, dict):
+        return {}
+    for key in WORKFLOW_KEYS:
+        inner = data.get(key)
+        if isinstance(inner, dict) and inner.get("workflow_id"):
+            return inner
+    if data.get("workflow_id") and "history" in data:
+        return data
+    return {}
+
+
 def _completed_run():
     """The newest workflow record that reached a human decision.
 
@@ -65,8 +87,7 @@ def _completed_run():
                 ev.data = json.load(handle)
         except (ValueError, OSError):
             continue
-        workflow = ev.dig("workflow", default=ev.data)
-        if isinstance(workflow, dict) and workflow.get("human_review"):
+        if unwrap(ev.data).get("human_review"):
             return ev
     return None
 
@@ -78,13 +99,25 @@ def build_multiagent_probes(server_url, backend_url, ok, fail, Probe):
     backend = backend_url.rstrip("/")
 
     def record():
-        """The newest workflow record of any status."""
+        """The newest file that actually contains a workflow record.
+
+        Newest, not first: a file that holds no recognisable workflow is
+        skipped rather than chosen, so one teammate committing a
+        differently-shaped artefact cannot make this mode report twelve
+        failures against evidence that is in fact complete.
+        """
         ev = load_json(EVIDENCE_GLOB, "A multi-agent workflow record")
+        if ev.path is None or ev.error or unwrap(ev.data):
+            return ev
+        for path in newest_first(repo_glob(EVIDENCE_GLOB)):
+            candidate = load_json(relative(path), "A multi-agent workflow record")
+            if unwrap(candidate.data):
+                return candidate
         return ev
 
     def workflow_of(ev):
-        """Unwrap {server, status, workflow} or accept a bare workflow."""
-        return ev.dig("workflow", default=ev.data if isinstance(ev.data, dict) else {})
+        """Unwrap whichever envelope this record arrived in."""
+        return unwrap(ev.data)
 
     # ---------------- availability ----------------
 
