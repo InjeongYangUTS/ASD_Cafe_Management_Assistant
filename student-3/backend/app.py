@@ -21,6 +21,21 @@ ALLOWED_RESTOCK_STATUSES = {"Pending", "Ordered", "Delivered", "Cancelled"}
 ALLOWED_SUPPLIER_STATUSES = {"Active", "Inactive"}
 app = Flask(__name__)
 
+def service_enabled(name, default=True):
+    value = os.getenv(
+        name, str(default)
+    ).strip().lower()
+
+    return value in {"true", "1", "yes", "on"}
+
+
+def service_disabled(name):
+    return jsonify({
+        "success": False,
+        "disabled": True,
+        "message": f"{name} is disabled in this deployment."
+    }), 403
+
 
 @app.errorhandler(DatabaseError)
 def handle_database_error(exc):
@@ -54,10 +69,43 @@ def health():
     try:
         database = call_database("GET", "/db/health")
         status = "healthy"
+
     except DatabaseError as exc:
-        database = {"status": "unreachable", "detail": exc.message}
+        database = {
+            "status": "unreachable",
+            "detail": exc.message
+        }
         status = "degraded"
-    return jsonify({"service": "student-3-backend", "status": status, "database": database}), 200 if status == "healthy" else 503
+
+    ai_services = {
+        "ai_mode": (
+            "enabled"
+            if service_enabled("AI_MODE_ENABLED")
+            else "disabled"
+        ),
+        "mcp": (
+            "enabled"
+            if service_enabled("MCP_ENABLED")
+            else "disabled"
+        ),
+        "rag": (
+            "enabled"
+            if service_enabled("RAG_ENABLED")
+            else "disabled"
+        ),
+        "multi_agent": (
+            "enabled"
+            if service_enabled("MULTI_AGENT_ENABLED")
+            else "disabled"
+        )
+    }
+
+    return jsonify({
+        "service": "student-3-backend",
+        "status": status,
+        "database": database,
+        "ai_services": ai_services
+    }), 200 if status == "healthy" else 503
 
 
 @app.get("/api/dashboard")
@@ -268,69 +316,94 @@ def delete_restock_order(order_id):
 
 @app.post("/api/ai/restock-recommendation")
 def ai_restock_recommendation():
+    if not service_enabled("AI_MODE_ENABLED"):
+        return service_disabled("AI-Mode")
+
     body = request.get_json(silent=True) or {}
     question = str(body.get("question", "")).strip()
+
     if not question:
         return error("A question is required.")
-    inventory = call_database("GET", "/db/dashboard")["low_stock_items"]
+
+    inventory = call_database(
+        "GET", "/db/dashboard"
+    )["low_stock_items"]
+
     try:
-        return jsonify(run_agentic_workflow(inventory, question, save_log=True))
+        return jsonify(
+            run_agentic_workflow(
+                inventory,
+                question,
+                save_log=True
+            )
+        )
     except RuntimeError as exc:
         return error(str(exc), 503)
 
 @app.get("/api/mcp/test")
 def test_mcp():
-    try: 
+    if not service_enabled("MCP_ENABLED"):
+        return service_disabled("MCP")
+
+    try:
         result = call_mcp_tool(
             "get_low_stock_items"
         )
-        
+
         return jsonify(result)
-        
+
     except Exception as exc:
-        app.logger.exception("Student 3 MCP call failed")
-        
+        app.logger.exception(
+            "Student 3 MCP call failed"
+        )
+
         return jsonify({
-            "success": False, 
+            "success": False,
             "error": str(exc)
         }), 503
 
 @app.route("/api/rag/query", methods=["POST"])
 def rag_query():
+    if not service_enabled("RAG_ENABLED"):
+        return service_disabled("RAG")
+
     try:
         data = request.get_json() or {}
-        
-        question = data.get("question", "").strip()
-        
+
+        question = data.get(
+            "question", ""
+        ).strip()
+
         if not question:
             return jsonify({
                 "error": "Question is required"
             }), 400
-            
+
         result = query_rag(question)
-            
+
         return jsonify({
             "success": True,
             "answer": result.get("answer", ""),
             "sources": result.get("sources", []),
-            "confidence": result.get("confidence", "UNKNOWN"),
+            "confidence": result.get(
+                "confidence", "UNKNOWN"
+            ),
             "insufficient_context": result.get(
                 "insufficient_context",
                 False
             )
         })
-            
-    except Exception as e:
+
+    except Exception as exc:
         return jsonify({
             "success": False,
-            "error": str(e)
+            "error": str(exc)
         }), 500
-
 
 @app.post("/api/multi-agent/workflows")
 def create_inventory_multi_agent_workflow():
-    if os.getenv("MULTI_AGENT_ENABLED", "true").lower() != "true":
-        return error("Multi-Agent mode is disabled.", 403)
+    if not service_enabled("MULTI_AGENT_ENABLED"):
+        return service_disabled("Multi-Agent")
 
     body = request.get_json(silent=True)
     if not isinstance(body, dict):
@@ -357,8 +430,8 @@ def create_inventory_multi_agent_workflow():
 
 @app.get("/api/multi-agent/workflows/<workflow_id>")
 def inventory_multi_agent_workflow_details(workflow_id):
-    if os.getenv("MULTI_AGENT_ENABLED", "true").lower() != "true":
-        return error("Multi-Agent mode is disabled.", 403)
+    if not service_enabled("MULTI_AGENT_ENABLED"):
+        return service_disabled("Multi-Agent")
     try:
         result = get_inventory_workflow(workflow_id)
     except MultiAgentError as exc:
@@ -368,8 +441,8 @@ def inventory_multi_agent_workflow_details(workflow_id):
 
 @app.post("/api/multi-agent/workflows/<workflow_id>/human-review")
 def inventory_multi_agent_human_review(workflow_id):
-    if os.getenv("MULTI_AGENT_ENABLED", "true").lower() != "true":
-        return error("Multi-Agent mode is disabled.", 403)
+    if not service_enabled("MULTI_AGENT_ENABLED"):
+        return service_disabled("Multi-Agent")
     body = request.get_json(silent=True)
     if not isinstance(body, dict):
         return error("A JSON object is required.")

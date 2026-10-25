@@ -38,6 +38,9 @@ services:
 
   student-3-backend:
     environment:
+      AI_MODE_ENABLED: "false"
+      MCP_ENABLED: "false"
+      RAG_ENABLED: "false"
       MULTI_AGENT_ENABLED: "false"
 
   student-3-frontend:
