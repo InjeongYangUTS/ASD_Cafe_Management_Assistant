@@ -56,7 +56,10 @@ def read_text(*parts):
     path = repo_path(*parts)
     if not os.path.exists(path):
         return None
-    with open(path, "r", encoding="utf-8", errors="replace") as handle:
+    # utf-8-sig, not utf-8: a file written on Windows often carries a
+    # byte order mark, and refusing to read a file every other tool
+    # reads would be pedantry rather than review.
+    with open(path, "r", encoding="utf-8-sig", errors="replace") as handle:
         return handle.read()
 
 
@@ -78,6 +81,7 @@ class Evidence:
         self.expected = expected
         self.data = None
         self.error = None
+        self.notes = []
 
     def problem(self):
         """A reason this evidence cannot be reviewed, or None."""
@@ -143,9 +147,17 @@ def load_json(pattern, label, newest=True):
     if path is None:
         return ev
 
+    # A byte order mark makes a file invalid JSON by the letter of the
+    # spec, and most parsers ignore it anyway. Failing nine checks over
+    # an encoding artefact would hide whatever the file actually says,
+    # so it is read and the mark is reported as a note instead.
     try:
-        with open(path, "r", encoding="utf-8") as handle:
-            ev.data = json.load(handle)
+        with open(path, "rb") as handle:
+            raw = handle.read()
+        if raw.startswith(b"\xef\xbb\xbf"):
+            ev.notes.append("the file carries a UTF-8 byte order mark, "
+                            "which strict JSON parsers reject")
+        ev.data = json.loads(raw.decode("utf-8-sig"))
     except ValueError as exc:
         ev.error = "not valid JSON (%s)" % exc
     except OSError as exc:

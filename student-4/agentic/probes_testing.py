@@ -42,7 +42,14 @@ def build_testing_probes(ok, fail, Probe):
     """Return the Testing Review pack. ok/fail/Probe come from loop.py."""
 
     def pytest_reports():
-        return repo_glob("reports/release2/student-*-test-results.md")
+        # student-N-test-results.md only. A name like
+        # student-5-unit-test-results.md is somebody's unit test run,
+        # not the post-commit endpoint report this mode reviews, and
+        # judging it by these probes would be reporting a failure
+        # against work that was never in scope.
+        return [p for p in repo_glob("reports/release2/student-*-test-results.md")
+                if re.fullmatch(r"student-\d+-test-results\.md",
+                                os.path.basename(p))]
 
     def audit_rows():
         rows = {}

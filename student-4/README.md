@@ -266,11 +266,11 @@ model"* — the context-management evidence is visible in the running app.
 
 ```bash
 cd student-4
-python -m pytest tests -q                     # 87 unit tests, no containers
+python -m pytest tests -q                     # 107 unit tests, no containers
 S4_DB_URL=http://localhost:7400 \
 S4_BACKEND_URL=http://localhost:8400 \
 S4_FRONTEND_URL=http://localhost:5400 \
-python -m pytest tests -q                     # 100 tests including integration
+python -m pytest tests -q                     # 120 tests including integration
 python agentic/loop.py                        # 16/16 probes
 python agentic/loop.py --mode release2        # the three Release 2 modes
 ```
@@ -281,6 +281,7 @@ python agentic/loop.py --mode release2        # the three Release 2 modes
 | `test_ai_mode.py` | queue metrics, priority ordering, at-risk detection, LLM parsing, Ollama-down fallback, prompt hygiene |
 | `test_ai_services.py` | the three shared-AI clients with no network at all — MCP transport discovery, RAG's three statuses, and the Multi-Agent client's decoding, pause handling and refusal to send a decision with no reason |
 | `test_access_control.py` | what a customer may and may not reach, fragment by fragment, including the human-review stage |
+| `test_ai_switches.py` | the cloud baseline: with a flag off the route never calls the service, and health reports "off" rather than "down" |
 | `test_integration.py` | the three containers, the three screens, a full create→read→update→status→delete round trip, illegal transitions, AI endpoint |
 
 `.github/workflows/student-4.yml` runs five jobs: **unit-tests** (compile,
